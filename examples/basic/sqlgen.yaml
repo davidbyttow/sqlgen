@@ -1,0 +1,8 @@
+input:
+  dialect: postgres
+  paths:
+    - schema.sql
+
+output:
+  dir: models
+  package: models

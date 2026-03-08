@@ -1,0 +1,7 @@
+input:
+  dialect: postgres
+  dsn: ${DATABASE_URL}
+
+output:
+  dir: models
+  package: models

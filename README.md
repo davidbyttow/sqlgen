@@ -1,0 +1,357 @@
+# sqlgen
+
+Database-first code generator for Go. Point it at your Postgres DDL files or a live database and it spits out type-safe models, CRUD operations, query builders, and relationship loading.
+
+Inspired by [SQLBoiler](https://github.com/volatiletech/sqlboiler), [Bob](https://github.com/stephenafamo/bob), and [jOOQ](https://www.jooq.org/), rebuilt from scratch.
+
+### Lineage
+
+**jOOQ** (Java) pioneered the database-first, generated-code approach to query building. sqlgen borrows several of its core ideas:
+
+- **Schema drives the code.** jOOQ reads your database schema and generates Java classes. sqlgen does the same for Go, from either DDL files or a live database connection.
+- **Per-column type-safe predicates.** jOOQ generates `USERS.EMAIL.eq("x")`. sqlgen generates `UserWhere.Email.EQ("x")`. Same concept, same compile-time safety, different syntax shaped by Go's type system.
+- **Generated metadata objects.** jOOQ gives you `Table` and `Field` references for every schema object. sqlgen generates `UserColumns.Email`, `UserTableName`, and typed filter structs that serve the same purpose.
+- **Composable query building.** jOOQ chains methods; sqlgen composes `QueryMod` functions. Both let you build queries piece by piece without string concatenation.
+- **The database is the source of truth.** Both reject the "code defines schema" ORM pattern. Your tables, types, and constraints are defined in SQL, and the generated code reflects them exactly.
+
+Where sqlgen diverges: jOOQ is a full query DSL that covers nearly all of SQL. sqlgen is more opinionated, generating CRUD and relationship loading with a thinner query builder. jOOQ targets Java (and Kotlin/Scala); sqlgen targets Go. And while jOOQ requires a JDBC connection, sqlgen supports both live database introspection *and* offline DDL parsing (using PostgreSQL's actual C parser via pg_query_go).
+
+## Install
+
+```bash
+go install github.com/davidbyttow/sqlgen/cmd/sqlgen@latest
+```
+
+Requires Go 1.23+ and cgo (the Postgres parser wraps libpg_query via [pg_query_go](https://github.com/pganalyze/pg_query_go)).
+
+## Quick Start
+
+Two ways to feed sqlgen your schema: DDL files (no database required) or a live Postgres connection.
+
+### Option A: From DDL files
+
+1. Write your schema in plain SQL:
+
+```sql
+CREATE TYPE post_status AS ENUM ('draft', 'published', 'archived');
+
+CREATE TABLE users (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    email TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL,
+    bio TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE posts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    author_id UUID NOT NULL REFERENCES users(id),
+    title TEXT NOT NULL,
+    body TEXT NOT NULL,
+    status post_status NOT NULL DEFAULT 'draft',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    published_at TIMESTAMPTZ
+);
+```
+
+2. Create `sqlgen.yaml`:
+
+```yaml
+input:
+  dialect: postgres
+  paths:
+    - schema.sql
+
+output:
+  dir: models
+  package: models
+```
+
+3. Generate:
+
+```bash
+sqlgen generate
+```
+
+That's it. You'll get a `models/` directory with fully typed Go code.
+
+### Option B: From a live database
+
+Point sqlgen at a running Postgres instance. It queries `information_schema` and `pg_catalog` to build the same IR that DDL parsing produces, so the generated code is identical either way.
+
+1. Create `sqlgen.yaml`:
+
+```yaml
+input:
+  dialect: postgres
+  dsn: ${DATABASE_URL}
+
+output:
+  dir: models
+  package: models
+```
+
+The DSN supports environment variable expansion, so you can keep credentials out of the config file.
+
+2. Generate:
+
+```bash
+export DATABASE_URL="postgres://user:pass@localhost:5432/mydb?sslmode=disable"
+sqlgen generate
+```
+
+See `examples/introspect/` for a working example.
+
+## Generated API
+
+### Models
+
+Each table becomes a Go struct. Column types map to their Go equivalents. Nullable columns use `runtime.Null[T]` by default.
+
+```go
+type User struct {
+    ID        string          `json:"id" db:"id"`
+    Email     string          `json:"email" db:"email"`
+    Name      string          `json:"name" db:"name"`
+    Bio       runtime.Null[string] `json:"bio" db:"bio"`
+    CreatedAt time.Time       `json:"created_at" db:"created_at"`
+
+    R *UserRels `json:"-" db:"-"`
+}
+```
+
+Every model also gets:
+- `UserTableName` constant (`"users"`)
+- `UserColumns` struct with column name constants
+- `UserSlice` type alias (`[]*User`)
+- `ScanRow` method for scanning from `*sql.Row` or `*sql.Rows`
+
+### Column Constants
+
+Safe column name references, useful for building queries or referencing column names without string literals:
+
+```go
+models.UserColumns.ID        // "id"
+models.UserColumns.Email     // "email"
+models.UserColumns.CreatedAt // "created_at"
+```
+
+### Type-Safe Where Clauses
+
+Each table gets a `<Model>Where` variable with per-column filter builders. These return `runtime.QueryMod` values you can compose freely.
+
+```go
+q := models.Users(
+    models.UserWhere.Email.EQ("alice@example.com"),
+    runtime.Limit(1),
+)
+
+sql, args := q.BuildSelect()
+// SELECT "id", "email", "name", "bio", "created_at"
+//   FROM "users" WHERE "email" = $1 LIMIT 1
+// args: ["alice@example.com"]
+```
+
+Available filter methods per column:
+- `EQ`, `NEQ`, `LT`, `LTE`, `GT`, `GTE`
+- `IN` (variadic)
+- `IsNull`, `IsNotNull` (nullable columns only)
+
+### Composing Queries
+
+Stack multiple mods. WHERE clauses are ANDed together.
+
+```go
+q := models.Posts(
+    models.PostWhere.Status.EQ(models.PostStatusPublished),
+    models.PostWhere.AuthorID.EQ("some-uuid"),
+    runtime.OrderBy("published_at DESC"),
+    runtime.Limit(10),
+    runtime.Offset(20),
+)
+```
+
+Other available mods: `GroupBy`, `Having`, `Join`, `LeftJoin`.
+
+### CRUD Operations
+
+Generated functions for each table:
+
+```go
+// Query builders
+models.Users(mods...)            // SELECT with mods
+models.FindUser(ctx, db, id)     // Find by primary key
+models.AllUsers(ctx, db)         // SELECT all rows
+models.UserExists(ctx, db, id)   // Returns bool
+models.UserCount(ctx, db)        // COUNT(*)
+
+// Mutations
+user.Insert(ctx, db)   // INSERT with RETURNING
+user.Update(ctx, db)   // UPDATE by PK
+user.Delete(ctx, db)   // DELETE by PK
+user.Upsert(ctx, db)   // INSERT ON CONFLICT DO UPDATE
+```
+
+All mutations accept a `context.Context` and a `runtime.Executor` (which `*sql.DB` and `*sql.Tx` both satisfy).
+
+### Enums
+
+SQL enums become type-safe Go string types:
+
+```go
+status := models.PostStatusDraft     // "draft"
+status.IsValid()                     // true
+status.String()                      // "draft"
+models.AllPostStatusValues()         // []PostStatus{"draft", "published", "archived"}
+
+// Implements sql.Scanner and driver.Valuer for DB round-tripping.
+```
+
+### Hooks
+
+Register lifecycle hooks per model:
+
+```go
+models.AddUserHook(runtime.BeforeInsert, func(ctx context.Context) (context.Context, error) {
+    log.Println("about to insert a user")
+    return ctx, nil
+})
+```
+
+9 hook points: `BeforeInsert`, `AfterInsert`, `BeforeUpdate`, `AfterUpdate`, `BeforeDelete`, `AfterDelete`, `BeforeUpsert`, `AfterUpsert`, `AfterSelect`.
+
+Skip hooks on a per-call basis via context:
+
+```go
+ctx := runtime.SkipHooks(context.Background())
+user.Insert(ctx, db) // hooks won't fire
+```
+
+### Relationships
+
+sqlgen infers relationships from foreign keys:
+
+- **BelongsTo**: `posts.author_id -> users.id` gives `Post.R.User`
+- **HasMany**: inverse of the above gives `User.R.Posts`
+- **HasOne**: FK with a unique constraint
+- **ManyToMany**: detected via join tables (composite PK, 2 FKs, no extra columns)
+
+Relationship fields live on the `R` struct:
+
+```go
+type UserRels struct {
+    Posts []*Post  // HasMany
+}
+
+type PostRels struct {
+    User *User     // BelongsTo
+    Tags []*Tag    // ManyToMany (via post_tags)
+}
+```
+
+### Null Types
+
+The `runtime.Null[T]` generic type wraps nullable columns:
+
+```go
+user := models.User{
+    Bio: runtime.NewNull("Writes Go."),
+}
+
+user.Bio.Valid    // true
+user.Bio.Val      // "Writes Go."
+user.Bio.Ptr()    // *string pointing to "Writes Go."
+user.Bio.Clear()  // sets Valid = false
+
+// JSON: marshals to value or null
+// SQL: implements Scanner and Valuer
+```
+
+## Configuration
+
+Full `sqlgen.yaml` reference:
+
+```yaml
+input:
+  dialect: postgres          # only "postgres" for now
+
+  # Option A: parse DDL files (no database needed)
+  paths:                     # SQL files or directories
+    - schema.sql
+    - migrations/
+
+  # Option B: connect to a live database (mutually exclusive with paths)
+  # dsn: ${DATABASE_URL}
+
+output:
+  dir: models                # output directory
+  package: models            # Go package name
+
+types:
+  null: generic              # "generic" (Null[T]), "pointer" (*T), or "database" (sql.NullString)
+  replacements:              # override DB type -> Go type
+    uuid: "github.com/google/uuid.UUID"
+    jsonb: "encoding/json.RawMessage"
+
+tables:
+  audit_logs:
+    skip: true               # exclude from generation
+  users:
+    name: Account            # override struct name
+    columns:
+      email:
+        name: EmailAddress   # override field name
+        type: "net/mail.Address"  # override Go type
+```
+
+### Null Type Strategies
+
+Three options for how nullable columns are represented:
+
+| Strategy | Null column | Example |
+|----------|-------------|---------|
+| `generic` (default) | `runtime.Null[T]` | `Bio runtime.Null[string]` |
+| `pointer` | `*T` | `Bio *string` |
+| `database` | `sql.NullXxx` | `Bio sql.NullString` |
+
+## Watch Mode
+
+Re-generate automatically when your SQL files change:
+
+```bash
+sqlgen watch
+```
+
+Uses fsnotify with 200ms debounce. Watches all `.sql` files referenced in your config.
+
+## How It Works
+
+1. **Parse**: DDL files are parsed by pg_query_go (PostgreSQL 17's actual C parser compiled to Go via cgo). Alternatively, a live database is introspected via `information_schema` and `pg_catalog`.
+2. **Schema IR**: The parsed result is converted to an intermediate representation (tables, columns, constraints, enums, views)
+3. **Resolve**: Foreign keys are walked to infer relationships (belongs-to, has-many, has-one, many-to-many)
+4. **Generate**: Go templates produce type-safe code for each table, enum, and relationship
+5. **Format**: goimports cleans up the output
+
+Generated files are prefixed with `sqlgen_` and contain a `DO NOT EDIT` header. When you drop a table from your DDL, the corresponding generated files get cleaned up automatically on the next run.
+
+## Project Structure
+
+```
+sqlgen/
+  cmd/sqlgen/       CLI (generate, watch commands)
+  schema/           Schema IR types and DDL parsing
+    postgres/       Postgres-specific parser (pg_query_go)
+  gen/              Code generation engine and templates
+  runtime/          Minimal runtime library imported by generated code
+  config/           YAML config parsing
+  internal/         Naming utilities (case conversion, pluralization)
+```
+
+## Status
+
+v1. Postgres only. Go only.
+
+Planned:
+- Custom query support (name a `.sql` file, get a type-safe Go function)
+- More dialects (MySQL, SQLite)
+- More target languages
