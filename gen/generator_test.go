@@ -57,13 +57,19 @@ func TestGeneratorEndToEnd(t *testing.T) {
 		"sqlgen_organizations_crud.go",
 		"sqlgen_organizations_hooks.go",
 		"sqlgen_organizations_where.go",
+		"sqlgen_organizations_loaders.go",
 		"sqlgen_users_model.go",
 		"sqlgen_users_crud.go",
+		"sqlgen_users_loaders.go",
 		"sqlgen_posts_model.go",
+		"sqlgen_posts_loaders.go",
 		"sqlgen_tags_model.go",
+		"sqlgen_tags_loaders.go",
 		"sqlgen_post_tags_model.go",
 		"sqlgen_audit_log_model.go",
+		"sqlgen_audit_log_loaders.go",
 		"sqlgen_categories_model.go",
+		"sqlgen_categories_loaders.go",
 	}
 
 	fileSet := make(map[string]bool)

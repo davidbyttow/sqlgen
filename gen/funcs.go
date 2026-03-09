@@ -140,6 +140,16 @@ func TemplateFuncs(mapper *TypeMapper) template.FuncMap {
 		"relHasMany":    func() schema.RelationType { return schema.RelHasMany },
 		"relManyToMany": func() schema.RelationType { return schema.RelManyToMany },
 
+		// findTable looks up a table by name from the full schema table list.
+		"findTable": func(tables []*schema.Table, name string) *schema.Table {
+			for _, t := range tables {
+				if t.Name == name {
+					return t
+				}
+			}
+			return nil
+		},
+
 		// relFieldName generates a unique, descriptive field name for a relationship.
 		"relFieldName": func(rel *schema.Relationship, table *schema.Table) string {
 			isSelfRef := rel.ForeignTable == table.Name

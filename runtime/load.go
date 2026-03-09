@@ -9,6 +9,34 @@ import (
 // Loader handles eager loading of relationships via separate queries.
 // Generated code creates specific loaders per relationship; this provides the building blocks.
 
+// EagerLoadRequest represents a request to eagerly load a relationship.
+type EagerLoadRequest struct {
+	Name   string             // Relationship name (e.g., "Posts", "User")
+	Mods   []QueryMod         // Optional mods to apply to the loading query
+	Nested []*EagerLoadRequest // Nested loads (e.g., "Posts.Tags")
+}
+
+// Load creates an EagerLoadRequest. Supports dot-notation for nested loading.
+// Optional QueryMods filter the loaded relationship.
+func Load(name string, mods ...QueryMod) *EagerLoadRequest {
+	parts := strings.SplitN(name, ".", 2)
+	req := &EagerLoadRequest{
+		Name: parts[0],
+		Mods: mods,
+	}
+	if len(parts) > 1 {
+		// Nested: "Posts.Tags" -> Load("Posts") with nested Load("Tags")
+		// Mods only apply to the leaf when using dot notation.
+		req.Mods = nil
+		req.Nested = []*EagerLoadRequest{{Name: parts[1], Mods: mods}}
+	}
+	return req
+}
+
+// LoadFunc is the signature for generated loader functions.
+// It takes the parent models, exec, dialect, and loads, then populates .R fields.
+type LoadFunc func(ctx context.Context, exec Executor, dialect Dialect, parentModels any, loads []*EagerLoadRequest) error
+
 // LoadMany executes a query to load related records for a set of parent PKs.
 // It returns the raw rows; generated code handles scanning and assignment.
 func LoadMany(ctx context.Context, exec Executor, dialect Dialect, table string, fkCol string, parentIDs []any) (*sql.Rows, error) {

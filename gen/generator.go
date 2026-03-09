@@ -136,6 +136,20 @@ func (g *Generator) Run() error {
 		if err := g.generateFile("where.go.tmpl", whereData, outDir, fmt.Sprintf("sqlgen_%s_where.go", snakeName), generated); err != nil {
 			return fmt.Errorf("generating where for %s: %w", table.Name, err)
 		}
+
+		// Loaders (only for tables with relationships)
+		if len(table.Relationships) > 0 {
+			loaderImports := g.collectLoaderImports()
+			loaderData := map[string]any{
+				"Package":   pkg,
+				"Table":     table,
+				"Imports":   loaderImports.FormatBlock(),
+				"AllTables": g.schema.Tables,
+			}
+			if err := g.generateFile("loaders.go.tmpl", loaderData, outDir, fmt.Sprintf("sqlgen_%s_loaders.go", snakeName), generated); err != nil {
+				return fmt.Errorf("generating loaders for %s: %w", table.Name, err)
+			}
+		}
 	}
 
 	// Stale file cleanup.
@@ -209,6 +223,14 @@ func (g *Generator) collectCRUDImports(table *schema.Table) *ImportSet {
 		imports.AddGoType(gt)
 	}
 
+	return imports
+}
+
+func (g *Generator) collectLoaderImports() *ImportSet {
+	imports := NewImportSet()
+	imports.Add("context")
+	imports.Add("fmt")
+	imports.Add(runtimePkg)
 	return imports
 }
 

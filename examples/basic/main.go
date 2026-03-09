@@ -108,4 +108,26 @@ func main() {
 	// Each model has a <Model>Columns var for safe column references.
 	fmt.Printf("\nUser columns: ID=%q, Email=%q, CreatedAt=%q\n",
 		models.UserColumns.ID, models.UserColumns.Email, models.UserColumns.CreatedAt)
+
+	// --- Eager Loading API ---
+	// After fetching models, use .LoadRelations() to batch-load relationships.
+	// This avoids N+1 queries by using WHERE IN (...) for the entire slice.
+	//
+	// Example (requires a real DB connection):
+	//   users, _ := models.AllUsers(ctx, db)
+	//   users.LoadRelations(ctx, db, runtime.Load("Posts"))
+	//
+	// Nested loading with dot notation:
+	//   users.LoadRelations(ctx, db, runtime.Load("Posts.Tags"))
+	//
+	// Multiple relationships at once:
+	//   posts, _ := models.AllPosts(ctx, db)
+	//   posts.LoadRelations(ctx, db, runtime.Load("User"), runtime.Load("Tags"))
+
+	// Demonstrate the Load helper constructs the right request.
+	load := runtime.Load("Posts.Tags")
+	fmt.Printf("\nEager load request: Name=%q, Nested=%v\n", load.Name, load.Nested != nil)
+	if len(load.Nested) > 0 {
+		fmt.Printf("  Nested: Name=%q\n", load.Nested[0].Name)
+	}
 }
