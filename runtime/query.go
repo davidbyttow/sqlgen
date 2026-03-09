@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"io"
+	"os"
 	"strings"
 )
 
@@ -30,11 +32,15 @@ type Query struct {
 	having     []wherePart
 	joins      []joinPart
 	args       []any
+	distinct   bool
+	distinctOn []string
 }
 
 type wherePart struct {
-	clause string
-	args   []any
+	clause      string
+	args        []any
+	conjunction string     // "AND" or "OR"
+	group       []wherePart // if non-nil, this is a grouped expression
 }
 
 type joinPart struct {
@@ -67,7 +73,46 @@ func Select(cols ...string) QueryMod {
 // Use dialect-appropriate placeholders in the clause.
 func Where(clause string, args ...any) QueryMod {
 	return func(q *Query) {
-		q.whereParts = append(q.whereParts, wherePart{clause: clause, args: args})
+		q.whereParts = append(q.whereParts, wherePart{clause: clause, args: args, conjunction: "AND"})
+	}
+}
+
+// Or adds a WHERE clause joined with OR instead of AND.
+func Or(clause string, args ...any) QueryMod {
+	return func(q *Query) {
+		q.whereParts = append(q.whereParts, wherePart{clause: clause, args: args, conjunction: "OR"})
+	}
+}
+
+// Expr creates a parenthesized group of conditions from the given mods.
+// Only WHERE-related mods (Where, Or) are meaningful inside an Expr.
+func Expr(mods ...QueryMod) QueryMod {
+	return func(q *Query) {
+		// Build a temporary query to collect the where parts.
+		tmp := &Query{}
+		for _, mod := range mods {
+			mod(tmp)
+		}
+		if len(tmp.whereParts) > 0 {
+			q.whereParts = append(q.whereParts, wherePart{
+				conjunction: "AND",
+				group:       tmp.whereParts,
+			})
+		}
+	}
+}
+
+// Distinct adds DISTINCT to the SELECT clause.
+func Distinct() QueryMod {
+	return func(q *Query) {
+		q.distinct = true
+	}
+}
+
+// DistinctOn adds DISTINCT ON (cols...) to the SELECT clause (Postgres-specific).
+func DistinctOn(cols ...string) QueryMod {
+	return func(q *Query) {
+		q.distinctOn = cols
 	}
 }
 
@@ -120,6 +165,27 @@ func LeftJoin(table, on string, args ...any) QueryMod {
 	}
 }
 
+// RightJoin adds a RIGHT JOIN clause.
+func RightJoin(table, on string, args ...any) QueryMod {
+	return func(q *Query) {
+		q.joins = append(q.joins, joinPart{joinType: "RIGHT JOIN", table: table, on: on, args: args})
+	}
+}
+
+// FullJoin adds a FULL JOIN clause.
+func FullJoin(table, on string, args ...any) QueryMod {
+	return func(q *Query) {
+		q.joins = append(q.joins, joinPart{joinType: "FULL JOIN", table: table, on: on, args: args})
+	}
+}
+
+// CrossJoin adds a CROSS JOIN clause (no ON condition).
+func CrossJoin(table string) QueryMod {
+	return func(q *Query) {
+		q.joins = append(q.joins, joinPart{joinType: "CROSS JOIN", table: table})
+	}
+}
+
 // BuildSelect builds a SELECT query, returning the SQL string and args.
 func (q *Query) BuildSelect() (string, []any) {
 	var b strings.Builder
@@ -128,6 +194,13 @@ func (q *Query) BuildSelect() (string, []any) {
 
 	// SELECT
 	b.WriteString("SELECT ")
+	if len(q.distinctOn) > 0 {
+		b.WriteString("DISTINCT ON (")
+		b.WriteString(strings.Join(q.distinctOn, ", "))
+		b.WriteString(") ")
+	} else if q.distinct {
+		b.WriteString("DISTINCT ")
+	}
 	if len(q.selectCols) > 0 {
 		b.WriteString(strings.Join(q.selectCols, ", "))
 	} else {
@@ -144,23 +217,18 @@ func (q *Query) BuildSelect() (string, []any) {
 		b.WriteString(j.joinType)
 		b.WriteString(" ")
 		b.WriteString(j.table)
-		b.WriteString(" ON ")
-		clause, newArgs := q.rewritePlaceholders(j.on, j.args, &argIdx)
-		b.WriteString(clause)
-		args = append(args, newArgs...)
+		if j.on != "" {
+			b.WriteString(" ON ")
+			clause, newArgs := q.rewritePlaceholders(j.on, j.args, &argIdx)
+			b.WriteString(clause)
+			args = append(args, newArgs...)
+		}
 	}
 
 	// WHERE
 	if len(q.whereParts) > 0 {
 		b.WriteString(" WHERE ")
-		for i, wp := range q.whereParts {
-			if i > 0 {
-				b.WriteString(" AND ")
-			}
-			clause, newArgs := q.rewritePlaceholders(wp.clause, wp.args, &argIdx)
-			b.WriteString(clause)
-			args = append(args, newArgs...)
-		}
+		q.renderWhereParts(&b, q.whereParts, &argIdx, &args)
 	}
 
 	// GROUP BY
@@ -349,6 +417,26 @@ func BuildUpsert(dialect Dialect, table string, cols []string, vals []any, confl
 	return b.String(), vals
 }
 
+// renderWhereParts writes a list of where parts to the builder, handling conjunctions and groups.
+func (q *Query) renderWhereParts(b *strings.Builder, parts []wherePart, argIdx *int, args *[]any) {
+	for i, wp := range parts {
+		if i > 0 {
+			b.WriteString(" ")
+			b.WriteString(wp.conjunction)
+			b.WriteString(" ")
+		}
+		if wp.group != nil {
+			b.WriteString("(")
+			q.renderWhereParts(b, wp.group, argIdx, args)
+			b.WriteString(")")
+		} else {
+			clause, newArgs := q.rewritePlaceholders(wp.clause, wp.args, argIdx)
+			b.WriteString(clause)
+			*args = append(*args, newArgs...)
+		}
+	}
+}
+
 // rewritePlaceholders replaces ? with dialect-specific placeholders, tracking global arg index.
 func (q *Query) rewritePlaceholders(clause string, clauseArgs []any, argIdx *int) (string, []any) {
 	if !strings.Contains(clause, "?") {
@@ -418,3 +506,72 @@ func Exists(ctx context.Context, exec Executor, dialect Dialect, table string, m
 }
 
 func intPtr(n int) *int { return &n }
+
+// RawQueryResult holds a raw SQL query and its arguments.
+type RawQueryResult struct {
+	query string
+	args  []any
+}
+
+// RawSQL creates a RawQueryResult from a raw SQL string and arguments.
+func RawSQL(query string, args ...any) *RawQueryResult {
+	return &RawQueryResult{query: query, args: args}
+}
+
+// SQL returns the raw SQL query and its arguments.
+func (r *RawQueryResult) SQL() (string, []any) {
+	return r.query, r.args
+}
+
+// Exec executes the raw query.
+func (r *RawQueryResult) Exec(ctx context.Context, exec Executor) (sql.Result, error) {
+	return exec.ExecContext(ctx, r.query, r.args...)
+}
+
+// QueryRows executes the raw query and returns rows.
+func (r *RawQueryResult) QueryRows(ctx context.Context, exec Executor) (*sql.Rows, error) {
+	return exec.QueryContext(ctx, r.query, r.args...)
+}
+
+// QueryRow executes the raw query and returns a single row.
+func (r *RawQueryResult) QueryRow(ctx context.Context, exec Executor) *sql.Row {
+	return exec.QueryRowContext(ctx, r.query, r.args...)
+}
+
+// DebugExecutor wraps an Executor and prints SQL before executing.
+type DebugExecutor struct {
+	Exec   Executor
+	Writer io.Writer
+}
+
+// Debug creates a DebugExecutor that logs to os.Stderr.
+func Debug(exec Executor) *DebugExecutor {
+	return &DebugExecutor{Exec: exec, Writer: os.Stderr}
+}
+
+// DebugTo creates a DebugExecutor that logs to the given writer.
+func DebugTo(exec Executor, w io.Writer) *DebugExecutor {
+	return &DebugExecutor{Exec: exec, Writer: w}
+}
+
+func (d *DebugExecutor) logQuery(query string, args ...any) {
+	fmt.Fprintf(d.Writer, "SQL: %s\nArgs: %v\n", query, args)
+}
+
+// ExecContext implements Executor.
+func (d *DebugExecutor) ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error) {
+	d.logQuery(query, args...)
+	return d.Exec.ExecContext(ctx, query, args...)
+}
+
+// QueryContext implements Executor.
+func (d *DebugExecutor) QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error) {
+	d.logQuery(query, args...)
+	return d.Exec.QueryContext(ctx, query, args...)
+}
+
+// QueryRowContext implements Executor.
+func (d *DebugExecutor) QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row {
+	d.logQuery(query, args...)
+	return d.Exec.QueryRowContext(ctx, query, args...)
+}
