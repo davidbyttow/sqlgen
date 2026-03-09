@@ -107,6 +107,38 @@ output:
 	}
 }
 
+func TestParseTestsOption(t *testing.T) {
+	yaml := `
+input:
+  paths: [schema.sql]
+output:
+  dir: out
+  tests: true
+`
+	cfg, err := Parse([]byte(yaml))
+	if err != nil {
+		t.Fatalf("Parse() error: %v", err)
+	}
+	if !cfg.Output.Tests {
+		t.Error("output.tests should be true")
+	}
+
+	// Default should be false.
+	yaml = `
+input:
+  paths: [schema.sql]
+output:
+  dir: out
+`
+	cfg, err = Parse([]byte(yaml))
+	if err != nil {
+		t.Fatalf("Parse() error: %v", err)
+	}
+	if cfg.Output.Tests {
+		t.Error("output.tests should default to false")
+	}
+}
+
 func TestParseValidation(t *testing.T) {
 	tests := []struct {
 		name string

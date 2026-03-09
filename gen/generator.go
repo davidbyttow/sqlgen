@@ -82,6 +82,12 @@ func (g *Generator) Run() error {
 		if err := g.generateFile("enum.go.tmpl", data, outDir, filename, generated); err != nil {
 			return fmt.Errorf("generating enum %s: %w", enum.Name, err)
 		}
+		if g.cfg.Output.Tests {
+			testFilename := fmt.Sprintf("sqlgen_enum_%s_test.go", naming.ToSnake(enum.Name))
+			if err := g.generateFile("enum_test.go.tmpl", data, outDir, testFilename, generated); err != nil {
+				return fmt.Errorf("generating enum test %s: %w", enum.Name, err)
+			}
+		}
 	}
 
 	// Generate per-table files.
@@ -148,6 +154,17 @@ func (g *Generator) Run() error {
 			}
 			if err := g.generateFile("loaders.go.tmpl", loaderData, outDir, fmt.Sprintf("sqlgen_%s_loaders.go", snakeName), generated); err != nil {
 				return fmt.Errorf("generating loaders for %s: %w", table.Name, err)
+			}
+		}
+
+		// Tests (opt-in)
+		if g.cfg.Output.Tests {
+			testData := map[string]any{
+				"Package": pkg,
+				"Table":   table,
+			}
+			if err := g.generateFile("test.go.tmpl", testData, outDir, fmt.Sprintf("sqlgen_%s_test.go", snakeName), generated); err != nil {
+				return fmt.Errorf("generating tests for %s: %w", table.Name, err)
 			}
 		}
 	}

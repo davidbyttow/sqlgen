@@ -45,6 +45,9 @@ type OutputConfig struct {
 
 	// Package is the Go package name for generated code. Defaults to the dir basename.
 	Package string `yaml:"package"`
+
+	// Tests enables generation of _test.go files alongside models.
+	Tests bool `yaml:"tests"`
 }
 
 // NullType determines how nullable columns are represented in Go.

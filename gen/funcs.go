@@ -35,6 +35,30 @@ func TemplateFuncs(mapper *TypeMapper) template.FuncMap {
 		"goTypeObj": func(col *schema.Column) GoType {
 			return mapper.GoTypeFor(col)
 		},
+		// testZeroVal returns a valid zero value expression for a column's Go type, for use in generated tests.
+		"testZeroVal": func(col *schema.Column) string {
+			typeName := mapper.GoTypeFor(col).Name
+			// Enum columns: use empty string cast to the enum type.
+			if col.EnumName != "" {
+				return typeName + `("")`
+			}
+			switch typeName {
+			case "string":
+				return `""`
+			case "int16", "int32", "int64", "int", "float32", "float64":
+				return "0"
+			case "bool":
+				return "false"
+			default:
+				if strings.HasPrefix(typeName, "*") {
+					return "nil"
+				}
+				if strings.HasPrefix(typeName, "[]") {
+					return "nil"
+				}
+				return typeName + "{}"
+			}
+		},
 
 		// String helpers
 		"join":     strings.Join,
