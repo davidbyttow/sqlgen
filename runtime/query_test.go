@@ -370,6 +370,137 @@ func TestDebugExecutor(t *testing.T) {
 	}
 }
 
+func TestWhereIn(t *testing.T) {
+	d := PostgresDialect{}
+	q := NewQuery(d, "users",
+		WhereIn(`"id"`, "a", "b", "c"),
+	)
+	sql, args := q.BuildSelect()
+
+	want := `SELECT "users".* FROM "users" WHERE "id" IN ($1, $2, $3)`
+	if sql != want {
+		t.Errorf("got:\n  %s\nwant:\n  %s", sql, want)
+	}
+	if len(args) != 3 || args[0] != "a" || args[1] != "b" || args[2] != "c" {
+		t.Errorf("args = %v", args)
+	}
+}
+
+func TestWhereInEmpty(t *testing.T) {
+	d := PostgresDialect{}
+	q := NewQuery(d, "users",
+		WhereIn(`"id"`),
+	)
+	sql, args := q.BuildSelect()
+
+	want := `SELECT "users".* FROM "users"`
+	if sql != want {
+		t.Errorf("got:\n  %s\nwant:\n  %s", sql, want)
+	}
+	if len(args) != 0 {
+		t.Errorf("args = %v, want empty", args)
+	}
+}
+
+func TestBuildUpdateAll(t *testing.T) {
+	d := PostgresDialect{}
+	q := NewQuery(d, "users",
+		Where(`"active" = ?`, true),
+	)
+	sql, args := q.BuildUpdateAll(map[string]any{
+		"name":  "updated",
+		"email": "new@example.com",
+	})
+
+	want := `UPDATE "users" SET "email" = $1, "name" = $2 WHERE "active" = $3`
+	if sql != want {
+		t.Errorf("got:\n  %s\nwant:\n  %s", sql, want)
+	}
+	if len(args) != 3 || args[0] != "new@example.com" || args[1] != "updated" || args[2] != true {
+		t.Errorf("args = %v", args)
+	}
+}
+
+func TestBuildUpdateAllNoWhere(t *testing.T) {
+	d := PostgresDialect{}
+	q := NewQuery(d, "users")
+	sql, args := q.BuildUpdateAll(map[string]any{
+		"active": false,
+	})
+
+	want := `UPDATE "users" SET "active" = $1`
+	if sql != want {
+		t.Errorf("got:\n  %s\nwant:\n  %s", sql, want)
+	}
+	if len(args) != 1 || args[0] != false {
+		t.Errorf("args = %v", args)
+	}
+}
+
+func TestBuildDeleteAll(t *testing.T) {
+	d := PostgresDialect{}
+	q := NewQuery(d, "users",
+		Where(`"active" = ?`, false),
+	)
+	sql, args := q.BuildDeleteAll()
+
+	want := `DELETE FROM "users" WHERE "active" = $1`
+	if sql != want {
+		t.Errorf("got:\n  %s\nwant:\n  %s", sql, want)
+	}
+	if len(args) != 1 || args[0] != false {
+		t.Errorf("args = %v", args)
+	}
+}
+
+func TestBuildDeleteAllNoWhere(t *testing.T) {
+	d := PostgresDialect{}
+	q := NewQuery(d, "users")
+	sql, args := q.BuildDeleteAll()
+
+	want := `DELETE FROM "users"`
+	if sql != want {
+		t.Errorf("got:\n  %s\nwant:\n  %s", sql, want)
+	}
+	if len(args) != 0 {
+		t.Errorf("args = %v, want empty", args)
+	}
+}
+
+func TestBuildUpdateAllWithWhereIn(t *testing.T) {
+	d := PostgresDialect{}
+	q := NewQuery(d, "users",
+		WhereIn(`"id"`, 1, 2, 3),
+	)
+	sql, args := q.BuildUpdateAll(map[string]any{
+		"active": true,
+	})
+
+	want := `UPDATE "users" SET "active" = $1 WHERE "id" IN ($2, $3, $4)`
+	if sql != want {
+		t.Errorf("got:\n  %s\nwant:\n  %s", sql, want)
+	}
+	if len(args) != 4 || args[0] != true || args[1] != 1 || args[2] != 2 || args[3] != 3 {
+		t.Errorf("args = %v", args)
+	}
+}
+
+func TestBuildDeleteAllWithWhereIn(t *testing.T) {
+	d := PostgresDialect{}
+	q := NewQuery(d, "users",
+		WhereIn(`"id"`, 1, 2, 3),
+	)
+	sql, args := q.BuildDeleteAll()
+
+	want := `DELETE FROM "users" WHERE "id" IN ($1, $2, $3)`
+	if sql != want {
+		t.Errorf("got:\n  %s\nwant:\n  %s", sql, want)
+	}
+	if len(args) != 3 || args[0] != 1 || args[1] != 2 || args[2] != 3 {
+		t.Errorf("args = %v", args)
+	}
+}
+
 // mockExecutor is a no-op Executor for testing DebugExecutor.
 type mockExecutor struct{}
 

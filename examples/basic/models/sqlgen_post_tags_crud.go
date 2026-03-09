@@ -157,3 +157,37 @@ func PostTagExists(ctx context.Context, exec runtime.Executor, postID string, ta
 func CountPostTags(ctx context.Context, exec runtime.Executor, mods ...runtime.QueryMod) (int64, error) {
 	return runtime.Count(ctx, exec, dialect, PostTagTableName, mods...)
 }
+
+// UpdateAllPostTags updates all rows matching the given mods.
+// set is a map of column name -> new value.
+func UpdateAllPostTags(ctx context.Context, exec runtime.Executor, set map[string]any, mods ...runtime.QueryMod) (int64, error) {
+	q := runtime.NewQuery(dialect, PostTagTableName, mods...)
+	query, args := q.BuildUpdateAll(set)
+	result, err := exec.ExecContext(ctx, query, args...)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+// DeleteAllPostTags deletes all rows matching the given mods.
+func DeleteAllPostTags(ctx context.Context, exec runtime.Executor, mods ...runtime.QueryMod) (int64, error) {
+	q := runtime.NewQuery(dialect, PostTagTableName, mods...)
+	query, args := q.BuildDeleteAll()
+	result, err := exec.ExecContext(ctx, query, args...)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+// Reload refreshes the PostTag from the database using its primary key.
+func (o *PostTag) Reload(ctx context.Context, exec runtime.Executor) error {
+	q := runtime.NewQuery(dialect, PostTagTableName,
+		runtime.Where("\"post_id\" = ?", o.PostID),
+		runtime.Where("\"tag_id\" = ?", o.TagID),
+		runtime.Limit(1),
+	)
+	query, args := q.BuildSelect()
+	return o.ScanRow(exec.QueryRowContext(ctx, query, args...))
+}

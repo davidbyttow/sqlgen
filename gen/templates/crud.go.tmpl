@@ -192,3 +192,68 @@ func {{$structName}}Exists(ctx context.Context, exec runtime.Executor{{range .Ta
 func Count{{safePascal (plural (singular $tableName))}}(ctx context.Context, exec runtime.Executor, mods ...runtime.QueryMod) (int64, error) {
 	return runtime.Count(ctx, exec, dialect, {{$tableConst}}, mods...)
 }
+
+// UpdateAll{{safePascal (plural (singular $tableName))}} updates all rows matching the given mods.
+// set is a map of column name -> new value.
+func UpdateAll{{safePascal (plural (singular $tableName))}}(ctx context.Context, exec runtime.Executor, set map[string]any, mods ...runtime.QueryMod) (int64, error) {
+	q := runtime.NewQuery(dialect, {{$tableConst}}, mods...)
+	query, args := q.BuildUpdateAll(set)
+	result, err := exec.ExecContext(ctx, query, args...)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+// DeleteAll{{safePascal (plural (singular $tableName))}} deletes all rows matching the given mods.
+func DeleteAll{{safePascal (plural (singular $tableName))}}(ctx context.Context, exec runtime.Executor, mods ...runtime.QueryMod) (int64, error) {
+	q := runtime.NewQuery(dialect, {{$tableConst}}, mods...)
+	query, args := q.BuildDeleteAll()
+	result, err := exec.ExecContext(ctx, query, args...)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+{{- if .Table.PrimaryKey}}
+// Reload refreshes the {{$structName}} from the database using its primary key.
+func (o *{{$structName}}) Reload(ctx context.Context, exec runtime.Executor) error {
+	q := runtime.NewQuery(dialect, {{$tableConst}},
+{{- range .Table.PrimaryKey.Columns}}
+		runtime.Where("\"{{.}}\" = ?", o.{{pascal .}}),
+{{- end}}
+		runtime.Limit(1),
+	)
+	query, args := q.BuildSelect()
+	return o.ScanRow(exec.QueryRowContext(ctx, query, args...))
+}
+
+{{- if eq (len .Table.PrimaryKey.Columns) 1}}
+{{- $pkCol := index .Table.PrimaryKey.Columns 0}}
+
+// UpdateAll updates all models in the slice with the given column values.
+func (s {{$structName}}Slice) UpdateAll(ctx context.Context, exec runtime.Executor, set map[string]any) (int64, error) {
+	if len(s) == 0 {
+		return 0, nil
+	}
+	ids := make([]any, len(s))
+	for i, o := range s {
+		ids[i] = o.{{pascal $pkCol}}
+	}
+	return UpdateAll{{safePascal (plural (singular $tableName))}}(ctx, exec, set, runtime.WhereIn("\"{{$pkCol}}\"", ids...))
+}
+
+// DeleteAll deletes all models in the slice.
+func (s {{$structName}}Slice) DeleteAll(ctx context.Context, exec runtime.Executor) (int64, error) {
+	if len(s) == 0 {
+		return 0, nil
+	}
+	ids := make([]any, len(s))
+	for i, o := range s {
+		ids[i] = o.{{pascal $pkCol}}
+	}
+	return DeleteAll{{safePascal (plural (singular $tableName))}}(ctx, exec, runtime.WhereIn("\"{{$pkCol}}\"", ids...))
+}
+{{- end}}
+{{- end}}

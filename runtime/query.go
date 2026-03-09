@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sort"
 	"strings"
 )
 
@@ -81,6 +82,21 @@ func Where(clause string, args ...any) QueryMod {
 func Or(clause string, args ...any) QueryMod {
 	return func(q *Query) {
 		q.whereParts = append(q.whereParts, wherePart{clause: clause, args: args, conjunction: "OR"})
+	}
+}
+
+// WhereIn adds a WHERE col IN ($1, $2, ...) clause.
+func WhereIn(col string, vals ...any) QueryMod {
+	return func(q *Query) {
+		if len(vals) == 0 {
+			return
+		}
+		placeholders := make([]string, len(vals))
+		for i := range vals {
+			placeholders[i] = "?"
+		}
+		clause := col + " IN (" + strings.Join(placeholders, ", ") + ")"
+		q.whereParts = append(q.whereParts, wherePart{clause: clause, args: vals, conjunction: "AND"})
 	}
 }
 
@@ -270,6 +286,59 @@ func (q *Query) BuildSelect() (string, []any) {
 		b.WriteString(" OFFSET ")
 		b.WriteString(q.dialect.Placeholder(argIdx))
 		args = append(args, *q.offset)
+	}
+
+	return b.String(), args
+}
+
+// BuildUpdateAll builds an UPDATE ... SET ... WHERE ... query using the query's where parts.
+func (q *Query) BuildUpdateAll(set map[string]any) (string, []any) {
+	var b strings.Builder
+	var args []any
+	argIdx := 0
+
+	b.WriteString("UPDATE ")
+	b.WriteString(q.dialect.QuoteIdent(q.table))
+	b.WriteString(" SET ")
+
+	// Sort keys for deterministic output.
+	keys := make([]string, 0, len(set))
+	for k := range set {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	for i, col := range keys {
+		if i > 0 {
+			b.WriteString(", ")
+		}
+		argIdx++
+		b.WriteString(q.dialect.QuoteIdent(col))
+		b.WriteString(" = ")
+		b.WriteString(q.dialect.Placeholder(argIdx))
+		args = append(args, set[col])
+	}
+
+	if len(q.whereParts) > 0 {
+		b.WriteString(" WHERE ")
+		q.renderWhereParts(&b, q.whereParts, &argIdx, &args)
+	}
+
+	return b.String(), args
+}
+
+// BuildDeleteAll builds a DELETE FROM ... WHERE ... query using the query's where parts.
+func (q *Query) BuildDeleteAll() (string, []any) {
+	var b strings.Builder
+	var args []any
+	argIdx := 0
+
+	b.WriteString("DELETE FROM ")
+	b.WriteString(q.dialect.QuoteIdent(q.table))
+
+	if len(q.whereParts) > 0 {
+		b.WriteString(" WHERE ")
+		q.renderWhereParts(&b, q.whereParts, &argIdx, &args)
 	}
 
 	return b.String(), args

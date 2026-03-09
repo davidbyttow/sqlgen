@@ -1,17 +1,19 @@
 # sqlgen Gap Analysis: vs SQLBoiler & Bob
 
-Where we stand after v1, and what's worth building next.
+Where we stand after Phases 1-9, and what's worth building next.
 
 ## The Short Version
 
-sqlgen v1 covers the core loop: parse DDL (or introspect a live DB), generate typed models, CRUD, where clauses, enums, hooks, and relationship detection. That's roughly 60% of SQLBoiler's surface area and maybe 30% of Bob's. The gaps fall into a few buckets: query power, relationship operations, testing support, and developer ergonomics.
+sqlgen covers the core loop plus most of the high-impact features: DDL parsing, live DB introspection, typed models, CRUD, where clauses (with OR and grouping), enums, hooks, relationship detection, eager loading with dot-notation nesting, bulk operations, reload, raw SQL, and debug mode. That's roughly 80% of SQLBoiler's surface area and maybe 50% of Bob's.
+
+The remaining gaps are mostly about DX polish, testing infrastructure, and advanced query features.
 
 ---
 
 ## Feature Comparison Matrix
 
-| Feature | SQLBoiler | Bob | sqlgen v1 |
-|---------|-----------|-----|-----------|
+| Feature | SQLBoiler | Bob | sqlgen |
+|---------|-----------|-----|--------|
 | **Schema Input** | | | |
 | Live DB introspection | Yes (primary method) | Yes | Yes |
 | DDL file parsing | No | Yes (SQL file driver) | Yes (primary method) |
@@ -22,32 +24,34 @@ sqlgen v1 covers the core loop: parse DDL (or introspect a live DB), generate ty
 | CockroachDB | Yes (community) | No | No |
 | **Query Building** | | | |
 | SELECT with mods | Yes | Yes | Yes |
-| WHERE (AND/OR) | Yes (And, Or, Or2) | Yes | Partial (AND only) |
-| JOIN (all types) | 4 types | 5 types + lateral | 2 types (inner, left) |
+| WHERE (AND/OR) | Yes (And, Or, Or2) | Yes | **Yes** (Or, Expr grouping) |
+| JOIN (all types) | 4 types | 5 types + lateral | **Yes** (inner, left, right, full, cross) |
 | GROUP BY / HAVING | Yes | Yes | Yes |
 | ORDER BY | Yes | Yes (with nulls first/last) | Yes |
 | LIMIT / OFFSET | Yes | Yes (+ FETCH WITH TIES) | Yes |
-| DISTINCT / DISTINCT ON | Yes | Yes (Postgres DISTINCT ON) | No |
+| DISTINCT / DISTINCT ON | Yes | Yes (Postgres DISTINCT ON) | **Yes** |
+| WhereIn helper | Yes | Yes | **Yes** |
 | CTEs (WITH clause) | Yes | Yes (+ recursive) | No |
 | Subqueries | Yes | Yes | No |
 | UNION / INTERSECT / EXCEPT | No | Yes | No |
 | Window functions | No | Yes | No |
 | Row locking (FOR UPDATE) | Yes | Yes (4 lock types) | No |
-| Raw SQL escape hatch | Yes (qm.SQL, queries.Raw) | Yes (Raw, RawQuery) | No |
+| Raw SQL escape hatch | Yes (qm.SQL, queries.Raw) | Yes (Raw, RawQuery) | **Yes** (RawSQL) |
 | **Mutations** | | | |
 | Insert (single row) | Yes | Yes | Yes |
 | Insert (multi-row/batch) | No | Yes (Values, Rows) | No |
 | Insert from SELECT | No | Yes | No |
 | Update by PK | Yes | Yes | Yes |
-| Update (bulk/query-scoped) | Yes (UpdateAll) | Yes (UpdateAll) | No |
+| Update (bulk/query-scoped) | Yes (UpdateAll) | Yes (UpdateAll) | **Yes** (UpdateAll) |
 | Delete by PK | Yes | Yes | Yes |
-| Delete (bulk/query-scoped) | Yes (DeleteAll) | Yes (DeleteAll) | No |
+| Delete (bulk/query-scoped) | Yes (DeleteAll) | Yes (DeleteAll) | **Yes** (DeleteAll) |
 | Upsert | Yes (dialect-aware) | Yes (ON CONFLICT) | Yes (Postgres only) |
-| Reload from DB | Yes | Yes | No |
+| Reload from DB | Yes | Yes | **Yes** |
+| Slice UpdateAll/DeleteAll | Yes | Yes | **Yes** (single-column PK) |
 | **Relationships** | | | |
 | Detection (BelongsTo, Has*, M2M) | Yes | Yes | Yes |
-| Eager loading (single level) | Yes (qm.Load) | Yes (Preload, ThenLoad) | No (helpers exist, not generated) |
-| Eager loading (nested/recursive) | Yes (dot notation) | Yes (nested loaders) | No |
+| Eager loading (single level) | Yes (qm.Load) | Yes (Preload, ThenLoad) | **Yes** (LoadRelations) |
+| Eager loading (nested/recursive) | Yes (dot notation) | Yes (nested loaders) | **Yes** (dot notation) |
 | Filtered eager loading | Yes (mods on Load) | Yes (mods on ThenLoad) | No |
 | Relationship mutation (Set/Add/Remove) | Yes | Yes (Attach, Insert) | No |
 | Relationship query methods | No | Yes (returns TableQuery) | No |
@@ -71,7 +75,7 @@ sqlgen v1 covers the core loop: parse DDL (or introspect a live DB), generate ty
 | **Developer Experience** | | | |
 | Watch mode | No | No | Yes |
 | Stale file cleanup | No (--wipe flag) | No | Yes (automatic) |
-| Debug mode (print SQL) | Yes (boil.DebugMode) | Yes (bob.Debug) | No |
+| Debug mode (print SQL) | Yes (boil.DebugMode) | Yes (bob.Debug) | **Yes** (DebugExecutor) |
 | Global DB variant (no exec param) | Yes (MethodG) | No | No |
 | Panic variant | Yes (MethodP) | No | No |
 | Automatic timestamps | Yes (created_at/updated_at) | No | No |
@@ -87,144 +91,104 @@ sqlgen v1 covers the core loop: parse DDL (or introspect a live DB), generate ty
 
 ---
 
-## Priority Gaps (High Impact)
+## Completed (Phases 7-9)
 
-These are the features whose absence users will feel immediately when trying to use sqlgen for real work.
+These were the highest-impact gaps. All shipped.
 
-### 1. OR clauses and grouped conditions
-Right now every Where mod is ANDed. Can't express `WHERE (status = 'active' OR status = 'pending') AND org_id = ?`. SQLBoiler has `Or()`, `Or2()`, `Expr()` for grouping. Bob has `Or()`, `And()`, `Group()` expression builders.
-
-### 2. Eager loading (generated, not just helpers)
-The runtime has `LoadMany`, `LoadOne`, `LoadManyToMany`, but none of the generated code calls them. Users can't do `Users(Load("Posts"))` or anything equivalent. Both SQLBoiler and Bob generate this automatically. This is probably the single biggest missing piece.
-
-### 3. Bulk operations (UpdateAll, DeleteAll)
-Can't do "update all posts where status = draft" or "delete all expired sessions" without writing raw SQL. Both competitors generate query-scoped bulk mutations.
-
-### 4. Raw SQL escape hatch
-No way to drop down to raw SQL when the query builder doesn't cover your case. SQLBoiler has `queries.Raw()` and `qm.SQL()`. Bob has `RawQuery()` and `Raw()`.
-
-### 5. Reload
-No `user.Reload(ctx, db)` to refresh a model from the database after external changes. Both SQLBoiler and Bob have this.
-
-### 6. Debug mode
-No way to print the SQL being executed. Both competitors have this. Essential during development.
-
-### 7. Hook receives model
-Our hooks get `(ctx) -> (ctx, error)`. SQLBoiler passes `(ctx, exec, *Model)`. Bob passes `(ctx, exec, model)`. Without the model, hooks can't inspect or modify the row being mutated, which limits their usefulness to logging/tracing.
+- **OR clauses and Expr() grouping** - `Or("x = ?", 1)`, `Expr(Where(...), Or(...))` for parenthesized groups
+- **All 5 JOIN types** - inner, left, right, full, cross
+- **DISTINCT / DISTINCT ON** - including Postgres-specific DISTINCT ON
+- **Raw SQL escape hatch** - `RawSQL(query, args...)` with Exec/QueryRows/QueryRow
+- **Debug executor** - `Debug(exec)` / `DebugTo(exec, writer)` wraps any Executor
+- **Eager loading** - generated per-table loaders for all 4 relationship types, dot-notation nesting (`Load("Posts.Tags")`)
+- **Bulk UpdateAll / DeleteAll** - query-scoped and slice-scoped
+- **Reload** - `model.Reload(ctx, exec)` refreshes by PK
+- **WhereIn** - `WhereIn("col", vals...)` helper
 
 ---
 
-## Medium Priority Gaps
+## Remaining Gaps (Priority Order)
 
-Things that matter but aren't blockers for getting started.
+### High Impact
 
-### 8. Additional JOIN types
-Only inner and left join. Missing: right join, full outer join, cross join. SQLBoiler has 4, Bob has 5 plus lateral joins.
+**1. Hook receives model**
+Our hooks get `(ctx) -> (ctx, error)`. Both competitors pass the model pointer. Without it, hooks can't inspect or modify the row. This limits hooks to logging/tracing.
 
-### 9. DISTINCT / DISTINCT ON
-No distinct support at all. Postgres's DISTINCT ON is particularly useful.
+**2. Column whitelist/blacklist on mutations**
+Can't do partial updates ("update only name and email") or partial inserts ("insert everything except id"). SQLBoiler's `Whitelist`/`Blacklist`/`Infer` and Bob's `Only`/`Except` patterns handle this.
 
-### 10. Column selection on mutations
-Can't say "insert only these columns" or "update everything except these columns." SQLBoiler's `Whitelist`/`Blacklist`/`Infer` pattern is ergonomic for partial updates.
+**3. Filtered eager loading**
+Our `Load("Posts")` works, but can't filter: `Load("Posts", Where("status = ?", "published"))`. The `EagerLoadRequest.Mods` field exists but the generated loaders don't pass them through yet.
 
-### 11. Automatic timestamps
-SQLBoiler auto-manages `created_at` and `updated_at`. Common enough that not having it means every user writes the same hook.
+**4. Automatic timestamps**
+SQLBoiler auto-manages `created_at`/`updated_at`. Every project needs this; without it everyone writes the same hook.
 
-### 12. Struct tag customization
-Hardcoded to `json:"snake" db:"name"`. Users might want `yaml`, `toml`, `gorm`, camelCase JSON, or custom tags.
+### Medium Impact
 
-### 13. Custom type replacement by column name
-Our replacements only match by DB type name. SQLBoiler and Bob can match by column name, nullability, and other attributes. Useful for: "all columns named `metadata` should be `json.RawMessage`."
+**5. Struct tag customization**
+Hardcoded to `json:"snake" db:"name"`. Users want `yaml`, `toml`, camelCase JSON, or custom tags.
 
-### 14. Testing support
-No generated tests, no factory system. Bob's FactoryBot-inspired factories with faker integration are genuinely useful. SQLBoiler generates test files that run against a real DB.
+**6. Custom type replacement by column name**
+Replacements only match by DB type. Matching by column name/nullability is useful for: "all `metadata` columns → `json.RawMessage`."
 
-### 15. Cursor/streaming iteration
-For large result sets, loading everything into memory isn't great. Bob has `Cursor()` and `Each()` for streaming.
+**7. Testing support**
+No generated tests, no factory system. Bob's FactoryBot-inspired factories are genuinely useful for integration tests.
 
----
+**8. Cursor/streaming iteration**
+For large result sets. Bob has `Cursor()` and `Each()`.
 
-## Lower Priority (Nice to Have)
+**9. Relationship mutations (Set/Add/Remove)**
+Can't programmatically add/remove related records through the relationship API. Both competitors have this.
 
-### 16. CTEs (WITH clause)
-Both SQLBoiler and Bob support them. Useful for recursive queries and complex reporting.
+### Lower Impact
 
-### 17. UNION / INTERSECT / EXCEPT
-Bob supports all set operations. SQLBoiler doesn't.
-
-### 18. Row locking (FOR UPDATE/SHARE)
-Both competitors support this. Matters for transactional workflows.
-
-### 19. Window functions
-Only Bob has these. Probably not needed in generated code, more of a raw SQL thing.
-
-### 20. Soft deletes
-SQLBoiler has first-class support. Bob doesn't. Useful but opinionated; can be done with hooks.
-
-### 21. Custom templates
-Both competitors let users override/extend templates. Good for shops with specific conventions.
-
-### 22. Prepared statement support
-Only Bob has this. Performance optimization for hot paths.
-
-### 23. Query caching
-Only Bob has this. Same category.
-
-### 24. DB error matching
-Bob generates typed error matchers for constraint violations. Nice DX for handling unique conflicts, FK violations, etc.
+**10. CTEs (WITH clause)** - Useful for recursive queries.
+**11. Row locking (FOR UPDATE/SHARE)** - Needed for transactional workflows.
+**12. UNION / INTERSECT / EXCEPT** - Bob has these, SQLBoiler doesn't.
+**13. Soft deletes** - SQLBoiler has first-class support. Doable with hooks.
+**14. Custom templates** - Both competitors let users override templates.
+**15. DB error matching** - Bob generates typed constraint error matchers.
+**16. Prepared statement caching** - Performance optimization. Bob only.
+**17. Batch insert** - Multi-row INSERT. Bob only.
 
 ---
 
 ## What sqlgen Does That They Don't
 
-A few things we got right that the competitors missed or skipped:
-
-- **DDL parsing as primary input.** SQLBoiler requires a running database. Bob supports SQL files but it's a secondary driver. sqlgen treats DDL files as a first-class citizen, which means you can generate code in CI without a database.
-- **Watch mode.** Neither SQLBoiler nor Bob has file watching. We do.
-- **Automatic stale file cleanup.** Drop a table from your DDL, regenerate, and the old files disappear. SQLBoiler has `--wipe` (nuke everything). Bob has nothing.
-- **Built-in generic Null[T].** No external dependency. SQLBoiler uses `volatiletech/null`, Bob uses `aarondl/opt`. Our `Null[T]` is simpler and ships with the runtime.
-- **Env var expansion in DSN.** Small thing, but neither competitor does it.
+- **DDL parsing as primary input.** SQLBoiler requires a running database. sqlgen treats DDL files as first-class, so you can generate code in CI without a database.
+- **Watch mode.** Neither SQLBoiler nor Bob has file watching.
+- **Automatic stale file cleanup.** Drop a table, regenerate, old files disappear. SQLBoiler has `--wipe` (nukes everything). Bob has nothing.
+- **Built-in generic Null[T].** No external dependency. SQLBoiler uses `volatiletech/null`, Bob uses `aarondl/opt`.
+- **Env var expansion in DSN.** Neither competitor does it.
 
 ---
 
 ## Suggested Roadmap
 
-Based on impact and effort, here's a rough order for what to build next:
-
-**Phase 7: Query Power** (high impact, medium effort)
-- OR clauses and expression grouping
-- Raw SQL escape hatch
-- DISTINCT / DISTINCT ON
-- Right join, full outer join, cross join
-- Debug mode (print SQL + args)
-
-**Phase 8: Relationship Loading** (high impact, high effort)
-- Generated eager loading methods per relationship
-- `Load("Relationship")` query mod
-- Nested/dot-notation loading
-- Filtered eager loading (mods on the loaded relationship)
-
-**Phase 9: Bulk Operations + Reload** (high impact, medium effort)
-- Query-scoped `UpdateAll(ctx, exec, set)` and `DeleteAll(ctx, exec)`
-- `Reload(ctx, exec)` on model instances
-- Column whitelist/blacklist for mutations
-
-**Phase 10: Hooks v2 + Timestamps** (medium impact, low effort)
+**Phase 10: Hooks v2 + Timestamps** (high impact, low effort)
 - Pass model pointer to hooks: `func(ctx, exec, *Model) (ctx, error)`
 - Automatic `created_at`/`updated_at` management
 - `--no-hooks` generation flag
 
-**Phase 11: Developer Experience** (medium impact, medium effort)
+**Phase 11: Mutation Control + Filtered Loading** (high impact, medium effort)
+- Column whitelist/blacklist for Insert/Update
+- Wire `EagerLoadRequest.Mods` through generated loaders
+
+**Phase 12: Developer Experience** (medium impact, medium effort)
 - Struct tag customization (casing, extra tags)
 - Custom template support
 - Type replacement by column name/nullability
-- Debug executor wrapper
 
-**Phase 12: Testing Support** (medium impact, high effort)
+**Phase 13: Testing Support** (medium impact, high effort)
 - Generated test files
 - Factory system with random data generation
 - Typed DB error matchers
 
-**Phase 13: More Dialects** (high impact, high effort)
+**Phase 14: Advanced Query Features** (medium impact, medium effort)
+- CTEs (WITH clause)
+- Row locking (FOR UPDATE/SHARE)
+- Cursor/streaming iteration
+
+**Phase 15: More Dialects** (high impact, high effort)
 - MySQL driver
 - SQLite driver
