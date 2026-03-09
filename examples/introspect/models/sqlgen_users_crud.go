@@ -4,6 +4,7 @@ package models
 
 import (
 	"context"
+	"time"
 
 	"github.com/davidbyttow/sqlgen/runtime"
 )
@@ -53,17 +54,17 @@ func AllUsers(ctx context.Context, exec runtime.Executor, mods ...runtime.QueryM
 
 // Insert inserts the User into the database.
 func (o *User) Insert(ctx context.Context, exec runtime.Executor) error {
-	ctx, err := userHooks.RunIfEnabled(ctx, runtime.BeforeInsert)
+	ctx, err := userHooks.RunIfEnabled(ctx, exec, runtime.BeforeInsert, o)
 	if err != nil {
 		return err
 	}
+	o.CreatedAt = time.Now()
 	allCols := []string{"id", "email", "name", "bio", "created_at"}
 	allVals := []any{o.ID, o.Email, o.Name, o.Bio, o.CreatedAt}
 
 	returning := []string{"id", "email", "name", "bio", "created_at"}
 
 	query, args := runtime.BuildInsert(dialect, UserTableName, allCols, allVals, returning)
-
 	err = exec.QueryRowContext(ctx, query, args...).Scan(
 		&o.ID,
 		&o.Email,
@@ -74,14 +75,13 @@ func (o *User) Insert(ctx context.Context, exec runtime.Executor) error {
 	if err != nil {
 		return err
 	}
-
-	_, err = userHooks.RunIfEnabled(ctx, runtime.AfterInsert)
+	_, err = userHooks.RunIfEnabled(ctx, exec, runtime.AfterInsert, o)
 	return err
 }
 
 // Update updates the User in the database. Only non-PK columns are updated.
 func (o *User) Update(ctx context.Context, exec runtime.Executor) error {
-	ctx, err := userHooks.RunIfEnabled(ctx, runtime.BeforeUpdate)
+	ctx, err := userHooks.RunIfEnabled(ctx, exec, runtime.BeforeUpdate, o)
 	if err != nil {
 		return err
 	}
@@ -96,14 +96,13 @@ func (o *User) Update(ctx context.Context, exec runtime.Executor) error {
 	if err != nil {
 		return err
 	}
-
-	_, err = userHooks.RunIfEnabled(ctx, runtime.AfterUpdate)
+	_, err = userHooks.RunIfEnabled(ctx, exec, runtime.AfterUpdate, o)
 	return err
 }
 
 // Delete deletes the User from the database.
 func (o *User) Delete(ctx context.Context, exec runtime.Executor) error {
-	ctx, err := userHooks.RunIfEnabled(ctx, runtime.BeforeDelete)
+	ctx, err := userHooks.RunIfEnabled(ctx, exec, runtime.BeforeDelete, o)
 	if err != nil {
 		return err
 	}
@@ -116,14 +115,13 @@ func (o *User) Delete(ctx context.Context, exec runtime.Executor) error {
 	if err != nil {
 		return err
 	}
-
-	_, err = userHooks.RunIfEnabled(ctx, runtime.AfterDelete)
+	_, err = userHooks.RunIfEnabled(ctx, exec, runtime.AfterDelete, o)
 	return err
 }
 
 // Upsert inserts or updates the User based on the primary key.
 func (o *User) Upsert(ctx context.Context, exec runtime.Executor) error {
-	ctx, err := userHooks.RunIfEnabled(ctx, runtime.BeforeUpsert)
+	ctx, err := userHooks.RunIfEnabled(ctx, exec, runtime.BeforeUpsert, o)
 	if err != nil {
 		return err
 	}
@@ -134,7 +132,6 @@ func (o *User) Upsert(ctx context.Context, exec runtime.Executor) error {
 	returning := []string{"id", "email", "name", "bio", "created_at"}
 
 	query, args := runtime.BuildUpsert(dialect, UserTableName, allCols, allVals, conflictCols, updateCols, returning)
-
 	err = exec.QueryRowContext(ctx, query, args...).Scan(
 		&o.ID,
 		&o.Email,
@@ -145,8 +142,7 @@ func (o *User) Upsert(ctx context.Context, exec runtime.Executor) error {
 	if err != nil {
 		return err
 	}
-
-	_, err = userHooks.RunIfEnabled(ctx, runtime.AfterUpsert)
+	_, err = userHooks.RunIfEnabled(ctx, exec, runtime.AfterUpsert, o)
 	return err
 }
 
@@ -160,4 +156,61 @@ func UserExists(ctx context.Context, exec runtime.Executor, id string) (bool, er
 // CountUsers returns the count of rows matching the query mods.
 func CountUsers(ctx context.Context, exec runtime.Executor, mods ...runtime.QueryMod) (int64, error) {
 	return runtime.Count(ctx, exec, dialect, UserTableName, mods...)
+}
+
+// UpdateAllUsers updates all rows matching the given mods.
+// set is a map of column name -> new value.
+func UpdateAllUsers(ctx context.Context, exec runtime.Executor, set map[string]any, mods ...runtime.QueryMod) (int64, error) {
+	q := runtime.NewQuery(dialect, UserTableName, mods...)
+	query, args := q.BuildUpdateAll(set)
+	result, err := exec.ExecContext(ctx, query, args...)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+// DeleteAllUsers deletes all rows matching the given mods.
+func DeleteAllUsers(ctx context.Context, exec runtime.Executor, mods ...runtime.QueryMod) (int64, error) {
+	q := runtime.NewQuery(dialect, UserTableName, mods...)
+	query, args := q.BuildDeleteAll()
+	result, err := exec.ExecContext(ctx, query, args...)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+// Reload refreshes the User from the database using its primary key.
+func (o *User) Reload(ctx context.Context, exec runtime.Executor) error {
+	q := runtime.NewQuery(dialect, UserTableName,
+		runtime.Where("\"id\" = ?", o.ID),
+		runtime.Limit(1),
+	)
+	query, args := q.BuildSelect()
+	return o.ScanRow(exec.QueryRowContext(ctx, query, args...))
+}
+
+// UpdateAll updates all models in the slice with the given column values.
+func (s UserSlice) UpdateAll(ctx context.Context, exec runtime.Executor, set map[string]any) (int64, error) {
+	if len(s) == 0 {
+		return 0, nil
+	}
+	ids := make([]any, len(s))
+	for i, o := range s {
+		ids[i] = o.ID
+	}
+	return UpdateAllUsers(ctx, exec, set, runtime.WhereIn("\"id\"", ids...))
+}
+
+// DeleteAll deletes all models in the slice.
+func (s UserSlice) DeleteAll(ctx context.Context, exec runtime.Executor) (int64, error) {
+	if len(s) == 0 {
+		return 0, nil
+	}
+	ids := make([]any, len(s))
+	for i, o := range s {
+		ids[i] = o.ID
+	}
+	return DeleteAllUsers(ctx, exec, runtime.WhereIn("\"id\"", ids...))
 }

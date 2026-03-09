@@ -53,7 +53,7 @@ func AllPosts(ctx context.Context, exec runtime.Executor, mods ...runtime.QueryM
 
 // Insert inserts the Post into the database.
 func (o *Post) Insert(ctx context.Context, exec runtime.Executor) error {
-	ctx, err := postHooks.RunIfEnabled(ctx, runtime.BeforeInsert)
+	ctx, err := postHooks.RunIfEnabled(ctx, exec, runtime.BeforeInsert, o)
 	if err != nil {
 		return err
 	}
@@ -63,7 +63,6 @@ func (o *Post) Insert(ctx context.Context, exec runtime.Executor) error {
 	returning := []string{"id", "author_id", "title", "body", "published", "created_at"}
 
 	query, args := runtime.BuildInsert(dialect, PostTableName, allCols, allVals, returning)
-
 	err = exec.QueryRowContext(ctx, query, args...).Scan(
 		&o.ID,
 		&o.AuthorID,
@@ -75,14 +74,13 @@ func (o *Post) Insert(ctx context.Context, exec runtime.Executor) error {
 	if err != nil {
 		return err
 	}
-
-	_, err = postHooks.RunIfEnabled(ctx, runtime.AfterInsert)
+	_, err = postHooks.RunIfEnabled(ctx, exec, runtime.AfterInsert, o)
 	return err
 }
 
 // Update updates the Post in the database. Only non-PK columns are updated.
 func (o *Post) Update(ctx context.Context, exec runtime.Executor) error {
-	ctx, err := postHooks.RunIfEnabled(ctx, runtime.BeforeUpdate)
+	ctx, err := postHooks.RunIfEnabled(ctx, exec, runtime.BeforeUpdate, o)
 	if err != nil {
 		return err
 	}
@@ -97,14 +95,13 @@ func (o *Post) Update(ctx context.Context, exec runtime.Executor) error {
 	if err != nil {
 		return err
 	}
-
-	_, err = postHooks.RunIfEnabled(ctx, runtime.AfterUpdate)
+	_, err = postHooks.RunIfEnabled(ctx, exec, runtime.AfterUpdate, o)
 	return err
 }
 
 // Delete deletes the Post from the database.
 func (o *Post) Delete(ctx context.Context, exec runtime.Executor) error {
-	ctx, err := postHooks.RunIfEnabled(ctx, runtime.BeforeDelete)
+	ctx, err := postHooks.RunIfEnabled(ctx, exec, runtime.BeforeDelete, o)
 	if err != nil {
 		return err
 	}
@@ -117,14 +114,13 @@ func (o *Post) Delete(ctx context.Context, exec runtime.Executor) error {
 	if err != nil {
 		return err
 	}
-
-	_, err = postHooks.RunIfEnabled(ctx, runtime.AfterDelete)
+	_, err = postHooks.RunIfEnabled(ctx, exec, runtime.AfterDelete, o)
 	return err
 }
 
 // Upsert inserts or updates the Post based on the primary key.
 func (o *Post) Upsert(ctx context.Context, exec runtime.Executor) error {
-	ctx, err := postHooks.RunIfEnabled(ctx, runtime.BeforeUpsert)
+	ctx, err := postHooks.RunIfEnabled(ctx, exec, runtime.BeforeUpsert, o)
 	if err != nil {
 		return err
 	}
@@ -135,7 +131,6 @@ func (o *Post) Upsert(ctx context.Context, exec runtime.Executor) error {
 	returning := []string{"id", "author_id", "title", "body", "published", "created_at"}
 
 	query, args := runtime.BuildUpsert(dialect, PostTableName, allCols, allVals, conflictCols, updateCols, returning)
-
 	err = exec.QueryRowContext(ctx, query, args...).Scan(
 		&o.ID,
 		&o.AuthorID,
@@ -147,8 +142,7 @@ func (o *Post) Upsert(ctx context.Context, exec runtime.Executor) error {
 	if err != nil {
 		return err
 	}
-
-	_, err = postHooks.RunIfEnabled(ctx, runtime.AfterUpsert)
+	_, err = postHooks.RunIfEnabled(ctx, exec, runtime.AfterUpsert, o)
 	return err
 }
 

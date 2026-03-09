@@ -53,7 +53,7 @@ func AllTags(ctx context.Context, exec runtime.Executor, mods ...runtime.QueryMo
 
 // Insert inserts the Tag into the database.
 func (o *Tag) Insert(ctx context.Context, exec runtime.Executor) error {
-	ctx, err := tagHooks.RunIfEnabled(ctx, runtime.BeforeInsert)
+	ctx, err := tagHooks.RunIfEnabled(ctx, exec, runtime.BeforeInsert, o)
 	if err != nil {
 		return err
 	}
@@ -62,21 +62,19 @@ func (o *Tag) Insert(ctx context.Context, exec runtime.Executor) error {
 		[]any{o.Name},
 		[]string{"id"},
 	)
-
 	err = exec.QueryRowContext(ctx, query, args...).Scan(
 		&o.ID,
 	)
 	if err != nil {
 		return err
 	}
-
-	_, err = tagHooks.RunIfEnabled(ctx, runtime.AfterInsert)
+	_, err = tagHooks.RunIfEnabled(ctx, exec, runtime.AfterInsert, o)
 	return err
 }
 
 // Update updates the Tag in the database. Only non-PK columns are updated.
 func (o *Tag) Update(ctx context.Context, exec runtime.Executor) error {
-	ctx, err := tagHooks.RunIfEnabled(ctx, runtime.BeforeUpdate)
+	ctx, err := tagHooks.RunIfEnabled(ctx, exec, runtime.BeforeUpdate, o)
 	if err != nil {
 		return err
 	}
@@ -91,14 +89,13 @@ func (o *Tag) Update(ctx context.Context, exec runtime.Executor) error {
 	if err != nil {
 		return err
 	}
-
-	_, err = tagHooks.RunIfEnabled(ctx, runtime.AfterUpdate)
+	_, err = tagHooks.RunIfEnabled(ctx, exec, runtime.AfterUpdate, o)
 	return err
 }
 
 // Delete deletes the Tag from the database.
 func (o *Tag) Delete(ctx context.Context, exec runtime.Executor) error {
-	ctx, err := tagHooks.RunIfEnabled(ctx, runtime.BeforeDelete)
+	ctx, err := tagHooks.RunIfEnabled(ctx, exec, runtime.BeforeDelete, o)
 	if err != nil {
 		return err
 	}
@@ -111,14 +108,13 @@ func (o *Tag) Delete(ctx context.Context, exec runtime.Executor) error {
 	if err != nil {
 		return err
 	}
-
-	_, err = tagHooks.RunIfEnabled(ctx, runtime.AfterDelete)
+	_, err = tagHooks.RunIfEnabled(ctx, exec, runtime.AfterDelete, o)
 	return err
 }
 
 // Upsert inserts or updates the Tag based on the primary key.
 func (o *Tag) Upsert(ctx context.Context, exec runtime.Executor) error {
-	ctx, err := tagHooks.RunIfEnabled(ctx, runtime.BeforeUpsert)
+	ctx, err := tagHooks.RunIfEnabled(ctx, exec, runtime.BeforeUpsert, o)
 	if err != nil {
 		return err
 	}
@@ -129,7 +125,6 @@ func (o *Tag) Upsert(ctx context.Context, exec runtime.Executor) error {
 	returning := []string{"id", "name"}
 
 	query, args := runtime.BuildUpsert(dialect, TagTableName, allCols, allVals, conflictCols, updateCols, returning)
-
 	err = exec.QueryRowContext(ctx, query, args...).Scan(
 		&o.ID,
 		&o.Name,
@@ -137,8 +132,7 @@ func (o *Tag) Upsert(ctx context.Context, exec runtime.Executor) error {
 	if err != nil {
 		return err
 	}
-
-	_, err = tagHooks.RunIfEnabled(ctx, runtime.AfterUpsert)
+	_, err = tagHooks.RunIfEnabled(ctx, exec, runtime.AfterUpsert, o)
 	return err
 }
 
@@ -152,4 +146,61 @@ func TagExists(ctx context.Context, exec runtime.Executor, id int32) (bool, erro
 // CountTags returns the count of rows matching the query mods.
 func CountTags(ctx context.Context, exec runtime.Executor, mods ...runtime.QueryMod) (int64, error) {
 	return runtime.Count(ctx, exec, dialect, TagTableName, mods...)
+}
+
+// UpdateAllTags updates all rows matching the given mods.
+// set is a map of column name -> new value.
+func UpdateAllTags(ctx context.Context, exec runtime.Executor, set map[string]any, mods ...runtime.QueryMod) (int64, error) {
+	q := runtime.NewQuery(dialect, TagTableName, mods...)
+	query, args := q.BuildUpdateAll(set)
+	result, err := exec.ExecContext(ctx, query, args...)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+// DeleteAllTags deletes all rows matching the given mods.
+func DeleteAllTags(ctx context.Context, exec runtime.Executor, mods ...runtime.QueryMod) (int64, error) {
+	q := runtime.NewQuery(dialect, TagTableName, mods...)
+	query, args := q.BuildDeleteAll()
+	result, err := exec.ExecContext(ctx, query, args...)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+// Reload refreshes the Tag from the database using its primary key.
+func (o *Tag) Reload(ctx context.Context, exec runtime.Executor) error {
+	q := runtime.NewQuery(dialect, TagTableName,
+		runtime.Where("\"id\" = ?", o.ID),
+		runtime.Limit(1),
+	)
+	query, args := q.BuildSelect()
+	return o.ScanRow(exec.QueryRowContext(ctx, query, args...))
+}
+
+// UpdateAll updates all models in the slice with the given column values.
+func (s TagSlice) UpdateAll(ctx context.Context, exec runtime.Executor, set map[string]any) (int64, error) {
+	if len(s) == 0 {
+		return 0, nil
+	}
+	ids := make([]any, len(s))
+	for i, o := range s {
+		ids[i] = o.ID
+	}
+	return UpdateAllTags(ctx, exec, set, runtime.WhereIn("\"id\"", ids...))
+}
+
+// DeleteAll deletes all models in the slice.
+func (s TagSlice) DeleteAll(ctx context.Context, exec runtime.Executor) (int64, error) {
+	if len(s) == 0 {
+		return 0, nil
+	}
+	ids := make([]any, len(s))
+	for i, o := range s {
+		ids[i] = o.ID
+	}
+	return DeleteAllTags(ctx, exec, runtime.WhereIn("\"id\"", ids...))
 }

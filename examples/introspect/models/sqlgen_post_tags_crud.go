@@ -54,7 +54,7 @@ func AllPostTags(ctx context.Context, exec runtime.Executor, mods ...runtime.Que
 
 // Insert inserts the PostTag into the database.
 func (o *PostTag) Insert(ctx context.Context, exec runtime.Executor) error {
-	ctx, err := posttagHooks.RunIfEnabled(ctx, runtime.BeforeInsert)
+	ctx, err := posttagHooks.RunIfEnabled(ctx, exec, runtime.BeforeInsert, o)
 	if err != nil {
 		return err
 	}
@@ -64,7 +64,6 @@ func (o *PostTag) Insert(ctx context.Context, exec runtime.Executor) error {
 	returning := []string{"post_id", "tag_id"}
 
 	query, args := runtime.BuildInsert(dialect, PostTagTableName, allCols, allVals, returning)
-
 	err = exec.QueryRowContext(ctx, query, args...).Scan(
 		&o.PostID,
 		&o.TagID,
@@ -72,14 +71,13 @@ func (o *PostTag) Insert(ctx context.Context, exec runtime.Executor) error {
 	if err != nil {
 		return err
 	}
-
-	_, err = posttagHooks.RunIfEnabled(ctx, runtime.AfterInsert)
+	_, err = posttagHooks.RunIfEnabled(ctx, exec, runtime.AfterInsert, o)
 	return err
 }
 
 // Update updates the PostTag in the database. Only non-PK columns are updated.
 func (o *PostTag) Update(ctx context.Context, exec runtime.Executor) error {
-	ctx, err := posttagHooks.RunIfEnabled(ctx, runtime.BeforeUpdate)
+	ctx, err := posttagHooks.RunIfEnabled(ctx, exec, runtime.BeforeUpdate, o)
 	if err != nil {
 		return err
 	}
@@ -94,14 +92,13 @@ func (o *PostTag) Update(ctx context.Context, exec runtime.Executor) error {
 	if err != nil {
 		return err
 	}
-
-	_, err = posttagHooks.RunIfEnabled(ctx, runtime.AfterUpdate)
+	_, err = posttagHooks.RunIfEnabled(ctx, exec, runtime.AfterUpdate, o)
 	return err
 }
 
 // Delete deletes the PostTag from the database.
 func (o *PostTag) Delete(ctx context.Context, exec runtime.Executor) error {
-	ctx, err := posttagHooks.RunIfEnabled(ctx, runtime.BeforeDelete)
+	ctx, err := posttagHooks.RunIfEnabled(ctx, exec, runtime.BeforeDelete, o)
 	if err != nil {
 		return err
 	}
@@ -114,14 +111,13 @@ func (o *PostTag) Delete(ctx context.Context, exec runtime.Executor) error {
 	if err != nil {
 		return err
 	}
-
-	_, err = posttagHooks.RunIfEnabled(ctx, runtime.AfterDelete)
+	_, err = posttagHooks.RunIfEnabled(ctx, exec, runtime.AfterDelete, o)
 	return err
 }
 
 // Upsert inserts or updates the PostTag based on the primary key.
 func (o *PostTag) Upsert(ctx context.Context, exec runtime.Executor) error {
-	ctx, err := posttagHooks.RunIfEnabled(ctx, runtime.BeforeUpsert)
+	ctx, err := posttagHooks.RunIfEnabled(ctx, exec, runtime.BeforeUpsert, o)
 	if err != nil {
 		return err
 	}
@@ -132,7 +128,6 @@ func (o *PostTag) Upsert(ctx context.Context, exec runtime.Executor) error {
 	returning := []string{"post_id", "tag_id"}
 
 	query, args := runtime.BuildUpsert(dialect, PostTagTableName, allCols, allVals, conflictCols, updateCols, returning)
-
 	err = exec.QueryRowContext(ctx, query, args...).Scan(
 		&o.PostID,
 		&o.TagID,
@@ -140,8 +135,7 @@ func (o *PostTag) Upsert(ctx context.Context, exec runtime.Executor) error {
 	if err != nil {
 		return err
 	}
-
-	_, err = posttagHooks.RunIfEnabled(ctx, runtime.AfterUpsert)
+	_, err = posttagHooks.RunIfEnabled(ctx, exec, runtime.AfterUpsert, o)
 	return err
 }
 
@@ -156,4 +150,38 @@ func PostTagExists(ctx context.Context, exec runtime.Executor, postID string, ta
 // CountPostTags returns the count of rows matching the query mods.
 func CountPostTags(ctx context.Context, exec runtime.Executor, mods ...runtime.QueryMod) (int64, error) {
 	return runtime.Count(ctx, exec, dialect, PostTagTableName, mods...)
+}
+
+// UpdateAllPostTags updates all rows matching the given mods.
+// set is a map of column name -> new value.
+func UpdateAllPostTags(ctx context.Context, exec runtime.Executor, set map[string]any, mods ...runtime.QueryMod) (int64, error) {
+	q := runtime.NewQuery(dialect, PostTagTableName, mods...)
+	query, args := q.BuildUpdateAll(set)
+	result, err := exec.ExecContext(ctx, query, args...)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+// DeleteAllPostTags deletes all rows matching the given mods.
+func DeleteAllPostTags(ctx context.Context, exec runtime.Executor, mods ...runtime.QueryMod) (int64, error) {
+	q := runtime.NewQuery(dialect, PostTagTableName, mods...)
+	query, args := q.BuildDeleteAll()
+	result, err := exec.ExecContext(ctx, query, args...)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+// Reload refreshes the PostTag from the database using its primary key.
+func (o *PostTag) Reload(ctx context.Context, exec runtime.Executor) error {
+	q := runtime.NewQuery(dialect, PostTagTableName,
+		runtime.Where("\"post_id\" = ?", o.PostID),
+		runtime.Where("\"tag_id\" = ?", o.TagID),
+		runtime.Limit(1),
+	)
+	query, args := q.BuildSelect()
+	return o.ScanRow(exec.QueryRowContext(ctx, query, args...))
 }

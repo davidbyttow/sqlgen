@@ -53,7 +53,7 @@ func AllCategories(ctx context.Context, exec runtime.Executor, mods ...runtime.Q
 
 // Insert inserts the Category into the database.
 func (o *Category) Insert(ctx context.Context, exec runtime.Executor) error {
-	ctx, err := categoryHooks.RunIfEnabled(ctx, runtime.BeforeInsert)
+	ctx, err := categoryHooks.RunIfEnabled(ctx, exec, runtime.BeforeInsert, o)
 	if err != nil {
 		return err
 	}
@@ -62,21 +62,19 @@ func (o *Category) Insert(ctx context.Context, exec runtime.Executor) error {
 		[]any{o.Name, o.ParentID},
 		[]string{"id"},
 	)
-
 	err = exec.QueryRowContext(ctx, query, args...).Scan(
 		&o.ID,
 	)
 	if err != nil {
 		return err
 	}
-
-	_, err = categoryHooks.RunIfEnabled(ctx, runtime.AfterInsert)
+	_, err = categoryHooks.RunIfEnabled(ctx, exec, runtime.AfterInsert, o)
 	return err
 }
 
 // Update updates the Category in the database. Only non-PK columns are updated.
 func (o *Category) Update(ctx context.Context, exec runtime.Executor) error {
-	ctx, err := categoryHooks.RunIfEnabled(ctx, runtime.BeforeUpdate)
+	ctx, err := categoryHooks.RunIfEnabled(ctx, exec, runtime.BeforeUpdate, o)
 	if err != nil {
 		return err
 	}
@@ -91,14 +89,13 @@ func (o *Category) Update(ctx context.Context, exec runtime.Executor) error {
 	if err != nil {
 		return err
 	}
-
-	_, err = categoryHooks.RunIfEnabled(ctx, runtime.AfterUpdate)
+	_, err = categoryHooks.RunIfEnabled(ctx, exec, runtime.AfterUpdate, o)
 	return err
 }
 
 // Delete deletes the Category from the database.
 func (o *Category) Delete(ctx context.Context, exec runtime.Executor) error {
-	ctx, err := categoryHooks.RunIfEnabled(ctx, runtime.BeforeDelete)
+	ctx, err := categoryHooks.RunIfEnabled(ctx, exec, runtime.BeforeDelete, o)
 	if err != nil {
 		return err
 	}
@@ -111,14 +108,13 @@ func (o *Category) Delete(ctx context.Context, exec runtime.Executor) error {
 	if err != nil {
 		return err
 	}
-
-	_, err = categoryHooks.RunIfEnabled(ctx, runtime.AfterDelete)
+	_, err = categoryHooks.RunIfEnabled(ctx, exec, runtime.AfterDelete, o)
 	return err
 }
 
 // Upsert inserts or updates the Category based on the primary key.
 func (o *Category) Upsert(ctx context.Context, exec runtime.Executor) error {
-	ctx, err := categoryHooks.RunIfEnabled(ctx, runtime.BeforeUpsert)
+	ctx, err := categoryHooks.RunIfEnabled(ctx, exec, runtime.BeforeUpsert, o)
 	if err != nil {
 		return err
 	}
@@ -129,7 +125,6 @@ func (o *Category) Upsert(ctx context.Context, exec runtime.Executor) error {
 	returning := []string{"id", "name", "parent_id"}
 
 	query, args := runtime.BuildUpsert(dialect, CategoryTableName, allCols, allVals, conflictCols, updateCols, returning)
-
 	err = exec.QueryRowContext(ctx, query, args...).Scan(
 		&o.ID,
 		&o.Name,
@@ -138,8 +133,7 @@ func (o *Category) Upsert(ctx context.Context, exec runtime.Executor) error {
 	if err != nil {
 		return err
 	}
-
-	_, err = categoryHooks.RunIfEnabled(ctx, runtime.AfterUpsert)
+	_, err = categoryHooks.RunIfEnabled(ctx, exec, runtime.AfterUpsert, o)
 	return err
 }
 

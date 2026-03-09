@@ -53,7 +53,7 @@ func AllOrganizations(ctx context.Context, exec runtime.Executor, mods ...runtim
 
 // Insert inserts the Organization into the database.
 func (o *Organization) Insert(ctx context.Context, exec runtime.Executor) error {
-	ctx, err := organizationHooks.RunIfEnabled(ctx, runtime.BeforeInsert)
+	ctx, err := organizationHooks.RunIfEnabled(ctx, exec, runtime.BeforeInsert, o)
 	if err != nil {
 		return err
 	}
@@ -63,7 +63,6 @@ func (o *Organization) Insert(ctx context.Context, exec runtime.Executor) error 
 	returning := []string{"id", "name", "slug", "created_at"}
 
 	query, args := runtime.BuildInsert(dialect, OrganizationTableName, allCols, allVals, returning)
-
 	err = exec.QueryRowContext(ctx, query, args...).Scan(
 		&o.ID,
 		&o.Name,
@@ -73,14 +72,13 @@ func (o *Organization) Insert(ctx context.Context, exec runtime.Executor) error 
 	if err != nil {
 		return err
 	}
-
-	_, err = organizationHooks.RunIfEnabled(ctx, runtime.AfterInsert)
+	_, err = organizationHooks.RunIfEnabled(ctx, exec, runtime.AfterInsert, o)
 	return err
 }
 
 // Update updates the Organization in the database. Only non-PK columns are updated.
 func (o *Organization) Update(ctx context.Context, exec runtime.Executor) error {
-	ctx, err := organizationHooks.RunIfEnabled(ctx, runtime.BeforeUpdate)
+	ctx, err := organizationHooks.RunIfEnabled(ctx, exec, runtime.BeforeUpdate, o)
 	if err != nil {
 		return err
 	}
@@ -95,14 +93,13 @@ func (o *Organization) Update(ctx context.Context, exec runtime.Executor) error 
 	if err != nil {
 		return err
 	}
-
-	_, err = organizationHooks.RunIfEnabled(ctx, runtime.AfterUpdate)
+	_, err = organizationHooks.RunIfEnabled(ctx, exec, runtime.AfterUpdate, o)
 	return err
 }
 
 // Delete deletes the Organization from the database.
 func (o *Organization) Delete(ctx context.Context, exec runtime.Executor) error {
-	ctx, err := organizationHooks.RunIfEnabled(ctx, runtime.BeforeDelete)
+	ctx, err := organizationHooks.RunIfEnabled(ctx, exec, runtime.BeforeDelete, o)
 	if err != nil {
 		return err
 	}
@@ -115,14 +112,13 @@ func (o *Organization) Delete(ctx context.Context, exec runtime.Executor) error 
 	if err != nil {
 		return err
 	}
-
-	_, err = organizationHooks.RunIfEnabled(ctx, runtime.AfterDelete)
+	_, err = organizationHooks.RunIfEnabled(ctx, exec, runtime.AfterDelete, o)
 	return err
 }
 
 // Upsert inserts or updates the Organization based on the primary key.
 func (o *Organization) Upsert(ctx context.Context, exec runtime.Executor) error {
-	ctx, err := organizationHooks.RunIfEnabled(ctx, runtime.BeforeUpsert)
+	ctx, err := organizationHooks.RunIfEnabled(ctx, exec, runtime.BeforeUpsert, o)
 	if err != nil {
 		return err
 	}
@@ -133,7 +129,6 @@ func (o *Organization) Upsert(ctx context.Context, exec runtime.Executor) error 
 	returning := []string{"id", "name", "slug", "created_at"}
 
 	query, args := runtime.BuildUpsert(dialect, OrganizationTableName, allCols, allVals, conflictCols, updateCols, returning)
-
 	err = exec.QueryRowContext(ctx, query, args...).Scan(
 		&o.ID,
 		&o.Name,
@@ -143,8 +138,7 @@ func (o *Organization) Upsert(ctx context.Context, exec runtime.Executor) error 
 	if err != nil {
 		return err
 	}
-
-	_, err = organizationHooks.RunIfEnabled(ctx, runtime.AfterUpsert)
+	_, err = organizationHooks.RunIfEnabled(ctx, exec, runtime.AfterUpsert, o)
 	return err
 }
 

@@ -2,12 +2,22 @@
 
 package models
 
-import "github.com/davidbyttow/sqlgen/runtime"
+import (
+	"context"
+
+	"github.com/davidbyttow/sqlgen/runtime"
+)
 
 // postHooks stores the hooks for Post.
 var postHooks = runtime.NewHooks()
 
-// AddPostHook registers a hook for the given hook point.
-func AddPostHook(point runtime.HookPoint, fn runtime.Hook) {
-	postHooks.Add(point, fn)
+// PostHook is a typed hook function for Post lifecycle events.
+type PostHook func(ctx context.Context, exec runtime.Executor, model *Post) (context.Context, error)
+
+// AddPostHook registers a typed hook for the given hook point.
+// The hook receives the model pointer and can inspect or modify it.
+func AddPostHook(point runtime.HookPoint, fn PostHook) {
+	postHooks.Add(point, func(ctx context.Context, exec runtime.Executor, model any) (context.Context, error) {
+		return fn(ctx, exec, model.(*Post))
+	})
 }

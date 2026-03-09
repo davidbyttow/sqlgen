@@ -19,6 +19,9 @@ type Config struct {
 	// Types configures type mapping behavior.
 	Types TypesConfig `yaml:"types"`
 
+	// Timestamps configures automatic timestamp management.
+	Timestamps TimestampsConfig `yaml:"timestamps"`
+
 	// Tables allows per-table configuration overrides.
 	Tables map[string]TableConfig `yaml:"tables"`
 }
@@ -48,6 +51,20 @@ type OutputConfig struct {
 
 	// Tests enables generation of _test.go files alongside models.
 	Tests bool `yaml:"tests"`
+
+	// NoHooks disables generation of hook files and hook calls in CRUD.
+	NoHooks bool `yaml:"no_hooks"`
+}
+
+// TimestampsConfig controls automatic timestamp management.
+type TimestampsConfig struct {
+	// CreatedAt is the column name for creation timestamp. Default: "created_at".
+	// Set to "-" to disable.
+	CreatedAt string `yaml:"created_at"`
+
+	// UpdatedAt is the column name for update timestamp. Default: "updated_at".
+	// Set to "-" to disable.
+	UpdatedAt string `yaml:"updated_at"`
 }
 
 // NullType determines how nullable columns are represented in Go.
@@ -134,6 +151,12 @@ func (c *Config) validate() error {
 	}
 	if c.Types.NullType == "" {
 		c.Types.NullType = NullTypeGeneric
+	}
+	if c.Timestamps.CreatedAt == "" {
+		c.Timestamps.CreatedAt = "created_at"
+	}
+	if c.Timestamps.UpdatedAt == "" {
+		c.Timestamps.UpdatedAt = "updated_at"
 	}
 	switch c.Types.NullType {
 	case NullTypeGeneric, NullTypePointer, NullTypeDatabase:

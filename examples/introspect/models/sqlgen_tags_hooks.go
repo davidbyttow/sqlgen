@@ -2,12 +2,22 @@
 
 package models
 
-import "github.com/davidbyttow/sqlgen/runtime"
+import (
+	"context"
+
+	"github.com/davidbyttow/sqlgen/runtime"
+)
 
 // tagHooks stores the hooks for Tag.
 var tagHooks = runtime.NewHooks()
 
-// AddTagHook registers a hook for the given hook point.
-func AddTagHook(point runtime.HookPoint, fn runtime.Hook) {
-	tagHooks.Add(point, fn)
+// TagHook is a typed hook function for Tag lifecycle events.
+type TagHook func(ctx context.Context, exec runtime.Executor, model *Tag) (context.Context, error)
+
+// AddTagHook registers a typed hook for the given hook point.
+// The hook receives the model pointer and can inspect or modify it.
+func AddTagHook(point runtime.HookPoint, fn TagHook) {
+	tagHooks.Add(point, func(ctx context.Context, exec runtime.Executor, model any) (context.Context, error) {
+		return fn(ctx, exec, model.(*Tag))
+	})
 }

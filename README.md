@@ -209,11 +209,11 @@ models.AllPostStatusValues()         // []PostStatus{"draft", "published", "arch
 
 ### Hooks
 
-Register lifecycle hooks per model:
+Register typed lifecycle hooks per model. Hooks receive the model pointer, so you can inspect or modify the row before it hits the database.
 
 ```go
-models.AddUserHook(runtime.BeforeInsert, func(ctx context.Context) (context.Context, error) {
-    log.Println("about to insert a user")
+models.AddUserHook(runtime.BeforeInsert, func(ctx context.Context, exec runtime.Executor, user *models.User) (context.Context, error) {
+    log.Printf("inserting user: %s", user.Email)
     return ctx, nil
 })
 ```
@@ -225,6 +225,20 @@ Skip hooks on a per-call basis via context:
 ```go
 ctx := runtime.SkipHooks(context.Background())
 user.Insert(ctx, db) // hooks won't fire
+```
+
+Disable hook generation entirely with `output.no_hooks: true` in your config.
+
+### Automatic Timestamps
+
+sqlgen auto-manages `created_at` and `updated_at` columns when they exist on a table. On `Insert`, both get set to `time.Now()`. On `Update`, `updated_at` gets refreshed.
+
+Column names are configurable (or disable with `"-"`):
+
+```yaml
+timestamps:
+  created_at: created_at   # default
+  updated_at: updated_at   # default, or "-" to disable
 ```
 
 ### Relationships
@@ -286,12 +300,18 @@ input:
 output:
   dir: models                # output directory
   package: models            # Go package name
+  tests: false               # generate _test.go files alongside models
+  no_hooks: false            # skip hook generation and hook calls in CRUD
 
 types:
   null: generic              # "generic" (Null[T]), "pointer" (*T), or "database" (sql.NullString)
   replacements:              # override DB type -> Go type
     uuid: "github.com/google/uuid.UUID"
     jsonb: "encoding/json.RawMessage"
+
+timestamps:
+  created_at: created_at     # column name, or "-" to disable
+  updated_at: updated_at     # column name, or "-" to disable
 
 tables:
   audit_logs:

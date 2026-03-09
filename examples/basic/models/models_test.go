@@ -359,11 +359,11 @@ func TestDistinctAndJoins(t *testing.T) {
 
 // TestHookRegistration verifies hooks can be added.
 func TestHookRegistration(t *testing.T) {
-	// Just verify it doesn't panic.
-	AddUserHook(runtime.BeforeInsert, func(ctx context.Context) (context.Context, error) {
+	// Just verify it doesn't panic. Hooks now receive typed model pointers.
+	AddUserHook(runtime.BeforeInsert, func(ctx context.Context, exec runtime.Executor, model *User) (context.Context, error) {
 		return ctx, nil
 	})
-	AddPostHook(runtime.AfterInsert, func(ctx context.Context) (context.Context, error) {
+	AddPostHook(runtime.AfterInsert, func(ctx context.Context, exec runtime.Executor, model *Post) (context.Context, error) {
 		return ctx, nil
 	})
 }

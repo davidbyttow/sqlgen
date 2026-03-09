@@ -2,10 +2,9 @@ package runtime
 
 import "context"
 
-// Hook is a function that runs before or after a database operation.
-// It receives a context and returns a (possibly modified) context and an error.
+// Hook is a lifecycle function that runs before or after a database operation.
 // Returning an error from a "before" hook cancels the operation.
-type Hook func(ctx context.Context) (context.Context, error)
+type Hook func(ctx context.Context, exec Executor, model any) (context.Context, error)
 
 // HookPoint identifies when a hook fires.
 type HookPoint int
@@ -40,11 +39,11 @@ func (h *Hooks) Add(point HookPoint, fn Hook) {
 // Run executes all hooks registered at the given point in order.
 // The context is chained through each hook. If any hook returns an error,
 // execution stops and the error is returned.
-func (h *Hooks) Run(ctx context.Context, point HookPoint) (context.Context, error) {
+func (h *Hooks) Run(ctx context.Context, exec Executor, point HookPoint, model any) (context.Context, error) {
 	fns := h.hooks[point]
 	var err error
 	for _, fn := range fns {
-		ctx, err = fn(ctx)
+		ctx, err = fn(ctx, exec, model)
 		if err != nil {
 			return ctx, err
 		}
@@ -72,9 +71,9 @@ func ShouldSkipHooks(ctx context.Context) bool {
 }
 
 // RunIfEnabled runs hooks only if SkipHooks wasn't called on the context.
-func (h *Hooks) RunIfEnabled(ctx context.Context, point HookPoint) (context.Context, error) {
+func (h *Hooks) RunIfEnabled(ctx context.Context, exec Executor, point HookPoint, model any) (context.Context, error) {
 	if ShouldSkipHooks(ctx) {
 		return ctx, nil
 	}
-	return h.Run(ctx, point)
+	return h.Run(ctx, exec, point, model)
 }

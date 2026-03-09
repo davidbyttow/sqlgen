@@ -113,22 +113,30 @@ func (g *Generator) Run() error {
 
 		// CRUD
 		crudImports := g.collectCRUDImports(table)
+		ts := g.detectTimestamps(table)
+		if ts.CreatedAt != "" || ts.UpdatedAt != "" {
+			crudImports.Add("time")
+		}
 		crudData := map[string]any{
-			"Package": pkg,
-			"Table":   table,
-			"Imports": crudImports.FormatBlock(),
+			"Package":    pkg,
+			"Table":      table,
+			"Imports":    crudImports.FormatBlock(),
+			"NoHooks":    g.cfg.Output.NoHooks,
+			"Timestamps": ts,
 		}
 		if err := g.generateFile("crud.go.tmpl", crudData, outDir, fmt.Sprintf("sqlgen_%s_crud.go", snakeName), generated); err != nil {
 			return fmt.Errorf("generating crud for %s: %w", table.Name, err)
 		}
 
-		// Hooks
-		hooksData := map[string]any{
-			"Package": pkg,
-			"Table":   table,
-		}
-		if err := g.generateFile("hooks.go.tmpl", hooksData, outDir, fmt.Sprintf("sqlgen_%s_hooks.go", snakeName), generated); err != nil {
-			return fmt.Errorf("generating hooks for %s: %w", table.Name, err)
+		// Hooks (skip when disabled)
+		if !g.cfg.Output.NoHooks {
+			hooksData := map[string]any{
+				"Package": pkg,
+				"Table":   table,
+			}
+			if err := g.generateFile("hooks.go.tmpl", hooksData, outDir, fmt.Sprintf("sqlgen_%s_hooks.go", snakeName), generated); err != nil {
+				return fmt.Errorf("generating hooks for %s: %w", table.Name, err)
+			}
 		}
 
 		// Where clauses
@@ -249,6 +257,31 @@ func (g *Generator) collectLoaderImports() *ImportSet {
 	imports.Add("fmt")
 	imports.Add(runtimePkg)
 	return imports
+}
+
+// TimestampData holds per-table timestamp info for template rendering.
+type TimestampData struct {
+	CreatedAt string // Column name (empty if not found or disabled)
+	UpdatedAt string // Column name (empty if not found or disabled)
+	NowExpr   string // Go expression for current time (e.g., "time.Now()")
+}
+
+// detectTimestamps checks if a table has the configured timestamp columns.
+func (g *Generator) detectTimestamps(table *schema.Table) TimestampData {
+	td := TimestampData{NowExpr: "time.Now()"}
+
+	if name := g.cfg.Timestamps.CreatedAt; name != "-" {
+		if table.FindColumn(name) != nil {
+			td.CreatedAt = name
+		}
+	}
+	if name := g.cfg.Timestamps.UpdatedAt; name != "-" {
+		if table.FindColumn(name) != nil {
+			td.UpdatedAt = name
+		}
+	}
+
+	return td
 }
 
 // cleanStaleFiles removes generated files that weren't produced in this run.

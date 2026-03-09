@@ -2,12 +2,22 @@
 
 package models
 
-import "github.com/davidbyttow/sqlgen/runtime"
+import (
+	"context"
+
+	"github.com/davidbyttow/sqlgen/runtime"
+)
 
 // categoryHooks stores the hooks for Category.
 var categoryHooks = runtime.NewHooks()
 
-// AddCategoryHook registers a hook for the given hook point.
-func AddCategoryHook(point runtime.HookPoint, fn runtime.Hook) {
-	categoryHooks.Add(point, fn)
+// CategoryHook is a typed hook function for Category lifecycle events.
+type CategoryHook func(ctx context.Context, exec runtime.Executor, model *Category) (context.Context, error)
+
+// AddCategoryHook registers a typed hook for the given hook point.
+// The hook receives the model pointer and can inspect or modify it.
+func AddCategoryHook(point runtime.HookPoint, fn CategoryHook) {
+	categoryHooks.Add(point, func(ctx context.Context, exec runtime.Executor, model any) (context.Context, error) {
+		return fn(ctx, exec, model.(*Category))
+	})
 }

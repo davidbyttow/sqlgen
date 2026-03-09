@@ -10,20 +10,20 @@ func TestHooksRunOrder(t *testing.T) {
 	h := NewHooks()
 	var order []int
 
-	h.Add(BeforeInsert, func(ctx context.Context) (context.Context, error) {
+	h.Add(BeforeInsert, func(ctx context.Context, exec Executor, model any) (context.Context, error) {
 		order = append(order, 1)
 		return ctx, nil
 	})
-	h.Add(BeforeInsert, func(ctx context.Context) (context.Context, error) {
+	h.Add(BeforeInsert, func(ctx context.Context, exec Executor, model any) (context.Context, error) {
 		order = append(order, 2)
 		return ctx, nil
 	})
-	h.Add(BeforeInsert, func(ctx context.Context) (context.Context, error) {
+	h.Add(BeforeInsert, func(ctx context.Context, exec Executor, model any) (context.Context, error) {
 		order = append(order, 3)
 		return ctx, nil
 	})
 
-	_, err := h.Run(context.Background(), BeforeInsert)
+	_, err := h.Run(context.Background(), nil, BeforeInsert, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -36,17 +36,17 @@ func TestHooksContextChaining(t *testing.T) {
 	type ctxKey string
 	h := NewHooks()
 
-	h.Add(BeforeInsert, func(ctx context.Context) (context.Context, error) {
+	h.Add(BeforeInsert, func(ctx context.Context, exec Executor, model any) (context.Context, error) {
 		return context.WithValue(ctx, ctxKey("step"), "first"), nil
 	})
-	h.Add(BeforeInsert, func(ctx context.Context) (context.Context, error) {
+	h.Add(BeforeInsert, func(ctx context.Context, exec Executor, model any) (context.Context, error) {
 		if ctx.Value(ctxKey("step")) != "first" {
 			t.Error("context not chained from first hook")
 		}
 		return context.WithValue(ctx, ctxKey("step"), "second"), nil
 	})
 
-	ctx, err := h.Run(context.Background(), BeforeInsert)
+	ctx, err := h.Run(context.Background(), nil, BeforeInsert, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -59,15 +59,15 @@ func TestHooksErrorStopsExecution(t *testing.T) {
 	h := NewHooks()
 	ran := false
 
-	h.Add(BeforeInsert, func(ctx context.Context) (context.Context, error) {
+	h.Add(BeforeInsert, func(ctx context.Context, exec Executor, model any) (context.Context, error) {
 		return ctx, errors.New("abort")
 	})
-	h.Add(BeforeInsert, func(ctx context.Context) (context.Context, error) {
+	h.Add(BeforeInsert, func(ctx context.Context, exec Executor, model any) (context.Context, error) {
 		ran = true
 		return ctx, nil
 	})
 
-	_, err := h.Run(context.Background(), BeforeInsert)
+	_, err := h.Run(context.Background(), nil, BeforeInsert, nil)
 	if err == nil {
 		t.Error("expected error")
 	}
@@ -81,7 +81,7 @@ func TestHooksHas(t *testing.T) {
 	if h.Has(BeforeInsert) {
 		t.Error("should not have hooks initially")
 	}
-	h.Add(BeforeInsert, func(ctx context.Context) (context.Context, error) {
+	h.Add(BeforeInsert, func(ctx context.Context, exec Executor, model any) (context.Context, error) {
 		return ctx, nil
 	})
 	if !h.Has(BeforeInsert) {
@@ -95,13 +95,13 @@ func TestHooksHas(t *testing.T) {
 func TestSkipHooks(t *testing.T) {
 	h := NewHooks()
 	ran := false
-	h.Add(BeforeInsert, func(ctx context.Context) (context.Context, error) {
+	h.Add(BeforeInsert, func(ctx context.Context, exec Executor, model any) (context.Context, error) {
 		ran = true
 		return ctx, nil
 	})
 
 	ctx := SkipHooks(context.Background())
-	_, err := h.RunIfEnabled(ctx, BeforeInsert)
+	_, err := h.RunIfEnabled(ctx, nil, BeforeInsert, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -113,16 +113,60 @@ func TestSkipHooks(t *testing.T) {
 func TestRunIfEnabledNormal(t *testing.T) {
 	h := NewHooks()
 	ran := false
-	h.Add(AfterInsert, func(ctx context.Context) (context.Context, error) {
+	h.Add(AfterInsert, func(ctx context.Context, exec Executor, model any) (context.Context, error) {
 		ran = true
 		return ctx, nil
 	})
 
-	_, err := h.RunIfEnabled(context.Background(), AfterInsert)
+	_, err := h.RunIfEnabled(context.Background(), nil, AfterInsert, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !ran {
 		t.Error("hook should have run without SkipHooks")
+	}
+}
+
+func TestHookReceivesModel(t *testing.T) {
+	h := NewHooks()
+	type User struct{ Name string }
+	var received any
+
+	h.Add(BeforeInsert, func(ctx context.Context, exec Executor, model any) (context.Context, error) {
+		received = model
+		return ctx, nil
+	})
+
+	user := &User{Name: "Alice"}
+	_, err := h.Run(context.Background(), nil, BeforeInsert, user)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, ok := received.(*User)
+	if !ok {
+		t.Fatalf("model type = %T, want *User", received)
+	}
+	if got.Name != "Alice" {
+		t.Errorf("model.Name = %q, want Alice", got.Name)
+	}
+}
+
+func TestHookCanModifyModel(t *testing.T) {
+	h := NewHooks()
+	type User struct{ Name string }
+
+	h.Add(BeforeInsert, func(ctx context.Context, exec Executor, model any) (context.Context, error) {
+		u := model.(*User)
+		u.Name = "Modified"
+		return ctx, nil
+	})
+
+	user := &User{Name: "Original"}
+	_, err := h.Run(context.Background(), nil, BeforeInsert, user)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if user.Name != "Modified" {
+		t.Errorf("model.Name = %q, want Modified", user.Name)
 	}
 }

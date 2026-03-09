@@ -53,7 +53,7 @@ func AllAuditLogs(ctx context.Context, exec runtime.Executor, mods ...runtime.Qu
 
 // Insert inserts the AuditLog into the database.
 func (o *AuditLog) Insert(ctx context.Context, exec runtime.Executor) error {
-	ctx, err := auditlogHooks.RunIfEnabled(ctx, runtime.BeforeInsert)
+	ctx, err := auditlogHooks.RunIfEnabled(ctx, exec, runtime.BeforeInsert, o)
 	if err != nil {
 		return err
 	}
@@ -62,21 +62,19 @@ func (o *AuditLog) Insert(ctx context.Context, exec runtime.Executor) error {
 		[]any{o.OrgID, o.UserID, o.Action, o.CreatedAt},
 		[]string{"id"},
 	)
-
 	err = exec.QueryRowContext(ctx, query, args...).Scan(
 		&o.ID,
 	)
 	if err != nil {
 		return err
 	}
-
-	_, err = auditlogHooks.RunIfEnabled(ctx, runtime.AfterInsert)
+	_, err = auditlogHooks.RunIfEnabled(ctx, exec, runtime.AfterInsert, o)
 	return err
 }
 
 // Update updates the AuditLog in the database. Only non-PK columns are updated.
 func (o *AuditLog) Update(ctx context.Context, exec runtime.Executor) error {
-	ctx, err := auditlogHooks.RunIfEnabled(ctx, runtime.BeforeUpdate)
+	ctx, err := auditlogHooks.RunIfEnabled(ctx, exec, runtime.BeforeUpdate, o)
 	if err != nil {
 		return err
 	}
@@ -91,14 +89,13 @@ func (o *AuditLog) Update(ctx context.Context, exec runtime.Executor) error {
 	if err != nil {
 		return err
 	}
-
-	_, err = auditlogHooks.RunIfEnabled(ctx, runtime.AfterUpdate)
+	_, err = auditlogHooks.RunIfEnabled(ctx, exec, runtime.AfterUpdate, o)
 	return err
 }
 
 // Delete deletes the AuditLog from the database.
 func (o *AuditLog) Delete(ctx context.Context, exec runtime.Executor) error {
-	ctx, err := auditlogHooks.RunIfEnabled(ctx, runtime.BeforeDelete)
+	ctx, err := auditlogHooks.RunIfEnabled(ctx, exec, runtime.BeforeDelete, o)
 	if err != nil {
 		return err
 	}
@@ -111,14 +108,13 @@ func (o *AuditLog) Delete(ctx context.Context, exec runtime.Executor) error {
 	if err != nil {
 		return err
 	}
-
-	_, err = auditlogHooks.RunIfEnabled(ctx, runtime.AfterDelete)
+	_, err = auditlogHooks.RunIfEnabled(ctx, exec, runtime.AfterDelete, o)
 	return err
 }
 
 // Upsert inserts or updates the AuditLog based on the primary key.
 func (o *AuditLog) Upsert(ctx context.Context, exec runtime.Executor) error {
-	ctx, err := auditlogHooks.RunIfEnabled(ctx, runtime.BeforeUpsert)
+	ctx, err := auditlogHooks.RunIfEnabled(ctx, exec, runtime.BeforeUpsert, o)
 	if err != nil {
 		return err
 	}
@@ -129,7 +125,6 @@ func (o *AuditLog) Upsert(ctx context.Context, exec runtime.Executor) error {
 	returning := []string{"id", "org_id", "user_id", "action", "created_at"}
 
 	query, args := runtime.BuildUpsert(dialect, AuditLogTableName, allCols, allVals, conflictCols, updateCols, returning)
-
 	err = exec.QueryRowContext(ctx, query, args...).Scan(
 		&o.ID,
 		&o.OrgID,
@@ -140,8 +135,7 @@ func (o *AuditLog) Upsert(ctx context.Context, exec runtime.Executor) error {
 	if err != nil {
 		return err
 	}
-
-	_, err = auditlogHooks.RunIfEnabled(ctx, runtime.AfterUpsert)
+	_, err = auditlogHooks.RunIfEnabled(ctx, exec, runtime.AfterUpsert, o)
 	return err
 }
 

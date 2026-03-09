@@ -4,6 +4,7 @@ package models
 
 import (
 	"context"
+	"time"
 
 	"github.com/davidbyttow/sqlgen/runtime"
 )
@@ -53,17 +54,17 @@ func AllPosts(ctx context.Context, exec runtime.Executor, mods ...runtime.QueryM
 
 // Insert inserts the Post into the database.
 func (o *Post) Insert(ctx context.Context, exec runtime.Executor) error {
-	ctx, err := postHooks.RunIfEnabled(ctx, runtime.BeforeInsert)
+	ctx, err := postHooks.RunIfEnabled(ctx, exec, runtime.BeforeInsert, o)
 	if err != nil {
 		return err
 	}
+	o.CreatedAt = time.Now()
 	allCols := []string{"id", "author_id", "title", "body", "status", "created_at", "published_at"}
 	allVals := []any{o.ID, o.AuthorID, o.Title, o.Body, o.Status, o.CreatedAt, o.PublishedAt}
 
 	returning := []string{"id", "author_id", "title", "body", "status", "created_at", "published_at"}
 
 	query, args := runtime.BuildInsert(dialect, PostTableName, allCols, allVals, returning)
-
 	err = exec.QueryRowContext(ctx, query, args...).Scan(
 		&o.ID,
 		&o.AuthorID,
@@ -76,14 +77,13 @@ func (o *Post) Insert(ctx context.Context, exec runtime.Executor) error {
 	if err != nil {
 		return err
 	}
-
-	_, err = postHooks.RunIfEnabled(ctx, runtime.AfterInsert)
+	_, err = postHooks.RunIfEnabled(ctx, exec, runtime.AfterInsert, o)
 	return err
 }
 
 // Update updates the Post in the database. Only non-PK columns are updated.
 func (o *Post) Update(ctx context.Context, exec runtime.Executor) error {
-	ctx, err := postHooks.RunIfEnabled(ctx, runtime.BeforeUpdate)
+	ctx, err := postHooks.RunIfEnabled(ctx, exec, runtime.BeforeUpdate, o)
 	if err != nil {
 		return err
 	}
@@ -98,14 +98,13 @@ func (o *Post) Update(ctx context.Context, exec runtime.Executor) error {
 	if err != nil {
 		return err
 	}
-
-	_, err = postHooks.RunIfEnabled(ctx, runtime.AfterUpdate)
+	_, err = postHooks.RunIfEnabled(ctx, exec, runtime.AfterUpdate, o)
 	return err
 }
 
 // Delete deletes the Post from the database.
 func (o *Post) Delete(ctx context.Context, exec runtime.Executor) error {
-	ctx, err := postHooks.RunIfEnabled(ctx, runtime.BeforeDelete)
+	ctx, err := postHooks.RunIfEnabled(ctx, exec, runtime.BeforeDelete, o)
 	if err != nil {
 		return err
 	}
@@ -118,14 +117,13 @@ func (o *Post) Delete(ctx context.Context, exec runtime.Executor) error {
 	if err != nil {
 		return err
 	}
-
-	_, err = postHooks.RunIfEnabled(ctx, runtime.AfterDelete)
+	_, err = postHooks.RunIfEnabled(ctx, exec, runtime.AfterDelete, o)
 	return err
 }
 
 // Upsert inserts or updates the Post based on the primary key.
 func (o *Post) Upsert(ctx context.Context, exec runtime.Executor) error {
-	ctx, err := postHooks.RunIfEnabled(ctx, runtime.BeforeUpsert)
+	ctx, err := postHooks.RunIfEnabled(ctx, exec, runtime.BeforeUpsert, o)
 	if err != nil {
 		return err
 	}
@@ -136,7 +134,6 @@ func (o *Post) Upsert(ctx context.Context, exec runtime.Executor) error {
 	returning := []string{"id", "author_id", "title", "body", "status", "created_at", "published_at"}
 
 	query, args := runtime.BuildUpsert(dialect, PostTableName, allCols, allVals, conflictCols, updateCols, returning)
-
 	err = exec.QueryRowContext(ctx, query, args...).Scan(
 		&o.ID,
 		&o.AuthorID,
@@ -149,8 +146,7 @@ func (o *Post) Upsert(ctx context.Context, exec runtime.Executor) error {
 	if err != nil {
 		return err
 	}
-
-	_, err = postHooks.RunIfEnabled(ctx, runtime.AfterUpsert)
+	_, err = postHooks.RunIfEnabled(ctx, exec, runtime.AfterUpsert, o)
 	return err
 }
 
@@ -164,4 +160,61 @@ func PostExists(ctx context.Context, exec runtime.Executor, id string) (bool, er
 // CountPosts returns the count of rows matching the query mods.
 func CountPosts(ctx context.Context, exec runtime.Executor, mods ...runtime.QueryMod) (int64, error) {
 	return runtime.Count(ctx, exec, dialect, PostTableName, mods...)
+}
+
+// UpdateAllPosts updates all rows matching the given mods.
+// set is a map of column name -> new value.
+func UpdateAllPosts(ctx context.Context, exec runtime.Executor, set map[string]any, mods ...runtime.QueryMod) (int64, error) {
+	q := runtime.NewQuery(dialect, PostTableName, mods...)
+	query, args := q.BuildUpdateAll(set)
+	result, err := exec.ExecContext(ctx, query, args...)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+// DeleteAllPosts deletes all rows matching the given mods.
+func DeleteAllPosts(ctx context.Context, exec runtime.Executor, mods ...runtime.QueryMod) (int64, error) {
+	q := runtime.NewQuery(dialect, PostTableName, mods...)
+	query, args := q.BuildDeleteAll()
+	result, err := exec.ExecContext(ctx, query, args...)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+// Reload refreshes the Post from the database using its primary key.
+func (o *Post) Reload(ctx context.Context, exec runtime.Executor) error {
+	q := runtime.NewQuery(dialect, PostTableName,
+		runtime.Where("\"id\" = ?", o.ID),
+		runtime.Limit(1),
+	)
+	query, args := q.BuildSelect()
+	return o.ScanRow(exec.QueryRowContext(ctx, query, args...))
+}
+
+// UpdateAll updates all models in the slice with the given column values.
+func (s PostSlice) UpdateAll(ctx context.Context, exec runtime.Executor, set map[string]any) (int64, error) {
+	if len(s) == 0 {
+		return 0, nil
+	}
+	ids := make([]any, len(s))
+	for i, o := range s {
+		ids[i] = o.ID
+	}
+	return UpdateAllPosts(ctx, exec, set, runtime.WhereIn("\"id\"", ids...))
+}
+
+// DeleteAll deletes all models in the slice.
+func (s PostSlice) DeleteAll(ctx context.Context, exec runtime.Executor) (int64, error) {
+	if len(s) == 0 {
+		return 0, nil
+	}
+	ids := make([]any, len(s))
+	for i, o := range s {
+		ids[i] = o.ID
+	}
+	return DeleteAllPosts(ctx, exec, runtime.WhereIn("\"id\"", ids...))
 }

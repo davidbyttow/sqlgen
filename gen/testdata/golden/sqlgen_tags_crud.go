@@ -53,7 +53,7 @@ func AllTags(ctx context.Context, exec runtime.Executor, mods ...runtime.QueryMo
 
 // Insert inserts the Tag into the database.
 func (o *Tag) Insert(ctx context.Context, exec runtime.Executor) error {
-	ctx, err := tagHooks.RunIfEnabled(ctx, runtime.BeforeInsert)
+	ctx, err := tagHooks.RunIfEnabled(ctx, exec, runtime.BeforeInsert, o)
 	if err != nil {
 		return err
 	}
@@ -62,21 +62,19 @@ func (o *Tag) Insert(ctx context.Context, exec runtime.Executor) error {
 		[]any{o.Name},
 		[]string{"id"},
 	)
-
 	err = exec.QueryRowContext(ctx, query, args...).Scan(
 		&o.ID,
 	)
 	if err != nil {
 		return err
 	}
-
-	_, err = tagHooks.RunIfEnabled(ctx, runtime.AfterInsert)
+	_, err = tagHooks.RunIfEnabled(ctx, exec, runtime.AfterInsert, o)
 	return err
 }
 
 // Update updates the Tag in the database. Only non-PK columns are updated.
 func (o *Tag) Update(ctx context.Context, exec runtime.Executor) error {
-	ctx, err := tagHooks.RunIfEnabled(ctx, runtime.BeforeUpdate)
+	ctx, err := tagHooks.RunIfEnabled(ctx, exec, runtime.BeforeUpdate, o)
 	if err != nil {
 		return err
 	}
@@ -91,14 +89,13 @@ func (o *Tag) Update(ctx context.Context, exec runtime.Executor) error {
 	if err != nil {
 		return err
 	}
-
-	_, err = tagHooks.RunIfEnabled(ctx, runtime.AfterUpdate)
+	_, err = tagHooks.RunIfEnabled(ctx, exec, runtime.AfterUpdate, o)
 	return err
 }
 
 // Delete deletes the Tag from the database.
 func (o *Tag) Delete(ctx context.Context, exec runtime.Executor) error {
-	ctx, err := tagHooks.RunIfEnabled(ctx, runtime.BeforeDelete)
+	ctx, err := tagHooks.RunIfEnabled(ctx, exec, runtime.BeforeDelete, o)
 	if err != nil {
 		return err
 	}
@@ -111,14 +108,13 @@ func (o *Tag) Delete(ctx context.Context, exec runtime.Executor) error {
 	if err != nil {
 		return err
 	}
-
-	_, err = tagHooks.RunIfEnabled(ctx, runtime.AfterDelete)
+	_, err = tagHooks.RunIfEnabled(ctx, exec, runtime.AfterDelete, o)
 	return err
 }
 
 // Upsert inserts or updates the Tag based on the primary key.
 func (o *Tag) Upsert(ctx context.Context, exec runtime.Executor) error {
-	ctx, err := tagHooks.RunIfEnabled(ctx, runtime.BeforeUpsert)
+	ctx, err := tagHooks.RunIfEnabled(ctx, exec, runtime.BeforeUpsert, o)
 	if err != nil {
 		return err
 	}
@@ -129,7 +125,6 @@ func (o *Tag) Upsert(ctx context.Context, exec runtime.Executor) error {
 	returning := []string{"id", "name"}
 
 	query, args := runtime.BuildUpsert(dialect, TagTableName, allCols, allVals, conflictCols, updateCols, returning)
-
 	err = exec.QueryRowContext(ctx, query, args...).Scan(
 		&o.ID,
 		&o.Name,
@@ -137,8 +132,7 @@ func (o *Tag) Upsert(ctx context.Context, exec runtime.Executor) error {
 	if err != nil {
 		return err
 	}
-
-	_, err = tagHooks.RunIfEnabled(ctx, runtime.AfterUpsert)
+	_, err = tagHooks.RunIfEnabled(ctx, exec, runtime.AfterUpsert, o)
 	return err
 }
 

@@ -90,13 +90,14 @@ func main() {
 
 	// --- Hook registration ---
 	// Each model has an AddXxxHook function for lifecycle events.
-	models.AddUserHook(runtime.BeforeInsert, func(ctx context.Context) (context.Context, error) {
-		fmt.Println("\n[hook] BeforeInsert fired for User")
+	// Hooks receive a typed model pointer so you can inspect or modify it.
+	models.AddUserHook(runtime.BeforeInsert, func(ctx context.Context, exec runtime.Executor, model *models.User) (context.Context, error) {
+		fmt.Printf("\n[hook] BeforeInsert fired for User: %s\n", model.Email)
 		return ctx, nil
 	})
 
-	models.AddPostHook(runtime.AfterInsert, func(ctx context.Context) (context.Context, error) {
-		fmt.Println("[hook] AfterInsert fired for Post")
+	models.AddPostHook(runtime.AfterInsert, func(ctx context.Context, exec runtime.Executor, model *models.Post) (context.Context, error) {
+		fmt.Printf("[hook] AfterInsert fired for Post: %s\n", model.Title)
 		return ctx, nil
 	})
 
