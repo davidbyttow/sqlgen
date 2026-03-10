@@ -667,6 +667,90 @@ func TestBuildSelectCTEWithLocking(t *testing.T) {
 	}
 }
 
+func TestBuildBatchInsert(t *testing.T) {
+	d := PostgresDialect{}
+	sql, args := BuildBatchInsert(d, "users",
+		[]string{"name", "email"},
+		[][]any{
+			{"Alice", "alice@example.com"},
+			{"Bob", "bob@example.com"},
+		},
+		[]string{"id", "name", "email"},
+	)
+
+	want := `INSERT INTO "users" ("name", "email") VALUES ($1, $2), ($3, $4) RETURNING "id", "name", "email"`
+	if sql != want {
+		t.Errorf("got:\n  %s\nwant:\n  %s", sql, want)
+	}
+	if len(args) != 4 || args[0] != "Alice" || args[1] != "alice@example.com" || args[2] != "Bob" || args[3] != "bob@example.com" {
+		t.Errorf("args = %v", args)
+	}
+}
+
+func TestBuildBatchInsertSingleRow(t *testing.T) {
+	d := PostgresDialect{}
+	sql, args := BuildBatchInsert(d, "users",
+		[]string{"name"},
+		[][]any{{"Alice"}},
+		[]string{"id"},
+	)
+
+	want := `INSERT INTO "users" ("name") VALUES ($1) RETURNING "id"`
+	if sql != want {
+		t.Errorf("got:\n  %s\nwant:\n  %s", sql, want)
+	}
+	if len(args) != 1 || args[0] != "Alice" {
+		t.Errorf("args = %v", args)
+	}
+}
+
+func TestBuildBatchInsertThreeRows(t *testing.T) {
+	d := PostgresDialect{}
+	sql, args := BuildBatchInsert(d, "tags",
+		[]string{"name"},
+		[][]any{{"go"}, {"rust"}, {"zig"}},
+		nil,
+	)
+
+	want := `INSERT INTO "tags" ("name") VALUES ($1), ($2), ($3)`
+	if sql != want {
+		t.Errorf("got:\n  %s\nwant:\n  %s", sql, want)
+	}
+	if len(args) != 3 {
+		t.Errorf("args = %v", args)
+	}
+}
+
+func TestBuildBatchInsertEmpty(t *testing.T) {
+	d := PostgresDialect{}
+	sql, args := BuildBatchInsert(d, "users",
+		[]string{"name"},
+		nil,
+		[]string{"id"},
+	)
+
+	if sql != "" {
+		t.Errorf("expected empty sql, got: %s", sql)
+	}
+	if args != nil {
+		t.Errorf("expected nil args, got: %v", args)
+	}
+}
+
+func TestBuildBatchInsertNoReturning(t *testing.T) {
+	d := testDialectNoReturning{}
+	sql, _ := BuildBatchInsert(d, "users",
+		[]string{"name", "email"},
+		[][]any{{"Alice", "a@b.com"}, {"Bob", "b@b.com"}},
+		[]string{"id"},
+	)
+
+	want := `INSERT INTO "users" ("name", "email") VALUES (?, ?), (?, ?)`
+	if sql != want {
+		t.Errorf("got:\n  %s\nwant:\n  %s", sql, want)
+	}
+}
+
 // mockExecutor is a no-op Executor for testing DebugExecutor.
 type mockExecutor struct{}
 

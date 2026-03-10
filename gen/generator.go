@@ -31,6 +31,10 @@ type Generator struct {
 
 // NewGenerator creates a generator from config and schema.
 func NewGenerator(cfg *config.Config, s *schema.Schema) *Generator {
+	// Ensure Tags has defaults even if config wasn't loaded via Parse/Validate.
+	if len(cfg.Tags) == 0 {
+		cfg.Tags = map[string]string{"json": "snake", "db": "none"}
+	}
 	mapper := NewTypeMapper(cfg, runtimePkg)
 	funcs := TemplateFuncs(mapper)
 

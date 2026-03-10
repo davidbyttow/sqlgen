@@ -361,5 +361,66 @@ func (s {{$structName}}Slice) DeleteAll(ctx context.Context, exec runtime.Execut
 	}
 	return DeleteAll{{safePascal (plural (singular $tableName))}}(ctx, exec, runtime.WhereIn("\"{{$pkCol}}\"", ids...))
 }
+
+// InsertAll batch-inserts all models in the slice. Each model's columns are
+// scanned back via RETURNING, picking up defaults and generated values.
+// Hooks are not fired (consistent with UpdateAll/DeleteAll).
+func (s {{$structName}}Slice) InsertAll(ctx context.Context, exec runtime.Executor) error {
+	if len(s) == 0 {
+		return nil
+	}
+{{- if or $.Timestamps.CreatedAt $.Timestamps.UpdatedAt}}
+	now := {{$.Timestamps.NowExpr}}
+	for _, o := range s {
+{{- if $.Timestamps.CreatedAt}}
+		o.{{pascal $.Timestamps.CreatedAt}} = now
+{{- end}}
+{{- if $.Timestamps.UpdatedAt}}
+		o.{{pascal $.Timestamps.UpdatedAt}} = now
+{{- end}}
+	}
+{{- end}}
+
+{{- if $hasAutoIncrPK}}
+	cols := []string{ {{- range $i, $c := $insertCols}}{{if $i}}, {{end}}"{{$c.Name}}"{{end -}} }
+	returning := []string{ {{- range $i, $c := .Table.PrimaryKey.Columns}}{{if $i}}, {{end}}"{{$c}}"{{end -}} }
+{{- else}}
+	cols := []string{ {{- range $i, $c := $insertCols}}{{if $i}}, {{end}}"{{$c.Name}}"{{end -}} }
+	returning := []string{ {{- range $i, $c := .Table.Columns}}{{if $i}}, {{end}}"{{$c.Name}}"{{end -}} }
+{{- end}}
+
+	rows := make([][]any, len(s))
+{{- if $insertCols}}
+	for i, o := range s {
+		rows[i] = []any{ {{- range $i, $c := $insertCols}}{{if $i}}, {{end}}o.{{pascal $c.Name}}{{end -}} }
+	}
+{{- end}}
+
+	query, args := runtime.BuildBatchInsert(dialect, {{$tableConst}}, cols, rows, returning)
+	result, err := exec.QueryContext(ctx, query, args...)
+	if err != nil {
+		return err
+	}
+	defer result.Close()
+
+	idx := 0
+	for result.Next() {
+{{- if $hasAutoIncrPK}}
+		if err := result.Scan(
+{{- range .Table.PrimaryKey.Columns}}
+			&s[idx].{{pascal .}},
+{{- end}}
+		); err != nil {
+			return err
+		}
+{{- else}}
+		if err := s[idx].ScanRow(result); err != nil {
+			return err
+		}
+{{- end}}
+		idx++
+	}
+	return result.Err()
+}
 {{- end}}
 {{- end}}

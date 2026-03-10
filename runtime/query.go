@@ -529,6 +529,57 @@ func BuildInsert(dialect Dialect, table string, cols []string, vals []any, retur
 	return b.String(), vals
 }
 
+// BuildBatchInsert builds a multi-row INSERT query.
+// Each element of rows must have the same length as cols.
+func BuildBatchInsert(dialect Dialect, table string, cols []string, rows [][]any, returning []string) (string, []any) {
+	if len(rows) == 0 {
+		return "", nil
+	}
+
+	var b strings.Builder
+	var args []any
+	argIdx := 0
+
+	b.WriteString("INSERT INTO ")
+	b.WriteString(dialect.QuoteIdent(table))
+	b.WriteString(" (")
+	for i, col := range cols {
+		if i > 0 {
+			b.WriteString(", ")
+		}
+		b.WriteString(dialect.QuoteIdent(col))
+	}
+	b.WriteString(") VALUES ")
+
+	for r, row := range rows {
+		if r > 0 {
+			b.WriteString(", ")
+		}
+		b.WriteString("(")
+		for i := range cols {
+			if i > 0 {
+				b.WriteString(", ")
+			}
+			argIdx++
+			b.WriteString(dialect.Placeholder(argIdx))
+		}
+		b.WriteString(")")
+		args = append(args, row...)
+	}
+
+	if len(returning) > 0 && dialect.SupportsReturning() {
+		b.WriteString(" RETURNING ")
+		for i, col := range returning {
+			if i > 0 {
+				b.WriteString(", ")
+			}
+			b.WriteString(dialect.QuoteIdent(col))
+		}
+	}
+
+	return b.String(), args
+}
+
 // BuildUpdate builds an UPDATE query.
 func BuildUpdate(dialect Dialect, table string, setCols []string, setVals []any, whereClauses []string, whereArgs []any) (string, []any) {
 	var b strings.Builder

@@ -245,3 +245,37 @@ func (s CategorySlice) DeleteAll(ctx context.Context, exec runtime.Executor) (in
 	}
 	return DeleteAllCategories(ctx, exec, runtime.WhereIn("\"id\"", ids...))
 }
+
+// InsertAll batch-inserts all models in the slice. Each model's columns are
+// scanned back via RETURNING, picking up defaults and generated values.
+// Hooks are not fired (consistent with UpdateAll/DeleteAll).
+func (s CategorySlice) InsertAll(ctx context.Context, exec runtime.Executor) error {
+	if len(s) == 0 {
+		return nil
+	}
+	cols := []string{"name", "parent_id"}
+	returning := []string{"id"}
+
+	rows := make([][]any, len(s))
+	for i, o := range s {
+		rows[i] = []any{o.Name, o.ParentID}
+	}
+
+	query, args := runtime.BuildBatchInsert(dialect, CategoryTableName, cols, rows, returning)
+	result, err := exec.QueryContext(ctx, query, args...)
+	if err != nil {
+		return err
+	}
+	defer result.Close()
+
+	idx := 0
+	for result.Next() {
+		if err := result.Scan(
+			&s[idx].ID,
+		); err != nil {
+			return err
+		}
+		idx++
+	}
+	return result.Err()
+}
