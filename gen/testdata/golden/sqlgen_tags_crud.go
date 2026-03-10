@@ -225,3 +225,37 @@ func (s TagSlice) DeleteAll(ctx context.Context, exec runtime.Executor) (int64, 
 	}
 	return DeleteAllTags(ctx, exec, runtime.WhereIn("\"id\"", ids...))
 }
+
+// InsertAll batch-inserts all models in the slice. Each model's columns are
+// scanned back via RETURNING, picking up defaults and generated values.
+// Hooks are not fired (consistent with UpdateAll/DeleteAll).
+func (s TagSlice) InsertAll(ctx context.Context, exec runtime.Executor) error {
+	if len(s) == 0 {
+		return nil
+	}
+	cols := []string{"name"}
+	returning := []string{"id"}
+
+	rows := make([][]any, len(s))
+	for i, o := range s {
+		rows[i] = []any{o.Name}
+	}
+
+	query, args := runtime.BuildBatchInsert(dialect, TagTableName, cols, rows, returning)
+	result, err := exec.QueryContext(ctx, query, args...)
+	if err != nil {
+		return err
+	}
+	defer result.Close()
+
+	idx := 0
+	for result.Next() {
+		if err := result.Scan(
+			&s[idx].ID,
+		); err != nil {
+			return err
+		}
+		idx++
+	}
+	return result.Err()
+}

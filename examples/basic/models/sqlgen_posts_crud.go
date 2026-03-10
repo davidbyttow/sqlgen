@@ -256,3 +256,39 @@ func (s PostSlice) DeleteAll(ctx context.Context, exec runtime.Executor) (int64,
 	}
 	return DeleteAllPosts(ctx, exec, runtime.WhereIn("\"id\"", ids...))
 }
+
+// InsertAll batch-inserts all models in the slice. Each model's columns are
+// scanned back via RETURNING, picking up defaults and generated values.
+// Hooks are not fired (consistent with UpdateAll/DeleteAll).
+func (s PostSlice) InsertAll(ctx context.Context, exec runtime.Executor) error {
+	if len(s) == 0 {
+		return nil
+	}
+	now := time.Now()
+	for _, o := range s {
+		o.CreatedAt = now
+	}
+	cols := []string{"id", "author_id", "title", "body", "status", "created_at", "published_at"}
+	returning := []string{"id", "author_id", "title", "body", "status", "created_at", "published_at"}
+
+	rows := make([][]any, len(s))
+	for i, o := range s {
+		rows[i] = []any{o.ID, o.AuthorID, o.Title, o.Body, o.Status, o.CreatedAt, o.PublishedAt}
+	}
+
+	query, args := runtime.BuildBatchInsert(dialect, PostTableName, cols, rows, returning)
+	result, err := exec.QueryContext(ctx, query, args...)
+	if err != nil {
+		return err
+	}
+	defer result.Close()
+
+	idx := 0
+	for result.Next() {
+		if err := s[idx].ScanRow(result); err != nil {
+			return err
+		}
+		idx++
+	}
+	return result.Err()
+}
