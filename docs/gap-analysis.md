@@ -39,7 +39,7 @@ The remaining gaps are mostly about DX polish, testing infrastructure, and advan
 | Raw SQL escape hatch | Yes (qm.SQL, queries.Raw) | Yes (Raw, RawQuery) | **Yes** (RawSQL) |
 | **Mutations** | | | |
 | Insert (single row) | Yes | Yes | Yes |
-| Insert (multi-row/batch) | No | Yes (Values, Rows) | No |
+| Insert (multi-row/batch) | No | Yes (Values, Rows) | **Yes** (InsertAll) |
 | Insert from SELECT | No | Yes | No |
 | Update by PK | Yes | Yes | Yes |
 | Update (bulk/query-scoped) | Yes (UpdateAll) | Yes (UpdateAll) | **Yes** (UpdateAll) |
@@ -83,7 +83,7 @@ The remaining gaps are mostly about DX polish, testing infrastructure, and advan
 | Soft deletes | Yes (--add-soft-deletes) | No | No |
 | Column whitelist/blacklist on mutations | Yes (Infer/Whitelist/Blacklist/Greylist) | Yes (Only/Except) | **Yes** (Whitelist/Blacklist) |
 | Custom templates | Yes | Yes | No |
-| Struct tag control | Yes (casing, extra tags) | Yes (casing, extra tags) | No (hardcoded json+db) |
+| Struct tag control | Yes (casing, extra tags) | Yes (casing, extra tags) | **Yes** (configurable tags + casing) |
 | DB error constants | No | Yes (dberrors plugin) | No |
 | Bind to arbitrary struct | Yes (Bind finisher) | No | No |
 | Prepared statement support | No | Yes (Prepare, PrepareQuery) | No |
@@ -115,6 +115,8 @@ These were the highest-impact gaps. All shipped.
 - **CTEs (WITH clause)** - `WithCTE(name, query)` and `WithRecursiveCTE(name, query)` for hierarchical queries
 - **Row locking** - `ForUpdate()`, `ForShare()`, `ForNoKeyUpdate()`, `ForKeyShare()` with `Nowait()` and `SkipLocked()`
 - **Cursor/streaming iteration** - `EachX()` callback and `XCursor()` for memory-efficient row processing
+- **Struct tag customization** - configurable tags and casing via `tags` config map
+- **Batch insert** - `InsertAll()` on slice types for multi-row INSERT with RETURNING
 
 ---
 
@@ -122,16 +124,13 @@ These were the highest-impact gaps. All shipped.
 
 ### Medium Impact
 
-**1. Struct tag customization**
-Hardcoded to `json:"snake" db:"name"`. Users want `yaml`, `toml`, camelCase JSON, or custom tags.
-
-**2. Custom type replacement by column name**
+**1. Custom type replacement by column name**
 Replacements only match by DB type. Matching by column name/nullability is useful for: "all `metadata` columns → `json.RawMessage`."
 
-**3. Factory/fixture system**
+**2. Factory/fixture system**
 Generated test files exist, but no factory system for generating test data. Bob's FactoryBot-inspired factories are genuinely useful for integration tests.
 
-**4. Relationship mutations (Set/Add/Remove)**
+**3. Relationship mutations (Set/Add/Remove)**
 Can't programmatically add/remove related records through the relationship API. Both competitors have this.
 
 ### Lower Impact
@@ -141,7 +140,6 @@ Can't programmatically add/remove related records through the relationship API. 
 **7. Custom templates** - Both competitors let users override templates.
 **8. DB error matching** - Bob generates typed constraint error matchers.
 **9. Prepared statement caching** - Performance optimization. Bob only.
-**10. Batch insert** - Multi-row INSERT. Bob only.
 
 ---
 
@@ -158,7 +156,6 @@ Can't programmatically add/remove related records through the relationship API. 
 ## Suggested Roadmap
 
 **Phase 15: Developer Experience** (medium impact, medium effort)
-- Struct tag customization (casing, extra tags)
 - Custom template support
 - Type replacement by column name/nullability
 
