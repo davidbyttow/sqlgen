@@ -1,122 +1,120 @@
 # sqlgen Gap Analysis: vs SQLBoiler & Bob
 
-Where we stand after Phases 1-9, and what's worth building next.
+Where we stand, and what's worth building next.
 
 ## The Short Version
 
-sqlgen covers the core loop plus most of the high-impact features: DDL parsing, live DB introspection, typed models, CRUD, where clauses (with OR and grouping), enums, hooks, relationship detection, eager loading with dot-notation nesting, bulk operations, reload, raw SQL, and debug mode. That's roughly 80% of SQLBoiler's surface area and maybe 50% of Bob's.
-
-The remaining gaps are mostly about DX polish, testing infrastructure, and advanced query features.
+sqlgen covers the core loop plus most of the high-impact features. That's roughly 85% of SQLBoiler's surface area and maybe 60% of Bob's. The remaining gaps are mostly niche query features, testing infrastructure, and additional dialects.
 
 ---
 
 ## Feature Comparison Matrix
 
 | Feature | SQLBoiler | Bob | sqlgen |
-|---------|-----------|-----|--------|
+|---------|:---------:|:---:|:------:|
 | **Schema Input** | | | |
-| Live DB introspection | Yes (primary method) | Yes | Yes |
-| DDL file parsing | No | Yes (SQL file driver) | Yes (primary method) |
-| PostgreSQL | Yes | Yes | Yes |
-| MySQL | Yes | Yes | No |
-| SQLite | Yes (community) | Yes | No |
-| MSSQL | Yes | No | No |
-| CockroachDB | Yes (community) | No | No |
+| Live DB introspection | ✅ (primary) | ✅ | ✅ |
+| DDL file parsing | ❌ | ✅ | ✅ (primary) |
+| PostgreSQL | ✅ | ✅ | ✅ |
+| MySQL | ✅ | ✅ | ❌ |
+| SQLite | ✅ (community) | ✅ | ❌ |
+| MSSQL | ✅ | ❌ | ❌ |
+| CockroachDB | ✅ (community) | ❌ | ❌ |
 | **Query Building** | | | |
-| SELECT with mods | Yes | Yes | Yes |
-| WHERE (AND/OR) | Yes (And, Or, Or2) | Yes | **Yes** (Or, Expr grouping) |
-| JOIN (all types) | 4 types | 5 types + lateral | **Yes** (inner, left, right, full, cross) |
-| GROUP BY / HAVING | Yes | Yes | Yes |
-| ORDER BY | Yes | Yes (with nulls first/last) | Yes |
-| LIMIT / OFFSET | Yes | Yes (+ FETCH WITH TIES) | Yes |
-| DISTINCT / DISTINCT ON | Yes | Yes (Postgres DISTINCT ON) | **Yes** |
-| WhereIn helper | Yes | Yes | **Yes** |
-| CTEs (WITH clause) | Yes | Yes (+ recursive) | **Yes** (+ recursive) |
-| Subqueries | Yes | Yes | No |
-| UNION / INTERSECT / EXCEPT | No | Yes | No |
-| Window functions | No | Yes | No |
-| Row locking (FOR UPDATE) | Yes | Yes (4 lock types) | **Yes** (4 types + NOWAIT/SKIP LOCKED) |
-| Raw SQL escape hatch | Yes (qm.SQL, queries.Raw) | Yes (Raw, RawQuery) | **Yes** (RawSQL) |
+| SELECT with mods | ✅ | ✅ | ✅ |
+| WHERE (AND/OR) | ✅ | ✅ | ✅ (Or, Expr grouping) |
+| JOIN (all types) | 4 types | 5 + lateral | ✅ (5 types) |
+| GROUP BY / HAVING | ✅ | ✅ | ✅ |
+| ORDER BY | ✅ | ✅ (nulls first/last) | ✅ |
+| LIMIT / OFFSET | ✅ | ✅ (+ FETCH WITH TIES) | ✅ |
+| DISTINCT / DISTINCT ON | ✅ | ✅ | ✅ |
+| WhereIn helper | ✅ | ✅ | ✅ |
+| CTEs (WITH clause) | ✅ | ✅ (+ recursive) | ✅ (+ recursive) |
+| Subqueries | ✅ | ✅ | ❌ |
+| UNION / INTERSECT / EXCEPT | ❌ | ✅ | ❌ |
+| Window functions | ❌ | ✅ | ❌ |
+| Row locking (FOR UPDATE) | ✅ | ✅ (4 lock types) | ✅ (4 types + NOWAIT/SKIP LOCKED) |
+| Raw SQL escape hatch | ✅ | ✅ | ✅ (RawSQL) |
 | **Mutations** | | | |
-| Insert (single row) | Yes | Yes | Yes |
-| Insert (multi-row/batch) | No | Yes (Values, Rows) | **Yes** (InsertAll) |
-| Insert from SELECT | No | Yes | No |
-| Update by PK | Yes | Yes | Yes |
-| Update (bulk/query-scoped) | Yes (UpdateAll) | Yes (UpdateAll) | **Yes** (UpdateAll) |
-| Delete by PK | Yes | Yes | Yes |
-| Delete (bulk/query-scoped) | Yes (DeleteAll) | Yes (DeleteAll) | **Yes** (DeleteAll) |
-| Upsert | Yes (dialect-aware) | Yes (ON CONFLICT) | Yes (Postgres only) |
-| Reload from DB | Yes | Yes | **Yes** |
-| Slice UpdateAll/DeleteAll | Yes | Yes | **Yes** (single-column PK) |
+| Insert (single row) | ✅ | ✅ | ✅ |
+| Insert (multi-row/batch) | ❌ | ✅ | ✅ (InsertAll) |
+| Insert from SELECT | ❌ | ✅ | ❌ |
+| Update by PK | ✅ | ✅ | ✅ |
+| Update (bulk/query-scoped) | ✅ | ✅ | ✅ (UpdateAll) |
+| Delete by PK | ✅ | ✅ | ✅ |
+| Delete (bulk/query-scoped) | ✅ | ✅ | ✅ (DeleteAll) |
+| Upsert | ✅ (dialect-aware) | ✅ (ON CONFLICT) | ✅ (Postgres) |
+| Reload from DB | ✅ | ✅ | ✅ |
+| Slice UpdateAll/DeleteAll | ✅ | ✅ | ✅ |
 | **Relationships** | | | |
-| Detection (BelongsTo, Has*, M2M) | Yes | Yes | Yes |
-| Eager loading (single level) | Yes (qm.Load) | Yes (Preload, ThenLoad) | **Yes** (LoadRelations) |
-| Eager loading (nested/recursive) | Yes (dot notation) | Yes (nested loaders) | **Yes** (dot notation) |
-| Preload via LEFT JOIN (to-one) | No | Yes (Preload) | **Yes** (Preload) |
-| Filtered eager loading | Yes (mods on Load) | Yes (mods on ThenLoad) | **Yes** (mods on Load) |
-| Relationship mutation (Set/Add/Remove) | Yes | Yes (Attach, Insert) | No |
-| Relationship query methods | No | Yes (returns TableQuery) | No |
-| Relationship count loading | No | Yes (PreloadCount, ThenLoadCount) | No |
-| Polymorphic relationships | No | Yes (from_where/to_where) | No |
+| Detection (BelongsTo, Has*, M2M) | ✅ | ✅ | ✅ |
+| Eager loading (single level) | ✅ | ✅ | ✅ (LoadRelations) |
+| Eager loading (nested) | ✅ (dot notation) | ✅ (nested loaders) | ✅ (dot notation) |
+| Preload via LEFT JOIN (to-one) | ❌ | ✅ | ✅ (Preload) |
+| Filtered eager loading | ✅ | ✅ | ✅ (mods on Load) |
+| Relationship mutation (Set/Add/Remove) | ✅ | ✅ (Attach, Insert) | ❌ |
+| Relationship query methods | ❌ | ✅ | ❌ |
+| Relationship count loading | ❌ | ✅ | ❌ |
+| Polymorphic relationships | ❌ | ✅ | ❌ |
 | **Hooks** | | | |
-| 9 lifecycle points | Yes | Yes | Yes |
-| Hook receives model pointer | Yes | Yes | **Yes** (typed per-model) |
-| Skip via context | Yes | Yes (model + query separately) | Yes |
-| Disable generation (--no-hooks) | Yes | No | **Yes** (output.no_hooks) |
+| 9 lifecycle points | ✅ | ✅ | ✅ |
+| Hook receives model pointer | ✅ | ✅ | ✅ (typed per-model) |
+| Skip via context | ✅ | ✅ | ✅ |
+| Disable generation (--no-hooks) | ✅ | ❌ | ✅ |
 | **Type System** | | | |
-| Nullable: generic wrapper | null.String (v8 lib) | opt.Val (aarondl/opt) | Null[T] (built-in generic) |
-| Nullable: pointer | Via type replacement | Via type replacement | Yes (config option) |
-| Nullable: database/sql | Via type replacement | Via type replacement | Yes (config option) |
-| Custom type replacement | Yes (by type match) | Yes (by column/type/nullable) | Yes (by DB type name) |
-| Enum generation | Yes (--add-enum-types) | Yes | Yes |
+| Nullable: generic wrapper | ✅ (null.String) | ✅ (opt.Val) | ✅ (Null[T]) |
+| Nullable: pointer | ✅ | ✅ | ✅ |
+| Nullable: database/sql | ✅ | ✅ | ✅ |
+| Custom type replacement | ✅ (by type) | ✅ (col/type/nullable) | ✅ (by DB type) |
+| Enum generation | ✅ | ✅ | ✅ |
 | **Testing** | | | |
-| Generated test files | Yes | Yes | **Yes** (output.tests) |
-| Factory/fixture system | No | Yes (FactoryBot-inspired) | No |
-| Random data generation | No | Yes (jaswdr/faker) | No |
+| Generated test files | ✅ | ✅ | ✅ |
+| Factory/fixture system | ❌ | ✅ (FactoryBot) | ❌ |
+| Random data generation | ❌ | ✅ (faker) | ❌ |
 | **Developer Experience** | | | |
-| Watch mode | No | No | Yes |
-| Stale file cleanup | No (--wipe flag) | No | Yes (automatic) |
-| Debug mode (print SQL) | Yes (boil.DebugMode) | Yes (bob.Debug) | **Yes** (DebugExecutor) |
-| Global DB variant (no exec param) | Yes (MethodG) | No | No |
-| Panic variant | Yes (MethodP) | No | No |
-| Automatic timestamps | Yes (created_at/updated_at) | No | **Yes** (configurable columns) |
-| Soft deletes | Yes (--add-soft-deletes) | No | No |
-| Column whitelist/blacklist on mutations | Yes (Infer/Whitelist/Blacklist/Greylist) | Yes (Only/Except) | **Yes** (Whitelist/Blacklist) |
-| Custom templates | Yes | Yes | No |
-| Struct tag control | Yes (casing, extra tags) | Yes (casing, extra tags) | **Yes** (configurable tags + casing) |
-| DB error constants | No | Yes (dberrors plugin) | No |
-| Bind to arbitrary struct | Yes (Bind finisher) | No | No |
-| Prepared statement support | No | Yes (Prepare, PrepareQuery) | No |
-| Query caching | No | Yes (bob.Cache) | No |
-| Cursor iteration | No | Yes (Cursor, Each) | **Yes** (Each, Cursor) |
+| Watch mode | ❌ | ❌ | ✅ |
+| Stale file cleanup | ⚠️ (--wipe) | ❌ | ✅ (automatic) |
+| Debug mode (print SQL) | ✅ | ✅ | ✅ (DebugExecutor) |
+| Global DB variant | ✅ (MethodG) | ❌ | ❌ |
+| Panic variant | ✅ (MethodP) | ❌ | ❌ |
+| Automatic timestamps | ✅ | ❌ | ✅ (configurable) |
+| Soft deletes | ✅ | ❌ | ❌ |
+| Column whitelist/blacklist | ✅ | ✅ | ✅ |
+| Custom templates | ✅ | ✅ | ❌ |
+| Struct tag control | ✅ | ✅ | ✅ (configurable) |
+| DB error constants | ❌ | ✅ | ❌ |
+| Bind to arbitrary struct | ✅ | ❌ | ❌ |
+| Prepared statements | ❌ | ✅ | ❌ |
+| Query caching | ❌ | ✅ | ❌ |
+| Cursor iteration | ❌ | ✅ | ✅ (Each, Cursor) |
 
 ---
 
-## Completed (Phases 7-14)
+## Completed
 
-These were the highest-impact gaps. All shipped.
+All shipped.
 
-- **OR clauses and Expr() grouping** - `Or("x = ?", 1)`, `Expr(Where(...), Or(...))` for parenthesized groups
-- **All 5 JOIN types** - inner, left, right, full, cross
-- **DISTINCT / DISTINCT ON** - including Postgres-specific DISTINCT ON
-- **Raw SQL escape hatch** - `RawSQL(query, args...)` with Exec/QueryRows/QueryRow
-- **Debug executor** - `Debug(exec)` / `DebugTo(exec, writer)` wraps any Executor
-- **Eager loading** - generated per-table loaders for all 4 relationship types, dot-notation nesting (`Load("Posts.Tags")`)
-- **Bulk UpdateAll / DeleteAll** - query-scoped and slice-scoped
-- **Reload** - `model.Reload(ctx, exec)` refreshes by PK
-- **WhereIn** - `WhereIn("col", vals...)` helper
-- **Generated test files** - opt-in via `output.tests: true`, snapshot/golden testing
-- **Typed model hooks** - hooks receive `(ctx, exec, *Model)` so they can inspect/modify the row
-- **No-hooks flag** - `output.no_hooks: true` skips hook generation entirely
-- **Automatic timestamps** - `created_at`/`updated_at` auto-set on Insert/Update, configurable column names
-- **Column whitelist/blacklist** - `Whitelist("email", "name")` / `Blacklist("id")` for Insert/Update/Upsert
-- **Filtered eager loading** - `Load("Posts", Where(...))` passes mods through to loader queries
-- **Preload via LEFT JOIN** - `Preload(PostPreloadUser)` folds to-one relationships into the parent SELECT
-- **CTEs (WITH clause)** - `WithCTE(name, query)` and `WithRecursiveCTE(name, query)` for hierarchical queries
-- **Row locking** - `ForUpdate()`, `ForShare()`, `ForNoKeyUpdate()`, `ForKeyShare()` with `Nowait()` and `SkipLocked()`
-- **Cursor/streaming iteration** - `EachX()` callback and `XCursor()` for memory-efficient row processing
-- **Struct tag customization** - configurable tags and casing via `tags` config map
-- **Batch insert** - `InsertAll()` on slice types for multi-row INSERT with RETURNING
+- **OR clauses and Expr() grouping** — `Or("x = ?", 1)`, `Expr(Where(...), Or(...))` for parenthesized groups
+- **All 5 JOIN types** — inner, left, right, full, cross
+- **DISTINCT / DISTINCT ON** — including Postgres-specific DISTINCT ON
+- **Raw SQL escape hatch** — `RawSQL(query, args...)` with Exec/QueryRows/QueryRow
+- **Debug executor** — `Debug(exec)` / `DebugTo(exec, writer)` wraps any Executor
+- **Eager loading** — generated per-table loaders for all 4 relationship types, dot-notation nesting (`Load("Posts.Tags")`)
+- **Bulk UpdateAll / DeleteAll** — query-scoped and slice-scoped
+- **Reload** — `model.Reload(ctx, exec)` refreshes by PK
+- **WhereIn** — `WhereIn("col", vals...)` helper
+- **Generated test files** — opt-in via `output.tests: true`, snapshot/golden testing
+- **Typed model hooks** — hooks receive `(ctx, exec, *Model)` so they can inspect/modify the row
+- **No-hooks flag** — `output.no_hooks: true` skips hook generation entirely
+- **Automatic timestamps** — `created_at`/`updated_at` auto-set on Insert/Update, configurable column names
+- **Column whitelist/blacklist** — `Whitelist("email", "name")` / `Blacklist("id")` for Insert/Update/Upsert
+- **Filtered eager loading** — `Load("Posts", Where(...))` passes mods through to loader queries
+- **Preload via LEFT JOIN** — `Preload(PostPreloadUser)` folds to-one relationships into the parent SELECT
+- **CTEs (WITH clause)** — `WithCTE(name, query)` and `WithRecursiveCTE(name, query)` for hierarchical queries
+- **Row locking** — `ForUpdate()`, `ForShare()`, `ForNoKeyUpdate()`, `ForKeyShare()` with `Nowait()` and `SkipLocked()`
+- **Cursor/streaming iteration** — `EachX()` callback and `XCursor()` for memory-efficient row processing
+- **Struct tag customization** — configurable tags and casing via `tags` config map
+- **Batch insert** — `InsertAll()` on slice types for multi-row INSERT with RETURNING
 
 ---
 
@@ -135,11 +133,11 @@ Can't programmatically add/remove related records through the relationship API. 
 
 ### Lower Impact
 
-**5. UNION / INTERSECT / EXCEPT** - Bob has these, SQLBoiler doesn't.
-**6. Soft deletes** - SQLBoiler has first-class support. Doable with hooks.
-**7. Custom templates** - Both competitors let users override templates.
-**8. DB error matching** - Bob generates typed constraint error matchers.
-**9. Prepared statement caching** - Performance optimization. Bob only.
+**4. UNION / INTERSECT / EXCEPT** — Bob has these, SQLBoiler doesn't.
+**5. Soft deletes** — SQLBoiler has first-class support. Doable with hooks.
+**6. Custom templates** — Both competitors let users override templates.
+**7. DB error matching** — Bob generates typed constraint error matchers.
+**8. Prepared statement caching** — Performance optimization. Bob only.
 
 ---
 
