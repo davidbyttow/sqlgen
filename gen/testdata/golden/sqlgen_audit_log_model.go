@@ -26,13 +26,13 @@ var AuditLogColumns = struct {
 
 // AuditLog represents a row from the 'audit_log' table.
 type AuditLog struct {
-	ID        int64     `json:"id" db:"id"`
-	OrgID     string    `json:"org_id" db:"org_id"`
-	UserID    string    `json:"user_id" db:"user_id"`
-	Action    string    `json:"action" db:"action"`
-	CreatedAt time.Time `json:"created_at" db:"created_at"`
+	ID        int64     ``
+	OrgID     string    ``
+	UserID    string    ``
+	Action    string    ``
+	CreatedAt time.Time ``
 
-	R *AuditLogRels `json:"-" db:"-"`
+	R *AuditLogRels ``
 }
 
 // AuditLogRels holds eagerly loaded relationships.

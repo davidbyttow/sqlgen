@@ -102,6 +102,7 @@ func (g *Generator) Run() error {
 			"Package": pkg,
 			"Table":   table,
 			"Imports": tableImports.FormatBlock(),
+			"Tags":    g.cfg.Tags,
 		}
 
 		snakeName := naming.ToSnake(table.Name)

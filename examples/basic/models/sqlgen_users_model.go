@@ -28,13 +28,13 @@ var UserColumns = struct {
 
 // User represents a row from the 'users' table.
 type User struct {
-	ID        string               `json:"id" db:"id"`
-	Email     string               `json:"email" db:"email"`
-	Name      string               `json:"name" db:"name"`
-	Bio       runtime.Null[string] `json:"bio" db:"bio"`
-	CreatedAt time.Time            `json:"created_at" db:"created_at"`
+	ID        string               `db:"id" json:"id"`
+	Email     string               `db:"email" json:"email"`
+	Name      string               `db:"name" json:"name"`
+	Bio       runtime.Null[string] `db:"bio" json:"bio"`
+	CreatedAt time.Time            `db:"created_at" json:"created_at"`
 
-	R *UserRels `json:"-" db:"-"`
+	R *UserRels `db:"-" json:"-"`
 }
 
 // UserRels holds eagerly loaded relationships.

@@ -16,10 +16,10 @@ var PostTagColumns = struct {
 
 // PostTag represents a row from the 'post_tags' table.
 type PostTag struct {
-	PostID string `json:"post_id" db:"post_id"`
-	TagID  int32  `json:"tag_id" db:"tag_id"`
+	PostID string `db:"post_id" json:"post_id"`
+	TagID  int32  `db:"tag_id" json:"tag_id"`
 
-	R *PostTagRels `json:"-" db:"-"`
+	R *PostTagRels `db:"-" json:"-"`
 }
 
 // PostTagRels holds eagerly loaded relationships.

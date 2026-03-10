@@ -24,12 +24,12 @@ var OrganizationColumns = struct {
 
 // Organization represents a row from the 'organizations' table.
 type Organization struct {
-	ID        string    `json:"id" db:"id"`
-	Name      string    `json:"name" db:"name"`
-	Slug      string    `json:"slug" db:"slug"`
-	CreatedAt time.Time `json:"created_at" db:"created_at"`
+	ID        string    ``
+	Name      string    ``
+	Slug      string    ``
+	CreatedAt time.Time ``
 
-	R *OrganizationRels `json:"-" db:"-"`
+	R *OrganizationRels ``
 }
 
 // OrganizationRels holds eagerly loaded relationships.

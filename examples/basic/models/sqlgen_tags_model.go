@@ -16,10 +16,10 @@ var TagColumns = struct {
 
 // Tag represents a row from the 'tags' table.
 type Tag struct {
-	ID   int32  `json:"id" db:"id"`
-	Name string `json:"name" db:"name"`
+	ID   int32  `db:"id" json:"id"`
+	Name string `db:"name" json:"name"`
 
-	R *TagRels `json:"-" db:"-"`
+	R *TagRels `db:"-" json:"-"`
 }
 
 // TagRels holds eagerly loaded relationships.

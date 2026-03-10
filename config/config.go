@@ -22,6 +22,11 @@ type Config struct {
 	// Timestamps configures automatic timestamp management.
 	Timestamps TimestampsConfig `yaml:"timestamps"`
 
+	// Tags configures struct tag generation. Keys are tag names, values are casing.
+	// Options: "snake", "camel", "pascal", "none" (raw DB column name).
+	// Default: {"json": "snake", "db": "none"}
+	Tags map[string]string `yaml:"tags"`
+
 	// Tables allows per-table configuration overrides.
 	Tables map[string]TableConfig `yaml:"tables"`
 }
@@ -157,6 +162,17 @@ func (c *Config) validate() error {
 	}
 	if c.Timestamps.UpdatedAt == "" {
 		c.Timestamps.UpdatedAt = "updated_at"
+	}
+	if len(c.Tags) == 0 {
+		c.Tags = map[string]string{"json": "snake", "db": "none"}
+	}
+	for tag, casing := range c.Tags {
+		switch casing {
+		case "snake", "camel", "pascal", "none":
+			// valid
+		default:
+			return fmt.Errorf("unsupported casing %q for tag %q (options: \"snake\", \"camel\", \"pascal\", \"none\")", casing, tag)
+		}
 	}
 	switch c.Types.NullType {
 	case NullTypeGeneric, NullTypePointer, NullTypeDatabase:

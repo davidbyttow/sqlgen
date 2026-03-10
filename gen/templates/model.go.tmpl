@@ -25,10 +25,10 @@ var {{$structName}}Columns = struct {
 // {{$structName}} represents a row from the '{{$tableName}}' table.
 type {{$structName}} struct {
 {{- range .Table.Columns}}
-	{{pascal .Name}} {{goType .}} `json:"{{snake .Name}}" db:"{{.Name}}"`
+	{{pascal .Name}} {{goType .}} {{structTags . $.Tags}}
 {{- end}}
 
-	R *{{$structName}}Rels `json:"-" db:"-"`
+	R *{{$structName}}Rels {{relTags $.Tags}}
 }
 
 // {{$structName}}Rels holds eagerly loaded relationships.

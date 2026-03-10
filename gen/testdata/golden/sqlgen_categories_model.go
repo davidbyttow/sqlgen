@@ -22,11 +22,11 @@ var CategoryColumns = struct {
 
 // Category represents a row from the 'categories' table.
 type Category struct {
-	ID       int32               `json:"id" db:"id"`
-	Name     string              `json:"name" db:"name"`
-	ParentID runtime.Null[int32] `json:"parent_id" db:"parent_id"`
+	ID       int32               ``
+	Name     string              ``
+	ParentID runtime.Null[int32] ``
 
-	R *CategoryRels `json:"-" db:"-"`
+	R *CategoryRels ``
 }
 
 // CategoryRels holds eagerly loaded relationships.
