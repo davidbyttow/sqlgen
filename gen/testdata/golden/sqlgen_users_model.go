@@ -32,15 +32,15 @@ var UserColumns = struct {
 
 // User represents a row from the 'users' table.
 type User struct {
-	ID        string                  `json:"id" db:"id"`
-	OrgID     string                  `json:"org_id" db:"org_id"`
-	Email     string                  `json:"email" db:"email"`
-	Role      UserRole                `json:"role" db:"role"`
-	Name      runtime.Null[string]    `json:"name" db:"name"`
-	CreatedAt time.Time               `json:"created_at" db:"created_at"`
-	UpdatedAt runtime.Null[time.Time] `json:"updated_at" db:"updated_at"`
+	ID        string                  ``
+	OrgID     string                  ``
+	Email     string                  ``
+	Role      UserRole                ``
+	Name      runtime.Null[string]    ``
+	CreatedAt time.Time               ``
+	UpdatedAt runtime.Null[time.Time] ``
 
-	R *UserRels `json:"-" db:"-"`
+	R *UserRels ``
 }
 
 // UserRels holds eagerly loaded relationships.

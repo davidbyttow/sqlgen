@@ -28,14 +28,14 @@ var PostColumns = struct {
 
 // Post represents a row from the 'posts' table.
 type Post struct {
-	ID        string    `json:"id" db:"id"`
-	AuthorID  string    `json:"author_id" db:"author_id"`
-	Title     string    `json:"title" db:"title"`
-	Body      string    `json:"body" db:"body"`
-	Published bool      `json:"published" db:"published"`
-	CreatedAt time.Time `json:"created_at" db:"created_at"`
+	ID        string    ``
+	AuthorID  string    ``
+	Title     string    ``
+	Body      string    ``
+	Published bool      ``
+	CreatedAt time.Time ``
 
-	R *PostRels `json:"-" db:"-"`
+	R *PostRels ``
 }
 
 // PostRels holds eagerly loaded relationships.

@@ -1,6 +1,8 @@
 package gen
 
 import (
+	"fmt"
+	"sort"
 	"strings"
 	"text/template"
 
@@ -205,6 +207,15 @@ func TemplateFuncs(mapper *TypeMapper) template.FuncMap {
 			return false
 		},
 
+		// structTags builds the struct tag string for a column given the tag config.
+		"structTags": func(col *schema.Column, tags map[string]string) string {
+			return buildStructTags(col.Name, tags)
+		},
+		// relTags builds struct tags with "-" value for relationship fields.
+		"relTags": func(tags map[string]string) string {
+			return buildRelTags(tags)
+		},
+
 		// relFieldName generates a unique, descriptive field name for a relationship.
 		"relFieldName": func(rel *schema.Relationship, table *schema.Table) string {
 			isSelfRef := rel.ForeignTable == table.Name
@@ -242,4 +253,49 @@ func TemplateFuncs(mapper *TypeMapper) template.FuncMap {
 			return naming.ToPascal(rel.ForeignTable)
 		},
 	}
+}
+
+// applyTagCasing applies the named casing to a column name.
+func applyTagCasing(colName, casing string) string {
+	switch casing {
+	case "snake":
+		return naming.ToSnake(colName)
+	case "camel":
+		return naming.ToCamel(colName)
+	case "pascal":
+		return naming.ToPascal(colName)
+	default: // "none"
+		return colName
+	}
+}
+
+// buildStructTags builds a backtick-wrapped struct tag string from a tag config map.
+func buildStructTags(colName string, tags map[string]string) string {
+	keys := make([]string, 0, len(tags))
+	for k := range tags {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	parts := make([]string, 0, len(keys))
+	for _, tag := range keys {
+		casing := tags[tag]
+		parts = append(parts, fmt.Sprintf(`%s:"%s"`, tag, applyTagCasing(colName, casing)))
+	}
+	return "`" + strings.Join(parts, " ") + "`"
+}
+
+// buildRelTags builds struct tags with "-" for all configured tag names.
+func buildRelTags(tags map[string]string) string {
+	keys := make([]string, 0, len(tags))
+	for k := range tags {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	parts := make([]string, 0, len(keys))
+	for _, tag := range keys {
+		parts = append(parts, fmt.Sprintf(`%s:"-"`, tag))
+	}
+	return "`" + strings.Join(parts, " ") + "`"
 }
