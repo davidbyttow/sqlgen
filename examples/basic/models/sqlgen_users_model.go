@@ -39,7 +39,8 @@ type User struct {
 
 // UserRels holds eagerly loaded relationships.
 type UserRels struct {
-	Posts []*Post
+	Posts      []*Post
+	PostsCount *int64
 }
 
 // UserSlice is a slice of User pointers.

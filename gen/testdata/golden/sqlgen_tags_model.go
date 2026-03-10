@@ -24,7 +24,8 @@ type Tag struct {
 
 // TagRels holds eagerly loaded relationships.
 type TagRels struct {
-	Posts []*Post
+	Posts      []*Post
+	PostsCount *int64
 }
 
 // TagSlice is a slice of Tag pointers.

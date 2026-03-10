@@ -187,6 +187,23 @@ func (g *Generator) Run() error {
 			}
 		}
 
+		// Count loaders (only for tables with HasMany or ManyToMany)
+		if g.hasCountableRels(table) {
+			countImports := NewImportSet()
+			countImports.Add("context")
+			countImports.Add("fmt")
+			countImports.Add(runtimePkg)
+			countData := map[string]any{
+				"Package":   pkg,
+				"Table":     table,
+				"Imports":   countImports.FormatBlock(),
+				"AllTables": g.schema.Tables,
+			}
+			if err := g.generateFile("count_loaders.go.tmpl", countData, outDir, fmt.Sprintf("sqlgen_%s_count_loaders.go", snakeName), generated); err != nil {
+				return fmt.Errorf("generating count loaders for %s: %w", table.Name, err)
+			}
+		}
+
 		// Preloads (only for tables with to-one relationships)
 		if g.hasToOneRels(table) {
 			preloadImports := g.collectPreloadImports(table)
@@ -298,6 +315,15 @@ func (g *Generator) collectLoaderImports() *ImportSet {
 func (g *Generator) hasToOneRels(table *schema.Table) bool {
 	for _, r := range table.Relationships {
 		if r.Type == schema.RelBelongsTo || r.Type == schema.RelHasOne {
+			return true
+		}
+	}
+	return false
+}
+
+func (g *Generator) hasCountableRels(table *schema.Table) bool {
+	for _, r := range table.Relationships {
+		if r.Type == schema.RelHasMany || r.Type == schema.RelManyToMany {
 			return true
 		}
 	}

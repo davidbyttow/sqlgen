@@ -45,8 +45,9 @@ type Post struct {
 
 // PostRels holds eagerly loaded relationships.
 type PostRels struct {
-	User *User
-	Tags []*Tag
+	User      *User
+	Tags      []*Tag
+	TagsCount *int64
 }
 
 // PostSlice is a slice of Post pointers.

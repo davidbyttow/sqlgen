@@ -3,6 +3,7 @@ package runtime
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"strings"
 )
 
@@ -93,6 +94,85 @@ func LoadOne(ctx context.Context, exec Executor, dialect Dialect, table string, 
 	b.WriteString(" LIMIT 1")
 
 	return exec.QueryRowContext(ctx, b.String(), fkVal), nil
+}
+
+// CountLoadFunc is the signature for generated count loader functions.
+type CountLoadFunc func(ctx context.Context, exec Executor, dialect Dialect, parentModels any) error
+
+// LoadCount executes a COUNT(*) GROUP BY query for a HasMany relationship.
+// Returns a map from FK value (as string) to count.
+func LoadCount(ctx context.Context, exec Executor, dialect Dialect, table string, fkCol string, parentIDs []any) (map[string]int64, error) {
+	if len(parentIDs) == 0 {
+		return nil, nil
+	}
+
+	q := NewQuery(dialect, table)
+	q.selectCols = []string{
+		dialect.QuoteIdent(fkCol),
+		"COUNT(*) AS __count",
+	}
+	q.whereParts = append(q.whereParts, wherePart{
+		clause:      buildInClause(dialect, fkCol, len(parentIDs)),
+		args:        parentIDs,
+		conjunction: "AND",
+	})
+	q.groupBy = []string{dialect.QuoteIdent(fkCol)}
+
+	query, args := q.BuildSelect()
+	rows, err := exec.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	result := make(map[string]int64)
+	for rows.Next() {
+		var key any
+		var count int64
+		if err := rows.Scan(&key, &count); err != nil {
+			return nil, err
+		}
+		result[fmt.Sprint(key)] = count
+	}
+	return result, rows.Err()
+}
+
+// LoadManyToManyCount executes a COUNT(*) GROUP BY query for a ManyToMany relationship.
+// Returns a map from local FK value (as string) to count.
+func LoadManyToManyCount(ctx context.Context, exec Executor, dialect Dialect, joinTable, joinLocalCol, joinForeignCol string, localIDs []any) (map[string]int64, error) {
+	if len(localIDs) == 0 {
+		return nil, nil
+	}
+
+	q := NewQuery(dialect, joinTable)
+	q.selectCols = []string{
+		dialect.QuoteIdent(joinLocalCol),
+		"COUNT(*) AS __count",
+	}
+	q.whereParts = append(q.whereParts, wherePart{
+		clause:      buildInClause(dialect, joinLocalCol, len(localIDs)),
+		args:        localIDs,
+		conjunction: "AND",
+	})
+	q.groupBy = []string{dialect.QuoteIdent(joinLocalCol)}
+
+	query, args := q.BuildSelect()
+	rows, err := exec.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	result := make(map[string]int64)
+	for rows.Next() {
+		var key any
+		var count int64
+		if err := rows.Scan(&key, &count); err != nil {
+			return nil, err
+		}
+		result[fmt.Sprint(key)] = count
+	}
+	return result, rows.Err()
 }
 
 // LoadManyToMany executes a query to load related records through a join table.

@@ -31,8 +31,9 @@ type Category struct {
 
 // CategoryRels holds eagerly loaded relationships.
 type CategoryRels struct {
-	Parent         *Category
-	ParentsInverse []*Category
+	Parent              *Category
+	ParentsInverse      []*Category
+	ParentsInverseCount *int64
 }
 
 // CategorySlice is a slice of Category pointers.
