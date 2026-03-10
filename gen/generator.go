@@ -170,6 +170,23 @@ func (g *Generator) Run() error {
 			}
 		}
 
+		// Relationship mutations (only for tables with relationships)
+		if len(table.Relationships) > 0 {
+			relImports := NewImportSet()
+			relImports.Add("context")
+			relImports.Add("fmt")
+			relImports.Add(runtimePkg)
+			relData := map[string]any{
+				"Package":   pkg,
+				"Table":     table,
+				"Imports":   relImports.FormatBlock(),
+				"AllTables": g.schema.Tables,
+			}
+			if err := g.generateFile("relations.go.tmpl", relData, outDir, fmt.Sprintf("sqlgen_%s_relations.go", snakeName), generated); err != nil {
+				return fmt.Errorf("generating relations for %s: %w", table.Name, err)
+			}
+		}
+
 		// Preloads (only for tables with to-one relationships)
 		if g.hasToOneRels(table) {
 			preloadImports := g.collectPreloadImports(table)

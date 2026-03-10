@@ -207,6 +207,23 @@ func TemplateFuncs(mapper *TypeMapper) template.FuncMap {
 			return false
 		},
 
+		// fkWrap wraps srcExpr if dst column is nullable but src column is not (or vice versa).
+		// Returns the expression to use on the right side of an assignment.
+		"fkWrap": func(dstTable *schema.Table, dstCol string, srcTable *schema.Table, srcCol string, srcExpr string) string {
+			dst := dstTable.FindColumn(dstCol)
+			src := srcTable.FindColumn(srcCol)
+			if dst == nil || src == nil {
+				return srcExpr
+			}
+			if dst.IsNullable && !src.IsNullable {
+				return "runtime.NewNull(" + srcExpr + ")"
+			}
+			if !dst.IsNullable && src.IsNullable {
+				return srcExpr + ".Val"
+			}
+			return srcExpr
+		},
+
 		// structTags builds the struct tag string for a column given the tag config.
 		"structTags": func(col *schema.Column, tags map[string]string) string {
 			return buildStructTags(col.Name, tags)
