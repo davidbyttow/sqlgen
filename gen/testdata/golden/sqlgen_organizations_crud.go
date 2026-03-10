@@ -31,6 +31,7 @@ func FindOrganizationByPK(ctx context.Context, exec runtime.Executor, id string)
 }
 
 // AllOrganizations retrieves all rows from the organizations table with the given query mods.
+// Supports Preload() for LEFT JOIN eager loading of to-one relationships.
 func AllOrganizations(ctx context.Context, exec runtime.Executor, mods ...runtime.QueryMod) (OrganizationSlice, error) {
 	q := runtime.NewQuery(dialect, OrganizationTableName, mods...)
 	query, args := q.BuildSelect()
@@ -52,13 +53,15 @@ func AllOrganizations(ctx context.Context, exec runtime.Executor, mods ...runtim
 }
 
 // Insert inserts the Organization into the database.
-func (o *Organization) Insert(ctx context.Context, exec runtime.Executor) error {
+// Optional Columns parameter controls which columns are included (Whitelist/Blacklist).
+func (o *Organization) Insert(ctx context.Context, exec runtime.Executor, cols ...runtime.Columns) error {
 	ctx, err := organizationHooks.RunIfEnabled(ctx, exec, runtime.BeforeInsert, o)
 	if err != nil {
 		return err
 	}
 	allCols := []string{"id", "name", "slug", "created_at"}
 	allVals := []any{o.ID, o.Name, o.Slug, o.CreatedAt}
+	allCols, allVals = runtime.FilterColumns(allCols, allVals, cols...)
 
 	returning := []string{"id", "name", "slug", "created_at"}
 
@@ -77,13 +80,15 @@ func (o *Organization) Insert(ctx context.Context, exec runtime.Executor) error 
 }
 
 // Update updates the Organization in the database. Only non-PK columns are updated.
-func (o *Organization) Update(ctx context.Context, exec runtime.Executor) error {
+// Optional Columns parameter controls which columns are included (Whitelist/Blacklist).
+func (o *Organization) Update(ctx context.Context, exec runtime.Executor, cols ...runtime.Columns) error {
 	ctx, err := organizationHooks.RunIfEnabled(ctx, exec, runtime.BeforeUpdate, o)
 	if err != nil {
 		return err
 	}
 	setCols := []string{"name", "slug", "created_at"}
 	setVals := []any{o.Name, o.Slug, o.CreatedAt}
+	setCols, setVals = runtime.FilterColumns(setCols, setVals, cols...)
 
 	whereClauses := []string{"\"id\" = ?"}
 	whereArgs := []any{o.ID}
@@ -117,15 +122,18 @@ func (o *Organization) Delete(ctx context.Context, exec runtime.Executor) error 
 }
 
 // Upsert inserts or updates the Organization based on the primary key.
-func (o *Organization) Upsert(ctx context.Context, exec runtime.Executor) error {
+// Optional Columns parameter controls which non-PK columns are included (Whitelist/Blacklist).
+func (o *Organization) Upsert(ctx context.Context, exec runtime.Executor, cols ...runtime.Columns) error {
 	ctx, err := organizationHooks.RunIfEnabled(ctx, exec, runtime.BeforeUpsert, o)
 	if err != nil {
 		return err
 	}
 	allCols := []string{"id", "name", "slug", "created_at"}
 	allVals := []any{o.ID, o.Name, o.Slug, o.CreatedAt}
+	allCols, allVals = runtime.FilterColumns(allCols, allVals, cols...)
 	conflictCols := []string{"id"}
 	updateCols := []string{"name", "slug", "created_at"}
+	updateCols, _ = runtime.FilterColumns(updateCols, make([]any, len(updateCols)), cols...)
 	returning := []string{"id", "name", "slug", "created_at"}
 
 	query, args := runtime.BuildUpsert(dialect, OrganizationTableName, allCols, allVals, conflictCols, updateCols, returning)

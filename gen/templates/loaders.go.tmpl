@@ -32,6 +32,16 @@ func (s {{$sliceType}}) LoadRelations(ctx context.Context, exec runtime.Executor
 	return nil
 }
 
+// {{lower $structName}}LoadMods extracts query mods for the named relationship from the load requests.
+func {{lower $structName}}LoadMods(loads []*runtime.EagerLoadRequest, name string) []runtime.QueryMod {
+	for _, l := range loads {
+		if l.Name == name {
+			return l.Mods
+		}
+	}
+	return nil
+}
+
 {{range $rel := .Table.Relationships}}
 {{- $fieldName := relFieldName $rel $.Table -}}
 {{- $foreignStructName := pascal (singular $rel.ForeignTable) -}}
@@ -58,7 +68,8 @@ func load{{$structName}}{{$fieldName}}(ctx context.Context, exec runtime.Executo
 		}
 	}
 
-	rows, err := runtime.LoadMany(ctx, exec, d, {{$foreignStructName}}TableName, "{{$foreignCol}}", ids)
+	mods := {{lower $structName}}LoadMods(loads, "{{$fieldName}}")
+	rows, err := runtime.LoadMany(ctx, exec, d, {{$foreignStructName}}TableName, "{{$foreignCol}}", ids, mods...)
 	if err != nil {
 		return err
 	}
@@ -106,7 +117,8 @@ func load{{$structName}}{{$fieldName}}(ctx context.Context, exec runtime.Executo
 		ids[i] = m.{{pascal $localCol}}
 	}
 
-	rows, err := runtime.LoadMany(ctx, exec, d, {{$foreignStructName}}TableName, "{{$foreignCol}}", ids)
+	mods := {{lower $structName}}LoadMods(loads, "{{$fieldName}}")
+	rows, err := runtime.LoadMany(ctx, exec, d, {{$foreignStructName}}TableName, "{{$foreignCol}}", ids, mods...)
 	if err != nil {
 		return err
 	}
@@ -157,7 +169,8 @@ func load{{$structName}}{{$fieldName}}(ctx context.Context, exec runtime.Executo
 		idMap[key] = append(idMap[key], m)
 	}
 
-	rows, err := runtime.LoadMany(ctx, exec, d, {{$foreignStructName}}TableName, "{{$foreignCol}}", ids)
+	mods := {{lower $structName}}LoadMods(loads, "{{$fieldName}}")
+	rows, err := runtime.LoadMany(ctx, exec, d, {{$foreignStructName}}TableName, "{{$foreignCol}}", ids, mods...)
 	if err != nil {
 		return err
 	}
@@ -220,6 +233,7 @@ func load{{$structName}}{{$fieldName}}(ctx context.Context, exec runtime.Executo
 		idMap[key] = append(idMap[key], m)
 	}
 
+	mods := {{lower $structName}}LoadMods(loads, "{{$fieldName}}")
 	rows, joinKeyAlias, err := runtime.LoadManyToMany(ctx, exec, d,
 		{{$foreignStructName}}TableName,
 		"{{$rel.JoinTable}}",
@@ -227,6 +241,7 @@ func load{{$structName}}{{$fieldName}}(ctx context.Context, exec runtime.Executo
 		"{{$joinForeignCol}}",
 		"{{$foreignCol}}",
 		ids,
+		mods...,
 	)
 	if err != nil {
 		return err

@@ -46,3 +46,12 @@ func (o *Category) ScanRow(rows interface{ Scan(...any) error }) error {
 		&o.ParentID,
 	)
 }
+
+// scanDests returns scan destinations for all columns (used by preload-aware queries).
+func (o *Category) scanDests() []any {
+	return []any{
+		&o.ID,
+		&o.Name,
+		&o.ParentID,
+	}
+}

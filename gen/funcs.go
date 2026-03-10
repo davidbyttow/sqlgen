@@ -60,6 +60,27 @@ func TemplateFuncs(mapper *TypeMapper) template.FuncMap {
 			}
 		},
 
+		// nullGoType returns a Null[T]-wrapped version of a column's Go type for preload scanning.
+		// If the column is already nullable, it returns the same Null[T] type.
+		// If non-nullable, wraps in runtime.Null[BaseType].
+		"nullGoType": func(col *schema.Column) string {
+			gt := mapper.GoTypeFor(col)
+			if col.IsNullable {
+				// Already a Null[T] type, use it directly.
+				return gt.Name
+			}
+			return "runtime.Null[" + gt.Name + "]"
+		},
+		// baseGoType returns the inner type name (e.g., "string" for both "string" and "runtime.Null[string]").
+		"baseGoType": func(col *schema.Column) string {
+			gt := mapper.GoTypeFor(col)
+			name := gt.Name
+			if strings.HasPrefix(name, "runtime.Null[") && strings.HasSuffix(name, "]") {
+				return name[len("runtime.Null[") : len(name)-1]
+			}
+			return name
+		},
+
 		// String helpers
 		"join":     strings.Join,
 		"contains": strings.Contains,
@@ -172,6 +193,16 @@ func TemplateFuncs(mapper *TypeMapper) template.FuncMap {
 				}
 			}
 			return nil
+		},
+
+		// hasToOneRels returns true if the table has any BelongsTo or HasOne relationships.
+		"hasToOneRels": func(table *schema.Table) bool {
+			for _, r := range table.Relationships {
+				if r.Type == schema.RelBelongsTo || r.Type == schema.RelHasOne {
+					return true
+				}
+			}
+			return false
 		},
 
 		// relFieldName generates a unique, descriptive field name for a relationship.

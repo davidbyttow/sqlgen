@@ -31,6 +31,7 @@ func FindTagByPK(ctx context.Context, exec runtime.Executor, id int32) (*Tag, er
 }
 
 // AllTags retrieves all rows from the tags table with the given query mods.
+// Supports Preload() for LEFT JOIN eager loading of to-one relationships.
 func AllTags(ctx context.Context, exec runtime.Executor, mods ...runtime.QueryMod) (TagSlice, error) {
 	q := runtime.NewQuery(dialect, TagTableName, mods...)
 	query, args := q.BuildSelect()
@@ -52,14 +53,18 @@ func AllTags(ctx context.Context, exec runtime.Executor, mods ...runtime.QueryMo
 }
 
 // Insert inserts the Tag into the database.
-func (o *Tag) Insert(ctx context.Context, exec runtime.Executor) error {
+// Optional Columns parameter controls which columns are included (Whitelist/Blacklist).
+func (o *Tag) Insert(ctx context.Context, exec runtime.Executor, cols ...runtime.Columns) error {
 	ctx, err := tagHooks.RunIfEnabled(ctx, exec, runtime.BeforeInsert, o)
 	if err != nil {
 		return err
 	}
+	insertCols := []string{"name"}
+	insertVals := []any{o.Name}
+	insertCols, insertVals = runtime.FilterColumns(insertCols, insertVals, cols...)
+
 	query, args := runtime.BuildInsert(dialect, TagTableName,
-		[]string{"name"},
-		[]any{o.Name},
+		insertCols, insertVals,
 		[]string{"id"},
 	)
 	err = exec.QueryRowContext(ctx, query, args...).Scan(
@@ -73,13 +78,15 @@ func (o *Tag) Insert(ctx context.Context, exec runtime.Executor) error {
 }
 
 // Update updates the Tag in the database. Only non-PK columns are updated.
-func (o *Tag) Update(ctx context.Context, exec runtime.Executor) error {
+// Optional Columns parameter controls which columns are included (Whitelist/Blacklist).
+func (o *Tag) Update(ctx context.Context, exec runtime.Executor, cols ...runtime.Columns) error {
 	ctx, err := tagHooks.RunIfEnabled(ctx, exec, runtime.BeforeUpdate, o)
 	if err != nil {
 		return err
 	}
 	setCols := []string{"name"}
 	setVals := []any{o.Name}
+	setCols, setVals = runtime.FilterColumns(setCols, setVals, cols...)
 
 	whereClauses := []string{"\"id\" = ?"}
 	whereArgs := []any{o.ID}
@@ -113,15 +120,18 @@ func (o *Tag) Delete(ctx context.Context, exec runtime.Executor) error {
 }
 
 // Upsert inserts or updates the Tag based on the primary key.
-func (o *Tag) Upsert(ctx context.Context, exec runtime.Executor) error {
+// Optional Columns parameter controls which non-PK columns are included (Whitelist/Blacklist).
+func (o *Tag) Upsert(ctx context.Context, exec runtime.Executor, cols ...runtime.Columns) error {
 	ctx, err := tagHooks.RunIfEnabled(ctx, exec, runtime.BeforeUpsert, o)
 	if err != nil {
 		return err
 	}
 	allCols := []string{"id", "name"}
 	allVals := []any{o.ID, o.Name}
+	allCols, allVals = runtime.FilterColumns(allCols, allVals, cols...)
 	conflictCols := []string{"id"}
 	updateCols := []string{"name"}
+	updateCols, _ = runtime.FilterColumns(updateCols, make([]any, len(updateCols)), cols...)
 	returning := []string{"id", "name"}
 
 	query, args := runtime.BuildUpsert(dialect, TagTableName, allCols, allVals, conflictCols, updateCols, returning)

@@ -13,6 +13,16 @@ type Schema struct {
 	Views  []*View
 }
 
+// FindTable returns the table with the given name, or nil.
+func (s *Schema) FindTable(name string) *Table {
+	for _, t := range s.Tables {
+		if t.Name == name {
+			return t
+		}
+	}
+	return nil
+}
+
 // Table represents a database table.
 type Table struct {
 	Schema      string // Schema name (e.g., "public")

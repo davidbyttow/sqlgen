@@ -31,6 +31,7 @@ func FindPostByPK(ctx context.Context, exec runtime.Executor, id string) (*Post,
 }
 
 // AllPosts retrieves all rows from the posts table with the given query mods.
+// Supports Preload() for LEFT JOIN eager loading of to-one relationships.
 func AllPosts(ctx context.Context, exec runtime.Executor, mods ...runtime.QueryMod) (PostSlice, error) {
 	q := runtime.NewQuery(dialect, PostTableName, mods...)
 	query, args := q.BuildSelect()
@@ -39,12 +40,31 @@ func AllPosts(ctx context.Context, exec runtime.Executor, mods ...runtime.QueryM
 		return nil, err
 	}
 	defer rows.Close()
+	preloads := q.Preloads()
 
 	var result PostSlice
 	for rows.Next() {
 		o := &Post{}
-		if err := o.ScanRow(rows); err != nil {
-			return nil, err
+		if len(preloads) == 0 {
+			if err := o.ScanRow(rows); err != nil {
+				return nil, err
+			}
+		} else {
+			dests := o.scanDests()
+			var states []postPreloadState
+			for _, p := range preloads {
+				ps := newPostPreloadState(p.Name)
+				if ps != nil {
+					dests = append(dests, ps.scanDests()...)
+					states = append(states, ps)
+				}
+			}
+			if err := rows.Scan(dests...); err != nil {
+				return nil, err
+			}
+			for _, ps := range states {
+				ps.assign(o)
+			}
 		}
 		result = append(result, o)
 	}
@@ -52,13 +72,15 @@ func AllPosts(ctx context.Context, exec runtime.Executor, mods ...runtime.QueryM
 }
 
 // Insert inserts the Post into the database.
-func (o *Post) Insert(ctx context.Context, exec runtime.Executor) error {
+// Optional Columns parameter controls which columns are included (Whitelist/Blacklist).
+func (o *Post) Insert(ctx context.Context, exec runtime.Executor, cols ...runtime.Columns) error {
 	ctx, err := postHooks.RunIfEnabled(ctx, exec, runtime.BeforeInsert, o)
 	if err != nil {
 		return err
 	}
 	allCols := []string{"id", "author_id", "title", "body", "published", "created_at"}
 	allVals := []any{o.ID, o.AuthorID, o.Title, o.Body, o.Published, o.CreatedAt}
+	allCols, allVals = runtime.FilterColumns(allCols, allVals, cols...)
 
 	returning := []string{"id", "author_id", "title", "body", "published", "created_at"}
 
@@ -79,13 +101,15 @@ func (o *Post) Insert(ctx context.Context, exec runtime.Executor) error {
 }
 
 // Update updates the Post in the database. Only non-PK columns are updated.
-func (o *Post) Update(ctx context.Context, exec runtime.Executor) error {
+// Optional Columns parameter controls which columns are included (Whitelist/Blacklist).
+func (o *Post) Update(ctx context.Context, exec runtime.Executor, cols ...runtime.Columns) error {
 	ctx, err := postHooks.RunIfEnabled(ctx, exec, runtime.BeforeUpdate, o)
 	if err != nil {
 		return err
 	}
 	setCols := []string{"author_id", "title", "body", "published", "created_at"}
 	setVals := []any{o.AuthorID, o.Title, o.Body, o.Published, o.CreatedAt}
+	setCols, setVals = runtime.FilterColumns(setCols, setVals, cols...)
 
 	whereClauses := []string{"\"id\" = ?"}
 	whereArgs := []any{o.ID}
@@ -119,15 +143,18 @@ func (o *Post) Delete(ctx context.Context, exec runtime.Executor) error {
 }
 
 // Upsert inserts or updates the Post based on the primary key.
-func (o *Post) Upsert(ctx context.Context, exec runtime.Executor) error {
+// Optional Columns parameter controls which non-PK columns are included (Whitelist/Blacklist).
+func (o *Post) Upsert(ctx context.Context, exec runtime.Executor, cols ...runtime.Columns) error {
 	ctx, err := postHooks.RunIfEnabled(ctx, exec, runtime.BeforeUpsert, o)
 	if err != nil {
 		return err
 	}
 	allCols := []string{"id", "author_id", "title", "body", "published", "created_at"}
 	allVals := []any{o.ID, o.AuthorID, o.Title, o.Body, o.Published, o.CreatedAt}
+	allCols, allVals = runtime.FilterColumns(allCols, allVals, cols...)
 	conflictCols := []string{"id"}
 	updateCols := []string{"author_id", "title", "body", "published", "created_at"}
+	updateCols, _ = runtime.FilterColumns(updateCols, make([]any, len(updateCols)), cols...)
 	returning := []string{"id", "author_id", "title", "body", "published", "created_at"}
 
 	query, args := runtime.BuildUpsert(dialect, PostTableName, allCols, allVals, conflictCols, updateCols, returning)

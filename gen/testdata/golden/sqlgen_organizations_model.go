@@ -49,3 +49,13 @@ func (o *Organization) ScanRow(rows interface{ Scan(...any) error }) error {
 		&o.CreatedAt,
 	)
 }
+
+// scanDests returns scan destinations for all columns (used by preload-aware queries).
+func (o *Organization) scanDests() []any {
+	return []any{
+		&o.ID,
+		&o.Name,
+		&o.Slug,
+		&o.CreatedAt,
+	}
+}

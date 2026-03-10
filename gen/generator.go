@@ -165,6 +165,20 @@ func (g *Generator) Run() error {
 			}
 		}
 
+		// Preloads (only for tables with to-one relationships)
+		if g.hasToOneRels(table) {
+			preloadImports := g.collectPreloadImports(table)
+			preloadData := map[string]any{
+				"Package":   pkg,
+				"Table":     table,
+				"Imports":   preloadImports.FormatBlock(),
+				"AllTables": g.schema.Tables,
+			}
+			if err := g.generateFile("preload.go.tmpl", preloadData, outDir, fmt.Sprintf("sqlgen_%s_preload.go", snakeName), generated); err != nil {
+				return fmt.Errorf("generating preload for %s: %w", table.Name, err)
+			}
+		}
+
 		// Tests (opt-in)
 		if g.cfg.Output.Tests {
 			testData := map[string]any{
@@ -256,6 +270,37 @@ func (g *Generator) collectLoaderImports() *ImportSet {
 	imports.Add("context")
 	imports.Add("fmt")
 	imports.Add(runtimePkg)
+	return imports
+}
+
+func (g *Generator) hasToOneRels(table *schema.Table) bool {
+	for _, r := range table.Relationships {
+		if r.Type == schema.RelBelongsTo || r.Type == schema.RelHasOne {
+			return true
+		}
+	}
+	return false
+}
+
+func (g *Generator) collectPreloadImports(table *schema.Table) *ImportSet {
+	imports := NewImportSet()
+	imports.Add(runtimePkg)
+
+	// Add imports for all foreign table column types.
+	for _, rel := range table.Relationships {
+		if rel.Type != schema.RelBelongsTo && rel.Type != schema.RelHasOne {
+			continue
+		}
+		foreignTable := g.schema.FindTable(rel.ForeignTable)
+		if foreignTable == nil {
+			continue
+		}
+		for _, col := range foreignTable.Columns {
+			gt := g.mapper.GoTypeFor(col)
+			imports.AddGoType(gt)
+		}
+	}
+
 	return imports
 }
 

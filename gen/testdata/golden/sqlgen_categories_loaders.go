@@ -31,6 +31,16 @@ func (s CategorySlice) LoadRelations(ctx context.Context, exec runtime.Executor,
 	return nil
 }
 
+// categoryLoadMods extracts query mods for the named relationship from the load requests.
+func categoryLoadMods(loads []*runtime.EagerLoadRequest, name string) []runtime.QueryMod {
+	for _, l := range loads {
+		if l.Name == name {
+			return l.Mods
+		}
+	}
+	return nil
+}
+
 func loadCategoryParent(ctx context.Context, exec runtime.Executor, d runtime.Dialect, parentModels any, loads []*runtime.EagerLoadRequest) error {
 	models := parentModels.(CategorySlice)
 	if len(models) == 0 {
@@ -48,7 +58,8 @@ func loadCategoryParent(ctx context.Context, exec runtime.Executor, d runtime.Di
 		}
 	}
 
-	rows, err := runtime.LoadMany(ctx, exec, d, CategoryTableName, "id", ids)
+	mods := categoryLoadMods(loads, "Parent")
+	rows, err := runtime.LoadMany(ctx, exec, d, CategoryTableName, "id", ids, mods...)
 	if err != nil {
 		return err
 	}
@@ -96,7 +107,8 @@ func loadCategoryParentsInverse(ctx context.Context, exec runtime.Executor, d ru
 		idMap[key] = append(idMap[key], m)
 	}
 
-	rows, err := runtime.LoadMany(ctx, exec, d, CategoryTableName, "parent_id", ids)
+	mods := categoryLoadMods(loads, "ParentsInverse")
+	rows, err := runtime.LoadMany(ctx, exec, d, CategoryTableName, "parent_id", ids, mods...)
 	if err != nil {
 		return err
 	}

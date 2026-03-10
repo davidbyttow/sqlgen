@@ -35,6 +35,7 @@ type Query struct {
 	args       []any
 	distinct   bool
 	distinctOn []string
+	preloads   []PreloadDef
 }
 
 type wherePart struct {
@@ -202,6 +203,11 @@ func CrossJoin(table string) QueryMod {
 	}
 }
 
+// Preloads returns the preload definitions registered on this query.
+func (q *Query) Preloads() []PreloadDef {
+	return q.preloads
+}
+
 // BuildSelect builds a SELECT query, returning the SQL string and args.
 func (q *Query) BuildSelect() (string, []any) {
 	var b strings.Builder
@@ -223,6 +229,14 @@ func (q *Query) BuildSelect() (string, []any) {
 		b.WriteString(q.dialect.QuoteIdent(q.table) + ".*")
 	}
 
+	// Preload columns (appended after base columns)
+	for _, p := range q.preloads {
+		for _, col := range p.Columns {
+			b.WriteString(", ")
+			b.WriteString(col)
+		}
+	}
+
 	// FROM
 	b.WriteString(" FROM ")
 	b.WriteString(q.dialect.QuoteIdent(q.table))
@@ -239,6 +253,14 @@ func (q *Query) BuildSelect() (string, []any) {
 			b.WriteString(clause)
 			args = append(args, newArgs...)
 		}
+	}
+
+	// Preload LEFT JOINs
+	for _, p := range q.preloads {
+		b.WriteString(" LEFT JOIN ")
+		b.WriteString(q.dialect.QuoteIdent(p.Table))
+		b.WriteString(" ON ")
+		b.WriteString(p.JoinCond)
 	}
 
 	// WHERE

@@ -31,6 +31,16 @@ func (s PostSlice) LoadRelations(ctx context.Context, exec runtime.Executor, loa
 	return nil
 }
 
+// postLoadMods extracts query mods for the named relationship from the load requests.
+func postLoadMods(loads []*runtime.EagerLoadRequest, name string) []runtime.QueryMod {
+	for _, l := range loads {
+		if l.Name == name {
+			return l.Mods
+		}
+	}
+	return nil
+}
+
 func loadPostUser(ctx context.Context, exec runtime.Executor, d runtime.Dialect, parentModels any, loads []*runtime.EagerLoadRequest) error {
 	models := parentModels.(PostSlice)
 	if len(models) == 0 {
@@ -48,7 +58,8 @@ func loadPostUser(ctx context.Context, exec runtime.Executor, d runtime.Dialect,
 		}
 	}
 
-	rows, err := runtime.LoadMany(ctx, exec, d, UserTableName, "id", ids)
+	mods := postLoadMods(loads, "User")
+	rows, err := runtime.LoadMany(ctx, exec, d, UserTableName, "id", ids, mods...)
 	if err != nil {
 		return err
 	}
@@ -96,6 +107,7 @@ func loadPostTags(ctx context.Context, exec runtime.Executor, d runtime.Dialect,
 		idMap[key] = append(idMap[key], m)
 	}
 
+	mods := postLoadMods(loads, "Tags")
 	rows, joinKeyAlias, err := runtime.LoadManyToMany(ctx, exec, d,
 		TagTableName,
 		"post_tags",
@@ -103,6 +115,7 @@ func loadPostTags(ctx context.Context, exec runtime.Executor, d runtime.Dialect,
 		"tag_id",
 		"id",
 		ids,
+		mods...,
 	)
 	if err != nil {
 		return err

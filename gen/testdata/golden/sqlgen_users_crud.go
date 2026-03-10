@@ -31,6 +31,7 @@ func FindUserByPK(ctx context.Context, exec runtime.Executor, id string) (*User,
 }
 
 // AllUsers retrieves all rows from the users table with the given query mods.
+// Supports Preload() for LEFT JOIN eager loading of to-one relationships.
 func AllUsers(ctx context.Context, exec runtime.Executor, mods ...runtime.QueryMod) (UserSlice, error) {
 	q := runtime.NewQuery(dialect, UserTableName, mods...)
 	query, args := q.BuildSelect()
@@ -39,12 +40,31 @@ func AllUsers(ctx context.Context, exec runtime.Executor, mods ...runtime.QueryM
 		return nil, err
 	}
 	defer rows.Close()
+	preloads := q.Preloads()
 
 	var result UserSlice
 	for rows.Next() {
 		o := &User{}
-		if err := o.ScanRow(rows); err != nil {
-			return nil, err
+		if len(preloads) == 0 {
+			if err := o.ScanRow(rows); err != nil {
+				return nil, err
+			}
+		} else {
+			dests := o.scanDests()
+			var states []userPreloadState
+			for _, p := range preloads {
+				ps := newUserPreloadState(p.Name)
+				if ps != nil {
+					dests = append(dests, ps.scanDests()...)
+					states = append(states, ps)
+				}
+			}
+			if err := rows.Scan(dests...); err != nil {
+				return nil, err
+			}
+			for _, ps := range states {
+				ps.assign(o)
+			}
 		}
 		result = append(result, o)
 	}
@@ -52,13 +72,15 @@ func AllUsers(ctx context.Context, exec runtime.Executor, mods ...runtime.QueryM
 }
 
 // Insert inserts the User into the database.
-func (o *User) Insert(ctx context.Context, exec runtime.Executor) error {
+// Optional Columns parameter controls which columns are included (Whitelist/Blacklist).
+func (o *User) Insert(ctx context.Context, exec runtime.Executor, cols ...runtime.Columns) error {
 	ctx, err := userHooks.RunIfEnabled(ctx, exec, runtime.BeforeInsert, o)
 	if err != nil {
 		return err
 	}
 	allCols := []string{"id", "org_id", "email", "role", "name", "created_at", "updated_at"}
 	allVals := []any{o.ID, o.OrgID, o.Email, o.Role, o.Name, o.CreatedAt, o.UpdatedAt}
+	allCols, allVals = runtime.FilterColumns(allCols, allVals, cols...)
 
 	returning := []string{"id", "org_id", "email", "role", "name", "created_at", "updated_at"}
 
@@ -80,13 +102,15 @@ func (o *User) Insert(ctx context.Context, exec runtime.Executor) error {
 }
 
 // Update updates the User in the database. Only non-PK columns are updated.
-func (o *User) Update(ctx context.Context, exec runtime.Executor) error {
+// Optional Columns parameter controls which columns are included (Whitelist/Blacklist).
+func (o *User) Update(ctx context.Context, exec runtime.Executor, cols ...runtime.Columns) error {
 	ctx, err := userHooks.RunIfEnabled(ctx, exec, runtime.BeforeUpdate, o)
 	if err != nil {
 		return err
 	}
 	setCols := []string{"org_id", "email", "role", "name", "created_at", "updated_at"}
 	setVals := []any{o.OrgID, o.Email, o.Role, o.Name, o.CreatedAt, o.UpdatedAt}
+	setCols, setVals = runtime.FilterColumns(setCols, setVals, cols...)
 
 	whereClauses := []string{"\"id\" = ?"}
 	whereArgs := []any{o.ID}
@@ -120,15 +144,18 @@ func (o *User) Delete(ctx context.Context, exec runtime.Executor) error {
 }
 
 // Upsert inserts or updates the User based on the primary key.
-func (o *User) Upsert(ctx context.Context, exec runtime.Executor) error {
+// Optional Columns parameter controls which non-PK columns are included (Whitelist/Blacklist).
+func (o *User) Upsert(ctx context.Context, exec runtime.Executor, cols ...runtime.Columns) error {
 	ctx, err := userHooks.RunIfEnabled(ctx, exec, runtime.BeforeUpsert, o)
 	if err != nil {
 		return err
 	}
 	allCols := []string{"id", "org_id", "email", "role", "name", "created_at", "updated_at"}
 	allVals := []any{o.ID, o.OrgID, o.Email, o.Role, o.Name, o.CreatedAt, o.UpdatedAt}
+	allCols, allVals = runtime.FilterColumns(allCols, allVals, cols...)
 	conflictCols := []string{"id"}
 	updateCols := []string{"org_id", "email", "role", "name", "created_at", "updated_at"}
+	updateCols, _ = runtime.FilterColumns(updateCols, make([]any, len(updateCols)), cols...)
 	returning := []string{"id", "org_id", "email", "role", "name", "created_at", "updated_at"}
 
 	query, args := runtime.BuildUpsert(dialect, UserTableName, allCols, allVals, conflictCols, updateCols, returning)

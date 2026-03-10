@@ -31,6 +31,7 @@ func FindAuditLogByPK(ctx context.Context, exec runtime.Executor, id int64) (*Au
 }
 
 // AllAuditLogs retrieves all rows from the audit_log table with the given query mods.
+// Supports Preload() for LEFT JOIN eager loading of to-one relationships.
 func AllAuditLogs(ctx context.Context, exec runtime.Executor, mods ...runtime.QueryMod) (AuditLogSlice, error) {
 	q := runtime.NewQuery(dialect, AuditLogTableName, mods...)
 	query, args := q.BuildSelect()
@@ -39,12 +40,31 @@ func AllAuditLogs(ctx context.Context, exec runtime.Executor, mods ...runtime.Qu
 		return nil, err
 	}
 	defer rows.Close()
+	preloads := q.Preloads()
 
 	var result AuditLogSlice
 	for rows.Next() {
 		o := &AuditLog{}
-		if err := o.ScanRow(rows); err != nil {
-			return nil, err
+		if len(preloads) == 0 {
+			if err := o.ScanRow(rows); err != nil {
+				return nil, err
+			}
+		} else {
+			dests := o.scanDests()
+			var states []auditlogPreloadState
+			for _, p := range preloads {
+				ps := newAuditLogPreloadState(p.Name)
+				if ps != nil {
+					dests = append(dests, ps.scanDests()...)
+					states = append(states, ps)
+				}
+			}
+			if err := rows.Scan(dests...); err != nil {
+				return nil, err
+			}
+			for _, ps := range states {
+				ps.assign(o)
+			}
 		}
 		result = append(result, o)
 	}
@@ -52,14 +72,18 @@ func AllAuditLogs(ctx context.Context, exec runtime.Executor, mods ...runtime.Qu
 }
 
 // Insert inserts the AuditLog into the database.
-func (o *AuditLog) Insert(ctx context.Context, exec runtime.Executor) error {
+// Optional Columns parameter controls which columns are included (Whitelist/Blacklist).
+func (o *AuditLog) Insert(ctx context.Context, exec runtime.Executor, cols ...runtime.Columns) error {
 	ctx, err := auditlogHooks.RunIfEnabled(ctx, exec, runtime.BeforeInsert, o)
 	if err != nil {
 		return err
 	}
+	insertCols := []string{"org_id", "user_id", "action", "created_at"}
+	insertVals := []any{o.OrgID, o.UserID, o.Action, o.CreatedAt}
+	insertCols, insertVals = runtime.FilterColumns(insertCols, insertVals, cols...)
+
 	query, args := runtime.BuildInsert(dialect, AuditLogTableName,
-		[]string{"org_id", "user_id", "action", "created_at"},
-		[]any{o.OrgID, o.UserID, o.Action, o.CreatedAt},
+		insertCols, insertVals,
 		[]string{"id"},
 	)
 	err = exec.QueryRowContext(ctx, query, args...).Scan(
@@ -73,13 +97,15 @@ func (o *AuditLog) Insert(ctx context.Context, exec runtime.Executor) error {
 }
 
 // Update updates the AuditLog in the database. Only non-PK columns are updated.
-func (o *AuditLog) Update(ctx context.Context, exec runtime.Executor) error {
+// Optional Columns parameter controls which columns are included (Whitelist/Blacklist).
+func (o *AuditLog) Update(ctx context.Context, exec runtime.Executor, cols ...runtime.Columns) error {
 	ctx, err := auditlogHooks.RunIfEnabled(ctx, exec, runtime.BeforeUpdate, o)
 	if err != nil {
 		return err
 	}
 	setCols := []string{"org_id", "user_id", "action", "created_at"}
 	setVals := []any{o.OrgID, o.UserID, o.Action, o.CreatedAt}
+	setCols, setVals = runtime.FilterColumns(setCols, setVals, cols...)
 
 	whereClauses := []string{"\"id\" = ?"}
 	whereArgs := []any{o.ID}
@@ -113,15 +139,18 @@ func (o *AuditLog) Delete(ctx context.Context, exec runtime.Executor) error {
 }
 
 // Upsert inserts or updates the AuditLog based on the primary key.
-func (o *AuditLog) Upsert(ctx context.Context, exec runtime.Executor) error {
+// Optional Columns parameter controls which non-PK columns are included (Whitelist/Blacklist).
+func (o *AuditLog) Upsert(ctx context.Context, exec runtime.Executor, cols ...runtime.Columns) error {
 	ctx, err := auditlogHooks.RunIfEnabled(ctx, exec, runtime.BeforeUpsert, o)
 	if err != nil {
 		return err
 	}
 	allCols := []string{"id", "org_id", "user_id", "action", "created_at"}
 	allVals := []any{o.ID, o.OrgID, o.UserID, o.Action, o.CreatedAt}
+	allCols, allVals = runtime.FilterColumns(allCols, allVals, cols...)
 	conflictCols := []string{"id"}
 	updateCols := []string{"org_id", "user_id", "action", "created_at"}
+	updateCols, _ = runtime.FilterColumns(updateCols, make([]any, len(updateCols)), cols...)
 	returning := []string{"id", "org_id", "user_id", "action", "created_at"}
 
 	query, args := runtime.BuildUpsert(dialect, AuditLogTableName, allCols, allVals, conflictCols, updateCols, returning)

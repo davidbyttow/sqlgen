@@ -30,6 +30,16 @@ func (s OrganizationSlice) LoadRelations(ctx context.Context, exec runtime.Execu
 	return nil
 }
 
+// organizationLoadMods extracts query mods for the named relationship from the load requests.
+func organizationLoadMods(loads []*runtime.EagerLoadRequest, name string) []runtime.QueryMod {
+	for _, l := range loads {
+		if l.Name == name {
+			return l.Mods
+		}
+	}
+	return nil
+}
+
 func loadOrganizationUsers(ctx context.Context, exec runtime.Executor, d runtime.Dialect, parentModels any, loads []*runtime.EagerLoadRequest) error {
 	models := parentModels.(OrganizationSlice)
 	if len(models) == 0 {
@@ -45,7 +55,8 @@ func loadOrganizationUsers(ctx context.Context, exec runtime.Executor, d runtime
 		idMap[key] = append(idMap[key], m)
 	}
 
-	rows, err := runtime.LoadMany(ctx, exec, d, UserTableName, "org_id", ids)
+	mods := organizationLoadMods(loads, "Users")
+	rows, err := runtime.LoadMany(ctx, exec, d, UserTableName, "org_id", ids, mods...)
 	if err != nil {
 		return err
 	}

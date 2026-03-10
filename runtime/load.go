@@ -39,26 +39,46 @@ type LoadFunc func(ctx context.Context, exec Executor, dialect Dialect, parentMo
 
 // LoadMany executes a query to load related records for a set of parent PKs.
 // It returns the raw rows; generated code handles scanning and assignment.
-func LoadMany(ctx context.Context, exec Executor, dialect Dialect, table string, fkCol string, parentIDs []any) (*sql.Rows, error) {
+// Optional mods are applied to the query (e.g., Where, OrderBy, Limit).
+func LoadMany(ctx context.Context, exec Executor, dialect Dialect, table string, fkCol string, parentIDs []any, mods ...QueryMod) (*sql.Rows, error) {
 	if len(parentIDs) == 0 {
 		return nil, nil
 	}
 
+	q := NewQuery(dialect, table, mods...)
+	q.whereParts = append([]wherePart{{
+		clause:      buildInClause(dialect, fkCol, len(parentIDs)),
+		args:        parentIDs,
+		conjunction: "AND",
+	}}, q.whereParts...)
+
+	query, args := q.BuildSelect()
+	return exec.QueryContext(ctx, query, args...)
+}
+
+// buildInClause constructs a "col" IN (?, ?, ...) clause with ? placeholders
+// that get renumbered by the query builder's rewritePlaceholders.
+func buildInClause(dialect Dialect, col string, n int) string {
+	return buildInClauseWithPrefix(dialect, "", col, n)
+}
+
+// buildInClauseWithPrefix constructs a prefix."col" IN (?, ?, ...) clause.
+func buildInClauseWithPrefix(dialect Dialect, prefix, col string, n int) string {
 	var b strings.Builder
-	b.WriteString("SELECT * FROM ")
-	b.WriteString(dialect.QuoteIdent(table))
-	b.WriteString(" WHERE ")
-	b.WriteString(dialect.QuoteIdent(fkCol))
+	if prefix != "" {
+		b.WriteString(prefix)
+		b.WriteString(".")
+	}
+	b.WriteString(dialect.QuoteIdent(col))
 	b.WriteString(" IN (")
-	for i := range parentIDs {
+	for i := range n {
 		if i > 0 {
 			b.WriteString(", ")
 		}
-		b.WriteString(dialect.Placeholder(i + 1))
+		b.WriteString("?")
 	}
 	b.WriteString(")")
-
-	return exec.QueryContext(ctx, b.String(), parentIDs...)
+	return b.String()
 }
 
 // LoadOne executes a query to load a single related record by FK value.
@@ -76,58 +96,33 @@ func LoadOne(ctx context.Context, exec Executor, dialect Dialect, table string, 
 }
 
 // LoadManyToMany executes a query to load related records through a join table.
-func LoadManyToMany(ctx context.Context, exec Executor, dialect Dialect, targetTable, joinTable, joinLocalCol, joinForeignCol, targetPKCol string, localIDs []any) (*sql.Rows, string, error) {
+// Optional mods are applied to filter the target records.
+func LoadManyToMany(ctx context.Context, exec Executor, dialect Dialect, targetTable, joinTable, joinLocalCol, joinForeignCol, targetPKCol string, localIDs []any, mods ...QueryMod) (*sql.Rows, string, error) {
 	if len(localIDs) == 0 {
 		return nil, "", nil
 	}
 
-	// SELECT target.*, join_table.local_col AS __join_key
-	// FROM target
-	// JOIN join_table ON join_table.foreign_col = target.pk_col
-	// WHERE join_table.local_col IN ($1, $2, ...)
-
 	joinAlias := "__jt"
 	joinKeyAlias := "__join_key"
 
-	var b strings.Builder
-	b.WriteString("SELECT ")
-	b.WriteString(dialect.QuoteIdent(targetTable))
-	b.WriteString(".*, ")
-	b.WriteString(joinAlias)
-	b.WriteString(".")
-	b.WriteString(dialect.QuoteIdent(joinLocalCol))
-	b.WriteString(" AS ")
-	b.WriteString(joinKeyAlias)
+	// Build using Query so user mods (Where, OrderBy, Limit, etc.) apply naturally.
+	q := NewQuery(dialect, targetTable, mods...)
+	q.selectCols = append([]string{
+		dialect.QuoteIdent(targetTable) + ".*",
+		joinAlias + "." + dialect.QuoteIdent(joinLocalCol) + " AS " + joinKeyAlias,
+	}, q.selectCols...)
+	q.joins = append([]joinPart{{
+		joinType: "JOIN",
+		table:    dialect.QuoteIdent(joinTable) + " AS " + joinAlias,
+		on:       joinAlias + "." + dialect.QuoteIdent(joinForeignCol) + " = " + dialect.QuoteIdent(targetTable) + "." + dialect.QuoteIdent(targetPKCol),
+	}}, q.joins...)
+	q.whereParts = append([]wherePart{{
+		clause:      buildInClauseWithPrefix(dialect, joinAlias, joinLocalCol, len(localIDs)),
+		args:        localIDs,
+		conjunction: "AND",
+	}}, q.whereParts...)
 
-	b.WriteString(" FROM ")
-	b.WriteString(dialect.QuoteIdent(targetTable))
-
-	b.WriteString(" JOIN ")
-	b.WriteString(dialect.QuoteIdent(joinTable))
-	b.WriteString(" AS ")
-	b.WriteString(joinAlias)
-	b.WriteString(" ON ")
-	b.WriteString(joinAlias)
-	b.WriteString(".")
-	b.WriteString(dialect.QuoteIdent(joinForeignCol))
-	b.WriteString(" = ")
-	b.WriteString(dialect.QuoteIdent(targetTable))
-	b.WriteString(".")
-	b.WriteString(dialect.QuoteIdent(targetPKCol))
-
-	b.WriteString(" WHERE ")
-	b.WriteString(joinAlias)
-	b.WriteString(".")
-	b.WriteString(dialect.QuoteIdent(joinLocalCol))
-	b.WriteString(" IN (")
-	for i := range localIDs {
-		if i > 0 {
-			b.WriteString(", ")
-		}
-		b.WriteString(dialect.Placeholder(i + 1))
-	}
-	b.WriteString(")")
-
-	rows, err := exec.QueryContext(ctx, b.String(), localIDs...)
+	query, args := q.BuildSelect()
+	rows, err := exec.QueryContext(ctx, query, args...)
 	return rows, joinKeyAlias, err
 }

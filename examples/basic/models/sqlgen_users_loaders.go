@@ -30,6 +30,16 @@ func (s UserSlice) LoadRelations(ctx context.Context, exec runtime.Executor, loa
 	return nil
 }
 
+// userLoadMods extracts query mods for the named relationship from the load requests.
+func userLoadMods(loads []*runtime.EagerLoadRequest, name string) []runtime.QueryMod {
+	for _, l := range loads {
+		if l.Name == name {
+			return l.Mods
+		}
+	}
+	return nil
+}
+
 func loadUserPosts(ctx context.Context, exec runtime.Executor, d runtime.Dialect, parentModels any, loads []*runtime.EagerLoadRequest) error {
 	models := parentModels.(UserSlice)
 	if len(models) == 0 {
@@ -45,7 +55,8 @@ func loadUserPosts(ctx context.Context, exec runtime.Executor, d runtime.Dialect
 		idMap[key] = append(idMap[key], m)
 	}
 
-	rows, err := runtime.LoadMany(ctx, exec, d, PostTableName, "author_id", ids)
+	mods := userLoadMods(loads, "Posts")
+	rows, err := runtime.LoadMany(ctx, exec, d, PostTableName, "author_id", ids, mods...)
 	if err != nil {
 		return err
 	}

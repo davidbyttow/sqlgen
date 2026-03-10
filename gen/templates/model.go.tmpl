@@ -57,3 +57,12 @@ func (o *{{$structName}}) ScanRow(rows interface{ Scan(...any) error }) error {
 {{- end}}
 	)
 }
+
+// scanDests returns scan destinations for all columns (used by preload-aware queries).
+func (o *{{$structName}}) scanDests() []any {
+	return []any{
+{{- range .Table.Columns}}
+		&o.{{pascal .Name}},
+{{- end}}
+	}
+}

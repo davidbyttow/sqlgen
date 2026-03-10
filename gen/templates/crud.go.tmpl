@@ -39,6 +39,7 @@ func Find{{$structName}}ByPK(ctx context.Context, exec runtime.Executor{{range .
 {{- end}}
 
 // All{{plural $structName}} retrieves all rows from the {{$tableName}} table with the given query mods.
+// Supports Preload() for LEFT JOIN eager loading of to-one relationships.
 func All{{safePascal (plural (singular $tableName))}}(ctx context.Context, exec runtime.Executor, mods ...runtime.QueryMod) ({{$structName}}Slice, error) {
 	q := runtime.NewQuery(dialect, {{$tableConst}}, mods...)
 	query, args := q.BuildSelect()
@@ -48,19 +49,48 @@ func All{{safePascal (plural (singular $tableName))}}(ctx context.Context, exec 
 	}
 	defer rows.Close()
 
+{{- if hasToOneRels .Table}}
+	preloads := q.Preloads()
+{{- end}}
+
 	var result {{$structName}}Slice
 	for rows.Next() {
 		o := &{{$structName}}{}
+{{- if hasToOneRels .Table}}
+		if len(preloads) == 0 {
+			if err := o.ScanRow(rows); err != nil {
+				return nil, err
+			}
+		} else {
+			dests := o.scanDests()
+			var states []{{lower $structName}}PreloadState
+			for _, p := range preloads {
+				ps := new{{$structName}}PreloadState(p.Name)
+				if ps != nil {
+					dests = append(dests, ps.scanDests()...)
+					states = append(states, ps)
+				}
+			}
+			if err := rows.Scan(dests...); err != nil {
+				return nil, err
+			}
+			for _, ps := range states {
+				ps.assign(o)
+			}
+		}
+{{- else}}
 		if err := o.ScanRow(rows); err != nil {
 			return nil, err
 		}
+{{- end}}
 		result = append(result, o)
 	}
 	return result, rows.Err()
 }
 
 // Insert inserts the {{$structName}} into the database.
-func (o *{{$structName}}) Insert(ctx context.Context, exec runtime.Executor) error {
+// Optional Columns parameter controls which columns are included (Whitelist/Blacklist).
+func (o *{{$structName}}) Insert(ctx context.Context, exec runtime.Executor, cols ...runtime.Columns) error {
 {{- if $hooks}}
 	ctx, err := {{$hooksVar}}Hooks.RunIfEnabled(ctx, exec, runtime.BeforeInsert, o)
 	if err != nil {
@@ -75,9 +105,12 @@ func (o *{{$structName}}) Insert(ctx context.Context, exec runtime.Executor) err
 {{- end}}
 
 {{- if $hasAutoIncrPK}}
+	insertCols := []string{ {{- range $i, $c := $insertCols}}{{if $i}}, {{end}}"{{$c.Name}}"{{end -}} }
+	insertVals := []any{ {{- range $i, $c := $insertCols}}{{if $i}}, {{end}}o.{{pascal $c.Name}}{{end -}} }
+	insertCols, insertVals = runtime.FilterColumns(insertCols, insertVals, cols...)
+
 	query, args := runtime.BuildInsert(dialect, {{$tableConst}},
-		[]string{ {{- range $i, $c := $insertCols}}{{if $i}}, {{end}}"{{$c.Name}}"{{end -}} },
-		[]any{ {{- range $i, $c := $insertCols}}{{if $i}}, {{end}}o.{{pascal $c.Name}}{{end -}} },
+		insertCols, insertVals,
 		[]string{ {{- range $i, $c := .Table.PrimaryKey.Columns}}{{if $i}}, {{end}}"{{$c}}"{{end -}} },
 	)
 
@@ -93,6 +126,7 @@ func (o *{{$structName}}) Insert(ctx context.Context, exec runtime.Executor) err
 {{- else}}
 	allCols := []string{ {{- range $i, $c := $insertCols}}{{if $i}}, {{end}}"{{$c.Name}}"{{end -}} }
 	allVals := []any{ {{- range $i, $c := $insertCols}}{{if $i}}, {{end}}o.{{pascal $c.Name}}{{end -}} }
+	allCols, allVals = runtime.FilterColumns(allCols, allVals, cols...)
 
 	returning := []string{ {{- range $i, $c := .Table.Columns}}{{if $i}}, {{end}}"{{$c.Name}}"{{end -}} }
 
@@ -121,8 +155,9 @@ func (o *{{$structName}}) Insert(ctx context.Context, exec runtime.Executor) err
 }
 
 // Update updates the {{$structName}} in the database. Only non-PK columns are updated.
+// Optional Columns parameter controls which columns are included (Whitelist/Blacklist).
 {{- if .Table.PrimaryKey}}
-func (o *{{$structName}}) Update(ctx context.Context, exec runtime.Executor) error {
+func (o *{{$structName}}) Update(ctx context.Context, exec runtime.Executor, cols ...runtime.Columns) error {
 {{- if $hooks}}
 	ctx, err := {{$hooksVar}}Hooks.RunIfEnabled(ctx, exec, runtime.BeforeUpdate, o)
 	if err != nil {
@@ -136,6 +171,7 @@ func (o *{{$structName}}) Update(ctx context.Context, exec runtime.Executor) err
 {{- $nonPK := nonPKColumns .Table}}
 	setCols := []string{ {{- range $i, $c := $nonPK}}{{if $i}}, {{end}}"{{$c.Name}}"{{end -}} }
 	setVals := []any{ {{- range $i, $c := $nonPK}}{{if $i}}, {{end}}o.{{pascal $c.Name}}{{end -}} }
+	setCols, setVals = runtime.FilterColumns(setCols, setVals, cols...)
 
 	whereClauses := []string{ {{- range $i, $c := .Table.PrimaryKey.Columns}}{{if $i}}, {{end}}"\"{{$c}}\" = ?"{{end -}} }
 	whereArgs := []any{ {{- range $i, $c := .Table.PrimaryKey.Columns}}{{if $i}}, {{end}}o.{{pascal $c}}{{end -}} }
@@ -192,8 +228,9 @@ func (o *{{$structName}}) Delete(ctx context.Context, exec runtime.Executor) err
 {{- end}}
 
 // Upsert inserts or updates the {{$structName}} based on the primary key.
+// Optional Columns parameter controls which non-PK columns are included (Whitelist/Blacklist).
 {{- if .Table.PrimaryKey}}
-func (o *{{$structName}}) Upsert(ctx context.Context, exec runtime.Executor) error {
+func (o *{{$structName}}) Upsert(ctx context.Context, exec runtime.Executor, cols ...runtime.Columns) error {
 {{- if $hooks}}
 	ctx, err := {{$hooksVar}}Hooks.RunIfEnabled(ctx, exec, runtime.BeforeUpsert, o)
 	if err != nil {
@@ -204,8 +241,11 @@ func (o *{{$structName}}) Upsert(ctx context.Context, exec runtime.Executor) err
 {{- $nonPK := nonPKColumns .Table}}
 	allCols := []string{ {{- range $i, $c := .Table.Columns}}{{if $i}}, {{end}}"{{$c.Name}}"{{end -}} }
 	allVals := []any{ {{- range $i, $c := .Table.Columns}}{{if $i}}, {{end}}o.{{pascal $c.Name}}{{end -}} }
+	allCols, allVals = runtime.FilterColumns(allCols, allVals, cols...)
 	conflictCols := []string{ {{- range $i, $c := .Table.PrimaryKey.Columns}}{{if $i}}, {{end}}"{{$c}}"{{end -}} }
 	updateCols := []string{ {{- range $i, $c := $nonPK}}{{if $i}}, {{end}}"{{$c.Name}}"{{end -}} }
+	{{- /* Filter updateCols to match the filtered insert columns (minus PKs). */}}
+	updateCols, _ = runtime.FilterColumns(updateCols, make([]any, len(updateCols)), cols...)
 	returning := []string{ {{- range $i, $c := .Table.Columns}}{{if $i}}, {{end}}"{{$c.Name}}"{{end -}} }
 
 	query, args := runtime.BuildUpsert(dialect, {{$tableConst}}, allCols, allVals, conflictCols, updateCols, returning)

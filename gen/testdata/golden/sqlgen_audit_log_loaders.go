@@ -30,6 +30,16 @@ func (s AuditLogSlice) LoadRelations(ctx context.Context, exec runtime.Executor,
 	return nil
 }
 
+// auditlogLoadMods extracts query mods for the named relationship from the load requests.
+func auditlogLoadMods(loads []*runtime.EagerLoadRequest, name string) []runtime.QueryMod {
+	for _, l := range loads {
+		if l.Name == name {
+			return l.Mods
+		}
+	}
+	return nil
+}
+
 func loadAuditLogUser(ctx context.Context, exec runtime.Executor, d runtime.Dialect, parentModels any, loads []*runtime.EagerLoadRequest) error {
 	models := parentModels.(AuditLogSlice)
 	if len(models) == 0 {
@@ -47,7 +57,8 @@ func loadAuditLogUser(ctx context.Context, exec runtime.Executor, d runtime.Dial
 		}
 	}
 
-	rows, err := runtime.LoadMany(ctx, exec, d, UserTableName, "id", ids)
+	mods := auditlogLoadMods(loads, "User")
+	rows, err := runtime.LoadMany(ctx, exec, d, UserTableName, "id", ids, mods...)
 	if err != nil {
 		return err
 	}

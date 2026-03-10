@@ -37,3 +37,11 @@ func (o *Tag) ScanRow(rows interface{ Scan(...any) error }) error {
 		&o.Name,
 	)
 }
+
+// scanDests returns scan destinations for all columns (used by preload-aware queries).
+func (o *Tag) scanDests() []any {
+	return []any{
+		&o.ID,
+		&o.Name,
+	}
+}

@@ -31,6 +31,7 @@ func FindCategoryByPK(ctx context.Context, exec runtime.Executor, id int32) (*Ca
 }
 
 // AllCategories retrieves all rows from the categories table with the given query mods.
+// Supports Preload() for LEFT JOIN eager loading of to-one relationships.
 func AllCategories(ctx context.Context, exec runtime.Executor, mods ...runtime.QueryMod) (CategorySlice, error) {
 	q := runtime.NewQuery(dialect, CategoryTableName, mods...)
 	query, args := q.BuildSelect()
@@ -39,12 +40,31 @@ func AllCategories(ctx context.Context, exec runtime.Executor, mods ...runtime.Q
 		return nil, err
 	}
 	defer rows.Close()
+	preloads := q.Preloads()
 
 	var result CategorySlice
 	for rows.Next() {
 		o := &Category{}
-		if err := o.ScanRow(rows); err != nil {
-			return nil, err
+		if len(preloads) == 0 {
+			if err := o.ScanRow(rows); err != nil {
+				return nil, err
+			}
+		} else {
+			dests := o.scanDests()
+			var states []categoryPreloadState
+			for _, p := range preloads {
+				ps := newCategoryPreloadState(p.Name)
+				if ps != nil {
+					dests = append(dests, ps.scanDests()...)
+					states = append(states, ps)
+				}
+			}
+			if err := rows.Scan(dests...); err != nil {
+				return nil, err
+			}
+			for _, ps := range states {
+				ps.assign(o)
+			}
 		}
 		result = append(result, o)
 	}
@@ -52,14 +72,18 @@ func AllCategories(ctx context.Context, exec runtime.Executor, mods ...runtime.Q
 }
 
 // Insert inserts the Category into the database.
-func (o *Category) Insert(ctx context.Context, exec runtime.Executor) error {
+// Optional Columns parameter controls which columns are included (Whitelist/Blacklist).
+func (o *Category) Insert(ctx context.Context, exec runtime.Executor, cols ...runtime.Columns) error {
 	ctx, err := categoryHooks.RunIfEnabled(ctx, exec, runtime.BeforeInsert, o)
 	if err != nil {
 		return err
 	}
+	insertCols := []string{"name", "parent_id"}
+	insertVals := []any{o.Name, o.ParentID}
+	insertCols, insertVals = runtime.FilterColumns(insertCols, insertVals, cols...)
+
 	query, args := runtime.BuildInsert(dialect, CategoryTableName,
-		[]string{"name", "parent_id"},
-		[]any{o.Name, o.ParentID},
+		insertCols, insertVals,
 		[]string{"id"},
 	)
 	err = exec.QueryRowContext(ctx, query, args...).Scan(
@@ -73,13 +97,15 @@ func (o *Category) Insert(ctx context.Context, exec runtime.Executor) error {
 }
 
 // Update updates the Category in the database. Only non-PK columns are updated.
-func (o *Category) Update(ctx context.Context, exec runtime.Executor) error {
+// Optional Columns parameter controls which columns are included (Whitelist/Blacklist).
+func (o *Category) Update(ctx context.Context, exec runtime.Executor, cols ...runtime.Columns) error {
 	ctx, err := categoryHooks.RunIfEnabled(ctx, exec, runtime.BeforeUpdate, o)
 	if err != nil {
 		return err
 	}
 	setCols := []string{"name", "parent_id"}
 	setVals := []any{o.Name, o.ParentID}
+	setCols, setVals = runtime.FilterColumns(setCols, setVals, cols...)
 
 	whereClauses := []string{"\"id\" = ?"}
 	whereArgs := []any{o.ID}
@@ -113,15 +139,18 @@ func (o *Category) Delete(ctx context.Context, exec runtime.Executor) error {
 }
 
 // Upsert inserts or updates the Category based on the primary key.
-func (o *Category) Upsert(ctx context.Context, exec runtime.Executor) error {
+// Optional Columns parameter controls which non-PK columns are included (Whitelist/Blacklist).
+func (o *Category) Upsert(ctx context.Context, exec runtime.Executor, cols ...runtime.Columns) error {
 	ctx, err := categoryHooks.RunIfEnabled(ctx, exec, runtime.BeforeUpsert, o)
 	if err != nil {
 		return err
 	}
 	allCols := []string{"id", "name", "parent_id"}
 	allVals := []any{o.ID, o.Name, o.ParentID}
+	allCols, allVals = runtime.FilterColumns(allCols, allVals, cols...)
 	conflictCols := []string{"id"}
 	updateCols := []string{"name", "parent_id"}
+	updateCols, _ = runtime.FilterColumns(updateCols, make([]any, len(updateCols)), cols...)
 	returning := []string{"id", "name", "parent_id"}
 
 	query, args := runtime.BuildUpsert(dialect, CategoryTableName, allCols, allVals, conflictCols, updateCols, returning)

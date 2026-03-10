@@ -32,6 +32,7 @@ func FindPostTagByPK(ctx context.Context, exec runtime.Executor, postID string, 
 }
 
 // AllPostTags retrieves all rows from the post_tags table with the given query mods.
+// Supports Preload() for LEFT JOIN eager loading of to-one relationships.
 func AllPostTags(ctx context.Context, exec runtime.Executor, mods ...runtime.QueryMod) (PostTagSlice, error) {
 	q := runtime.NewQuery(dialect, PostTagTableName, mods...)
 	query, args := q.BuildSelect()
@@ -53,13 +54,15 @@ func AllPostTags(ctx context.Context, exec runtime.Executor, mods ...runtime.Que
 }
 
 // Insert inserts the PostTag into the database.
-func (o *PostTag) Insert(ctx context.Context, exec runtime.Executor) error {
+// Optional Columns parameter controls which columns are included (Whitelist/Blacklist).
+func (o *PostTag) Insert(ctx context.Context, exec runtime.Executor, cols ...runtime.Columns) error {
 	ctx, err := posttagHooks.RunIfEnabled(ctx, exec, runtime.BeforeInsert, o)
 	if err != nil {
 		return err
 	}
 	allCols := []string{"post_id", "tag_id"}
 	allVals := []any{o.PostID, o.TagID}
+	allCols, allVals = runtime.FilterColumns(allCols, allVals, cols...)
 
 	returning := []string{"post_id", "tag_id"}
 
@@ -76,13 +79,15 @@ func (o *PostTag) Insert(ctx context.Context, exec runtime.Executor) error {
 }
 
 // Update updates the PostTag in the database. Only non-PK columns are updated.
-func (o *PostTag) Update(ctx context.Context, exec runtime.Executor) error {
+// Optional Columns parameter controls which columns are included (Whitelist/Blacklist).
+func (o *PostTag) Update(ctx context.Context, exec runtime.Executor, cols ...runtime.Columns) error {
 	ctx, err := posttagHooks.RunIfEnabled(ctx, exec, runtime.BeforeUpdate, o)
 	if err != nil {
 		return err
 	}
 	setCols := []string{}
 	setVals := []any{}
+	setCols, setVals = runtime.FilterColumns(setCols, setVals, cols...)
 
 	whereClauses := []string{"\"post_id\" = ?", "\"tag_id\" = ?"}
 	whereArgs := []any{o.PostID, o.TagID}
@@ -116,15 +121,18 @@ func (o *PostTag) Delete(ctx context.Context, exec runtime.Executor) error {
 }
 
 // Upsert inserts or updates the PostTag based on the primary key.
-func (o *PostTag) Upsert(ctx context.Context, exec runtime.Executor) error {
+// Optional Columns parameter controls which non-PK columns are included (Whitelist/Blacklist).
+func (o *PostTag) Upsert(ctx context.Context, exec runtime.Executor, cols ...runtime.Columns) error {
 	ctx, err := posttagHooks.RunIfEnabled(ctx, exec, runtime.BeforeUpsert, o)
 	if err != nil {
 		return err
 	}
 	allCols := []string{"post_id", "tag_id"}
 	allVals := []any{o.PostID, o.TagID}
+	allCols, allVals = runtime.FilterColumns(allCols, allVals, cols...)
 	conflictCols := []string{"post_id", "tag_id"}
 	updateCols := []string{}
+	updateCols, _ = runtime.FilterColumns(updateCols, make([]any, len(updateCols)), cols...)
 	returning := []string{"post_id", "tag_id"}
 
 	query, args := runtime.BuildUpsert(dialect, PostTagTableName, allCols, allVals, conflictCols, updateCols, returning)

@@ -52,7 +52,8 @@ The remaining gaps are mostly about DX polish, testing infrastructure, and advan
 | Detection (BelongsTo, Has*, M2M) | Yes | Yes | Yes |
 | Eager loading (single level) | Yes (qm.Load) | Yes (Preload, ThenLoad) | **Yes** (LoadRelations) |
 | Eager loading (nested/recursive) | Yes (dot notation) | Yes (nested loaders) | **Yes** (dot notation) |
-| Filtered eager loading | Yes (mods on Load) | Yes (mods on ThenLoad) | No |
+| Preload via LEFT JOIN (to-one) | No | Yes (Preload) | **Yes** (Preload) |
+| Filtered eager loading | Yes (mods on Load) | Yes (mods on ThenLoad) | **Yes** (mods on Load) |
 | Relationship mutation (Set/Add/Remove) | Yes | Yes (Attach, Insert) | No |
 | Relationship query methods | No | Yes (returns TableQuery) | No |
 | Relationship count loading | No | Yes (PreloadCount, ThenLoadCount) | No |
@@ -80,7 +81,7 @@ The remaining gaps are mostly about DX polish, testing infrastructure, and advan
 | Panic variant | Yes (MethodP) | No | No |
 | Automatic timestamps | Yes (created_at/updated_at) | No | **Yes** (configurable columns) |
 | Soft deletes | Yes (--add-soft-deletes) | No | No |
-| Column whitelist/blacklist on mutations | Yes (Infer/Whitelist/Blacklist/Greylist) | Yes (Only/Except) | No |
+| Column whitelist/blacklist on mutations | Yes (Infer/Whitelist/Blacklist/Greylist) | Yes (Only/Except) | **Yes** (Whitelist/Blacklist) |
 | Custom templates | Yes | Yes | No |
 | Struct tag control | Yes (casing, extra tags) | Yes (casing, extra tags) | No (hardcoded json+db) |
 | DB error constants | No | Yes (dberrors plugin) | No |
@@ -91,7 +92,7 @@ The remaining gaps are mostly about DX polish, testing infrastructure, and advan
 
 ---
 
-## Completed (Phases 7-10)
+## Completed (Phases 7-11)
 
 These were the highest-impact gaps. All shipped.
 
@@ -108,46 +109,41 @@ These were the highest-impact gaps. All shipped.
 - **Typed model hooks** - hooks receive `(ctx, exec, *Model)` so they can inspect/modify the row
 - **No-hooks flag** - `output.no_hooks: true` skips hook generation entirely
 - **Automatic timestamps** - `created_at`/`updated_at` auto-set on Insert/Update, configurable column names
+- **Column whitelist/blacklist** - `Whitelist("email", "name")` / `Blacklist("id")` for Insert/Update/Upsert
+- **Filtered eager loading** - `Load("Posts", Where(...))` passes mods through to loader queries
+- **Preload via LEFT JOIN** - `Preload(PostPreloadUser)` folds to-one relationships into the parent SELECT
 
 ---
 
 ## Remaining Gaps (Priority Order)
 
-### High Impact
-
-**1. Column whitelist/blacklist on mutations**
-Can't do partial updates ("update only name and email") or partial inserts ("insert everything except id"). SQLBoiler's `Whitelist`/`Blacklist`/`Infer` and Bob's `Only`/`Except` patterns handle this.
-
-**2. Filtered eager loading**
-Our `Load("Posts")` works, but can't filter: `Load("Posts", Where("status = ?", "published"))`. The `EagerLoadRequest.Mods` field exists but the generated loaders don't pass them through yet.
-
 ### Medium Impact
 
-**3. Struct tag customization**
+**1. Struct tag customization**
 Hardcoded to `json:"snake" db:"name"`. Users want `yaml`, `toml`, camelCase JSON, or custom tags.
 
-**4. Custom type replacement by column name**
+**2. Custom type replacement by column name**
 Replacements only match by DB type. Matching by column name/nullability is useful for: "all `metadata` columns → `json.RawMessage`."
 
-**5. Factory/fixture system**
+**3. Factory/fixture system**
 Generated test files exist, but no factory system for generating test data. Bob's FactoryBot-inspired factories are genuinely useful for integration tests.
 
-**6. Cursor/streaming iteration**
+**4. Cursor/streaming iteration**
 For large result sets. Bob has `Cursor()` and `Each()`.
 
-**7. Relationship mutations (Set/Add/Remove)**
+**5. Relationship mutations (Set/Add/Remove)**
 Can't programmatically add/remove related records through the relationship API. Both competitors have this.
 
 ### Lower Impact
 
-**8. CTEs (WITH clause)** - Useful for recursive queries.
-**9. Row locking (FOR UPDATE/SHARE)** - Needed for transactional workflows.
-**10. UNION / INTERSECT / EXCEPT** - Bob has these, SQLBoiler doesn't.
-**11. Soft deletes** - SQLBoiler has first-class support. Doable with hooks.
-**12. Custom templates** - Both competitors let users override templates.
-**13. DB error matching** - Bob generates typed constraint error matchers.
-**14. Prepared statement caching** - Performance optimization. Bob only.
-**15. Batch insert** - Multi-row INSERT. Bob only.
+**6. CTEs (WITH clause)** - Useful for recursive queries.
+**7. Row locking (FOR UPDATE/SHARE)** - Needed for transactional workflows.
+**8. UNION / INTERSECT / EXCEPT** - Bob has these, SQLBoiler doesn't.
+**9. Soft deletes** - SQLBoiler has first-class support. Doable with hooks.
+**10. Custom templates** - Both competitors let users override templates.
+**11. DB error matching** - Bob generates typed constraint error matchers.
+**12. Prepared statement caching** - Performance optimization. Bob only.
+**13. Batch insert** - Multi-row INSERT. Bob only.
 
 ---
 
@@ -162,10 +158,6 @@ Can't programmatically add/remove related records through the relationship API. 
 ---
 
 ## Suggested Roadmap
-
-**Phase 11: Mutation Control + Filtered Loading** (high impact, medium effort)
-- Column whitelist/blacklist for Insert/Update
-- Wire `EagerLoadRequest.Mods` through generated loaders
 
 **Phase 12: Developer Experience** (medium impact, medium effort)
 - Struct tag customization (casing, extra tags)

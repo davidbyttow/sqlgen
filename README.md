@@ -194,6 +194,21 @@ user.Upsert(ctx, db)   // INSERT ON CONFLICT DO UPDATE
 
 All mutations accept a `context.Context` and a `runtime.Executor` (which `*sql.DB` and `*sql.Tx` both satisfy).
 
+#### Partial Mutations (Whitelist/Blacklist)
+
+Control which columns are included in Insert, Update, or Upsert:
+
+```go
+// Only update these columns:
+user.Update(ctx, db, runtime.Whitelist("email", "name"))
+
+// Update everything except these:
+user.Update(ctx, db, runtime.Blacklist("created_at"))
+
+// Partial insert:
+user.Insert(ctx, db, runtime.Whitelist("email", "name"))
+```
+
 ### Enums
 
 SQL enums become type-safe Go string types:
@@ -261,6 +276,34 @@ type PostRels struct {
     User *User     // BelongsTo
     Tags []*Tag    // ManyToMany (via post_tags)
 }
+```
+
+### Eager Loading
+
+Two strategies for loading relationships:
+
+**Preload (LEFT JOIN, single query)** for to-one relationships (BelongsTo, HasOne):
+
+```go
+// Loads posts with their author in a single query via LEFT JOIN.
+posts, _ := models.AllPosts(ctx, db, runtime.Preload(models.PostPreloadUser))
+posts[0].R.User.Email // already populated, no extra query
+```
+
+**LoadRelations (separate batch queries)** for all relationship types:
+
+```go
+posts, _ := models.AllPosts(ctx, db)
+posts.LoadRelations(ctx, db, runtime.Load("User"), runtime.Load("Tags"))
+```
+
+Supports dot-notation nesting and filtered loading:
+
+```go
+users.LoadRelations(ctx, db,
+    runtime.Load("Posts.Tags"),
+    runtime.Load("Posts", runtime.Where(`"status" = ?`, "published")),
+)
 ```
 
 ### Null Types

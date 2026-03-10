@@ -32,6 +32,7 @@ func FindUserByPK(ctx context.Context, exec runtime.Executor, id string) (*User,
 }
 
 // AllUsers retrieves all rows from the users table with the given query mods.
+// Supports Preload() for LEFT JOIN eager loading of to-one relationships.
 func AllUsers(ctx context.Context, exec runtime.Executor, mods ...runtime.QueryMod) (UserSlice, error) {
 	q := runtime.NewQuery(dialect, UserTableName, mods...)
 	query, args := q.BuildSelect()
@@ -53,7 +54,8 @@ func AllUsers(ctx context.Context, exec runtime.Executor, mods ...runtime.QueryM
 }
 
 // Insert inserts the User into the database.
-func (o *User) Insert(ctx context.Context, exec runtime.Executor) error {
+// Optional Columns parameter controls which columns are included (Whitelist/Blacklist).
+func (o *User) Insert(ctx context.Context, exec runtime.Executor, cols ...runtime.Columns) error {
 	ctx, err := userHooks.RunIfEnabled(ctx, exec, runtime.BeforeInsert, o)
 	if err != nil {
 		return err
@@ -61,6 +63,7 @@ func (o *User) Insert(ctx context.Context, exec runtime.Executor) error {
 	o.CreatedAt = time.Now()
 	allCols := []string{"id", "email", "name", "bio", "created_at"}
 	allVals := []any{o.ID, o.Email, o.Name, o.Bio, o.CreatedAt}
+	allCols, allVals = runtime.FilterColumns(allCols, allVals, cols...)
 
 	returning := []string{"id", "email", "name", "bio", "created_at"}
 
@@ -80,13 +83,15 @@ func (o *User) Insert(ctx context.Context, exec runtime.Executor) error {
 }
 
 // Update updates the User in the database. Only non-PK columns are updated.
-func (o *User) Update(ctx context.Context, exec runtime.Executor) error {
+// Optional Columns parameter controls which columns are included (Whitelist/Blacklist).
+func (o *User) Update(ctx context.Context, exec runtime.Executor, cols ...runtime.Columns) error {
 	ctx, err := userHooks.RunIfEnabled(ctx, exec, runtime.BeforeUpdate, o)
 	if err != nil {
 		return err
 	}
 	setCols := []string{"email", "name", "bio", "created_at"}
 	setVals := []any{o.Email, o.Name, o.Bio, o.CreatedAt}
+	setCols, setVals = runtime.FilterColumns(setCols, setVals, cols...)
 
 	whereClauses := []string{"\"id\" = ?"}
 	whereArgs := []any{o.ID}
@@ -120,15 +125,18 @@ func (o *User) Delete(ctx context.Context, exec runtime.Executor) error {
 }
 
 // Upsert inserts or updates the User based on the primary key.
-func (o *User) Upsert(ctx context.Context, exec runtime.Executor) error {
+// Optional Columns parameter controls which non-PK columns are included (Whitelist/Blacklist).
+func (o *User) Upsert(ctx context.Context, exec runtime.Executor, cols ...runtime.Columns) error {
 	ctx, err := userHooks.RunIfEnabled(ctx, exec, runtime.BeforeUpsert, o)
 	if err != nil {
 		return err
 	}
 	allCols := []string{"id", "email", "name", "bio", "created_at"}
 	allVals := []any{o.ID, o.Email, o.Name, o.Bio, o.CreatedAt}
+	allCols, allVals = runtime.FilterColumns(allCols, allVals, cols...)
 	conflictCols := []string{"id"}
 	updateCols := []string{"email", "name", "bio", "created_at"}
+	updateCols, _ = runtime.FilterColumns(updateCols, make([]any, len(updateCols)), cols...)
 	returning := []string{"id", "email", "name", "bio", "created_at"}
 
 	query, args := runtime.BuildUpsert(dialect, UserTableName, allCols, allVals, conflictCols, updateCols, returning)
