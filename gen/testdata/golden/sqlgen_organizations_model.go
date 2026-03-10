@@ -34,7 +34,8 @@ type Organization struct {
 
 // OrganizationRels holds eagerly loaded relationships.
 type OrganizationRels struct {
-	Users []*User
+	Users      []*User
+	UsersCount *int64
 }
 
 // OrganizationSlice is a slice of Organization pointers.
