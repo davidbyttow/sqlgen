@@ -22,22 +22,34 @@ type QueryMod func(q *Query)
 
 // Query builds a SQL query incrementally using composable mods.
 type Query struct {
-	dialect    Dialect
-	table      string
-	selectCols []string
-	whereParts []wherePart
-	orderBy    []string
-	limit      *int
-	offset     *int
-	groupBy    []string
-	having     []wherePart
-	joins      []joinPart
-	args       []any
-	distinct   bool
-	distinctOn []string
-	preloads   []PreloadDef
-	ctes       []ctePart
-	lock       *lockClause
+	dialect      Dialect
+	table        string
+	selectCols   []string
+	whereParts   []wherePart
+	orderBy      []string
+	limit        *int
+	offset       *int
+	groupBy      []string
+	having       []wherePart
+	joins        []joinPart
+	args         []any
+	distinct     bool
+	distinctOn   []string
+	preloads     []PreloadDef
+	ctes         []ctePart
+	lock         *lockClause
+	fromSubquery *subquerySource
+	unions       []compoundPart
+}
+
+type subquerySource struct {
+	query *Query
+	alias string
+}
+
+type compoundPart struct {
+	op    string // "UNION", "UNION ALL", "INTERSECT", "INTERSECT ALL", "EXCEPT", "EXCEPT ALL"
+	query *Query
 }
 
 type ctePart struct {
@@ -56,8 +68,9 @@ type lockClause struct {
 type wherePart struct {
 	clause      string
 	args        []any
-	conjunction string     // "AND" or "OR"
+	conjunction string      // "AND" or "OR"
 	group       []wherePart // if non-nil, this is a grouped expression
+	subquery    *Query      // if non-nil, renders as subquery (used with clause as prefix)
 }
 
 type joinPart struct {
@@ -113,6 +126,47 @@ func WhereIn(col string, vals ...any) QueryMod {
 		}
 		clause := col + " IN (" + strings.Join(placeholders, ", ") + ")"
 		q.whereParts = append(q.whereParts, wherePart{clause: clause, args: vals, conjunction: "AND"})
+	}
+}
+
+// WhereSubquery adds a WHERE col op (SELECT ...) clause.
+// The op is typically "IN", "NOT IN", "=", "<", etc.
+func WhereSubquery(col string, op string, sub *Query) QueryMod {
+	return func(q *Query) {
+		q.whereParts = append(q.whereParts, wherePart{
+			clause:      col + " " + op + " ",
+			conjunction: "AND",
+			subquery:    sub,
+		})
+	}
+}
+
+// WhereExists adds a WHERE EXISTS (SELECT ...) clause.
+func WhereExists(sub *Query) QueryMod {
+	return func(q *Query) {
+		q.whereParts = append(q.whereParts, wherePart{
+			clause:      "EXISTS ",
+			conjunction: "AND",
+			subquery:    sub,
+		})
+	}
+}
+
+// WhereNotExists adds a WHERE NOT EXISTS (SELECT ...) clause.
+func WhereNotExists(sub *Query) QueryMod {
+	return func(q *Query) {
+		q.whereParts = append(q.whereParts, wherePart{
+			clause:      "NOT EXISTS ",
+			conjunction: "AND",
+			subquery:    sub,
+		})
+	}
+}
+
+// FromSubquery replaces the FROM table with a subquery: FROM (SELECT ...) AS alias.
+func FromSubquery(alias string, sub *Query) QueryMod {
+	return func(q *Query) {
+		q.fromSubquery = &subquerySource{query: sub, alias: alias}
 	}
 }
 
@@ -233,6 +287,105 @@ func WithRecursiveCTE(name string, query string, args ...any) QueryMod {
 	}
 }
 
+// Union appends a UNION to the query.
+func Union(sub *Query) QueryMod {
+	return func(q *Query) {
+		q.unions = append(q.unions, compoundPart{op: "UNION", query: sub})
+	}
+}
+
+// UnionAll appends a UNION ALL to the query.
+func UnionAll(sub *Query) QueryMod {
+	return func(q *Query) {
+		q.unions = append(q.unions, compoundPart{op: "UNION ALL", query: sub})
+	}
+}
+
+// Intersect appends an INTERSECT to the query.
+func Intersect(sub *Query) QueryMod {
+	return func(q *Query) {
+		q.unions = append(q.unions, compoundPart{op: "INTERSECT", query: sub})
+	}
+}
+
+// IntersectAll appends an INTERSECT ALL to the query.
+func IntersectAll(sub *Query) QueryMod {
+	return func(q *Query) {
+		q.unions = append(q.unions, compoundPart{op: "INTERSECT ALL", query: sub})
+	}
+}
+
+// Except appends an EXCEPT to the query.
+func Except(sub *Query) QueryMod {
+	return func(q *Query) {
+		q.unions = append(q.unions, compoundPart{op: "EXCEPT", query: sub})
+	}
+}
+
+// ExceptAll appends an EXCEPT ALL to the query.
+func ExceptAll(sub *Query) QueryMod {
+	return func(q *Query) {
+		q.unions = append(q.unions, compoundPart{op: "EXCEPT ALL", query: sub})
+	}
+}
+
+// WindowDef defines a window for use with window functions.
+type WindowDef struct {
+	partitionBy []string
+	orderBy     []string
+	frame       string // e.g., "ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW"
+}
+
+// NewWindowDef creates a new window definition.
+func NewWindowDef() *WindowDef {
+	return &WindowDef{}
+}
+
+// PartitionBy sets the PARTITION BY columns.
+func (w *WindowDef) PartitionBy(cols ...string) *WindowDef {
+	w.partitionBy = cols
+	return w
+}
+
+// OrderBy sets the ORDER BY columns within the window.
+func (w *WindowDef) OrderBy(cols ...string) *WindowDef {
+	w.orderBy = cols
+	return w
+}
+
+// Frame sets the frame specification (e.g., "ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW").
+func (w *WindowDef) Frame(frame string) *WindowDef {
+	w.frame = frame
+	return w
+}
+
+// String renders the OVER (...) clause.
+func (w *WindowDef) String() string {
+	var parts []string
+	if len(w.partitionBy) > 0 {
+		parts = append(parts, "PARTITION BY "+strings.Join(w.partitionBy, ", "))
+	}
+	if len(w.orderBy) > 0 {
+		parts = append(parts, "ORDER BY "+strings.Join(w.orderBy, ", "))
+	}
+	if w.frame != "" {
+		parts = append(parts, w.frame)
+	}
+	return "OVER (" + strings.Join(parts, " ") + ")"
+}
+
+// SelectWithWindow adds a column expression with a window function to the SELECT clause.
+// Example: SelectWithWindow("ROW_NUMBER()", windowDef, "row_num")
+func SelectWithWindow(expr string, w *WindowDef, alias string) QueryMod {
+	return func(q *Query) {
+		col := expr + " " + w.String()
+		if alias != "" {
+			col += " AS " + alias
+		}
+		q.selectCols = append(q.selectCols, col)
+	}
+}
+
 // ForUpdate adds FOR UPDATE row locking to the query.
 func ForUpdate() QueryMod {
 	return func(q *Query) {
@@ -300,9 +453,14 @@ func (q *Query) Preloads() []PreloadDef {
 
 // BuildSelect builds a SELECT query, returning the SQL string and args.
 func (q *Query) BuildSelect() (string, []any) {
+	argIdx := 0
+	return q.buildSelect(&argIdx)
+}
+
+// buildSelect is the internal builder that accepts an external argIdx for subquery nesting.
+func (q *Query) buildSelect(argIdx *int) (string, []any) {
 	var b strings.Builder
 	var args []any
-	argIdx := 0
 
 	// CTEs (WITH clause)
 	if len(q.ctes) > 0 {
@@ -324,7 +482,7 @@ func (q *Query) BuildSelect() (string, []any) {
 			}
 			b.WriteString(q.dialect.QuoteIdent(cte.name))
 			b.WriteString(" AS (")
-			clause, newArgs := q.rewritePlaceholders(cte.query, cte.args, &argIdx)
+			clause, newArgs := q.rewritePlaceholders(cte.query, cte.args, argIdx)
 			b.WriteString(clause)
 			args = append(args, newArgs...)
 			b.WriteString(")")
@@ -343,6 +501,8 @@ func (q *Query) BuildSelect() (string, []any) {
 	}
 	if len(q.selectCols) > 0 {
 		b.WriteString(strings.Join(q.selectCols, ", "))
+	} else if q.fromSubquery != nil {
+		b.WriteString(q.fromSubquery.alias + ".*")
 	} else {
 		b.WriteString(q.dialect.QuoteIdent(q.table) + ".*")
 	}
@@ -357,7 +517,16 @@ func (q *Query) BuildSelect() (string, []any) {
 
 	// FROM
 	b.WriteString(" FROM ")
-	b.WriteString(q.dialect.QuoteIdent(q.table))
+	if q.fromSubquery != nil {
+		b.WriteString("(")
+		subSQL, subArgs := q.fromSubquery.query.buildSelect(argIdx)
+		b.WriteString(subSQL)
+		args = append(args, subArgs...)
+		b.WriteString(") AS ")
+		b.WriteString(q.fromSubquery.alias)
+	} else {
+		b.WriteString(q.dialect.QuoteIdent(q.table))
+	}
 
 	// JOINs
 	for _, j := range q.joins {
@@ -367,7 +536,7 @@ func (q *Query) BuildSelect() (string, []any) {
 		b.WriteString(j.table)
 		if j.on != "" {
 			b.WriteString(" ON ")
-			clause, newArgs := q.rewritePlaceholders(j.on, j.args, &argIdx)
+			clause, newArgs := q.rewritePlaceholders(j.on, j.args, argIdx)
 			b.WriteString(clause)
 			args = append(args, newArgs...)
 		}
@@ -384,7 +553,7 @@ func (q *Query) BuildSelect() (string, []any) {
 	// WHERE
 	if len(q.whereParts) > 0 {
 		b.WriteString(" WHERE ")
-		q.renderWhereParts(&b, q.whereParts, &argIdx, &args)
+		q.renderWhereParts(&b, q.whereParts, argIdx, &args)
 	}
 
 	// GROUP BY
@@ -400,7 +569,7 @@ func (q *Query) BuildSelect() (string, []any) {
 			if i > 0 {
 				b.WriteString(" AND ")
 			}
-			clause, newArgs := q.rewritePlaceholders(hp.clause, hp.args, &argIdx)
+			clause, newArgs := q.rewritePlaceholders(hp.clause, hp.args, argIdx)
 			b.WriteString(clause)
 			args = append(args, newArgs...)
 		}
@@ -414,17 +583,17 @@ func (q *Query) BuildSelect() (string, []any) {
 
 	// LIMIT
 	if q.limit != nil {
-		argIdx++
+		*argIdx++
 		b.WriteString(" LIMIT ")
-		b.WriteString(q.dialect.Placeholder(argIdx))
+		b.WriteString(q.dialect.Placeholder(*argIdx))
 		args = append(args, *q.limit)
 	}
 
 	// OFFSET
 	if q.offset != nil {
-		argIdx++
+		*argIdx++
 		b.WriteString(" OFFSET ")
-		b.WriteString(q.dialect.Placeholder(argIdx))
+		b.WriteString(q.dialect.Placeholder(*argIdx))
 		args = append(args, *q.offset)
 	}
 
@@ -437,6 +606,16 @@ func (q *Query) BuildSelect() (string, []any) {
 		} else if q.lock.skip {
 			b.WriteString(" SKIP LOCKED")
 		}
+	}
+
+	// Compound queries (UNION, INTERSECT, EXCEPT)
+	for _, u := range q.unions {
+		b.WriteString(" ")
+		b.WriteString(u.op)
+		b.WriteString(" ")
+		subSQL, subArgs := u.query.buildSelect(argIdx)
+		b.WriteString(subSQL)
+		args = append(args, subArgs...)
 	}
 
 	return b.String(), args
@@ -580,6 +759,37 @@ func BuildBatchInsert(dialect Dialect, table string, cols []string, rows [][]any
 	return b.String(), args
 }
 
+// BuildInsertSelect builds an INSERT INTO ... SELECT ... query.
+// The selectQuery is a *Query whose BuildSelect output becomes the data source.
+func BuildInsertSelect(dialect Dialect, table string, cols []string, selectQuery *Query, returning []string) (string, []any) {
+	var b strings.Builder
+	b.WriteString("INSERT INTO ")
+	b.WriteString(dialect.QuoteIdent(table))
+	b.WriteString(" (")
+	for i, col := range cols {
+		if i > 0 {
+			b.WriteString(", ")
+		}
+		b.WriteString(dialect.QuoteIdent(col))
+	}
+	b.WriteString(") ")
+
+	selSQL, selArgs := selectQuery.BuildSelect()
+	b.WriteString(selSQL)
+
+	if len(returning) > 0 && dialect.SupportsReturning() {
+		b.WriteString(" RETURNING ")
+		for i, col := range returning {
+			if i > 0 {
+				b.WriteString(", ")
+			}
+			b.WriteString(dialect.QuoteIdent(col))
+		}
+	}
+
+	return b.String(), selArgs
+}
+
 // BuildUpdate builds an UPDATE query.
 func BuildUpdate(dialect Dialect, table string, setCols []string, setVals []any, whereClauses []string, whereArgs []any) (string, []any) {
 	var b strings.Builder
@@ -699,6 +909,13 @@ func (q *Query) renderWhereParts(b *strings.Builder, parts []wherePart, argIdx *
 		if wp.group != nil {
 			b.WriteString("(")
 			q.renderWhereParts(b, wp.group, argIdx, args)
+			b.WriteString(")")
+		} else if wp.subquery != nil {
+			b.WriteString(wp.clause)
+			b.WriteString("(")
+			subSQL, subArgs := wp.subquery.buildSelect(argIdx)
+			b.WriteString(subSQL)
+			*args = append(*args, subArgs...)
 			b.WriteString(")")
 		} else {
 			clause, newArgs := q.rewritePlaceholders(wp.clause, wp.args, argIdx)

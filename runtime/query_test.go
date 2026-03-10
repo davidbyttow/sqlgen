@@ -763,3 +763,518 @@ func (m *mockExecutor) QueryContext(_ context.Context, _ string, _ ...any) (*sql
 func (m *mockExecutor) QueryRowContext(_ context.Context, _ string, _ ...any) *sql.Row {
 	return nil
 }
+
+// --- Subquery tests ---
+
+func TestWhereSubqueryIn(t *testing.T) {
+	d := PostgresDialect{}
+	sub := NewQuery(d, "orders",
+		Select(`"user_id"`),
+		Where(`"total" > ?`, 100),
+	)
+	q := NewQuery(d, "users",
+		WhereSubquery(`"users"."id"`, "IN", sub),
+	)
+	sql, args := q.BuildSelect()
+
+	want := `SELECT "users".* FROM "users" WHERE "users"."id" IN (SELECT "user_id" FROM "orders" WHERE "total" > $1)`
+	if sql != want {
+		t.Errorf("got:\n  %s\nwant:\n  %s", sql, want)
+	}
+	if len(args) != 1 || args[0] != 100 {
+		t.Errorf("args = %v, want [100]", args)
+	}
+}
+
+func TestWhereSubqueryNotIn(t *testing.T) {
+	d := PostgresDialect{}
+	sub := NewQuery(d, "blocked_users", Select(`"id"`))
+	q := NewQuery(d, "users",
+		WhereSubquery(`"users"."id"`, "NOT IN", sub),
+	)
+	sql, args := q.BuildSelect()
+
+	want := `SELECT "users".* FROM "users" WHERE "users"."id" NOT IN (SELECT "id" FROM "blocked_users")`
+	if sql != want {
+		t.Errorf("got:\n  %s\nwant:\n  %s", sql, want)
+	}
+	if len(args) != 0 {
+		t.Errorf("args = %v, want empty", args)
+	}
+}
+
+func TestWhereSubqueryWithOuterArgs(t *testing.T) {
+	d := PostgresDialect{}
+	sub := NewQuery(d, "orders",
+		Select(`"user_id"`),
+		Where(`"status" = ?`, "active"),
+	)
+	q := NewQuery(d, "users",
+		Where(`"age" > ?`, 18),
+		WhereSubquery(`"users"."id"`, "IN", sub),
+		Where(`"verified" = ?`, true),
+	)
+	sql, args := q.BuildSelect()
+
+	want := `SELECT "users".* FROM "users" WHERE "age" > $1 AND "users"."id" IN (SELECT "user_id" FROM "orders" WHERE "status" = $2) AND "verified" = $3`
+	if sql != want {
+		t.Errorf("got:\n  %s\nwant:\n  %s", sql, want)
+	}
+	if len(args) != 3 {
+		t.Errorf("args count = %d, want 3", len(args))
+	}
+	if args[0] != 18 || args[1] != "active" || args[2] != true {
+		t.Errorf("args = %v", args)
+	}
+}
+
+func TestWhereExists(t *testing.T) {
+	d := PostgresDialect{}
+	sub := NewQuery(d, "orders",
+		Select("1"),
+		Where(`"orders"."user_id" = "users"."id"`),
+		Where(`"orders"."total" > ?`, 50),
+	)
+	q := NewQuery(d, "users",
+		WhereExists(sub),
+	)
+	sql, args := q.BuildSelect()
+
+	want := `SELECT "users".* FROM "users" WHERE EXISTS (SELECT 1 FROM "orders" WHERE "orders"."user_id" = "users"."id" AND "orders"."total" > $1)`
+	if sql != want {
+		t.Errorf("got:\n  %s\nwant:\n  %s", sql, want)
+	}
+	if len(args) != 1 || args[0] != 50 {
+		t.Errorf("args = %v, want [50]", args)
+	}
+}
+
+func TestWhereNotExists(t *testing.T) {
+	d := PostgresDialect{}
+	sub := NewQuery(d, "bans", Select("1"), Where(`"bans"."user_id" = "users"."id"`))
+	q := NewQuery(d, "users", WhereNotExists(sub))
+	sql, args := q.BuildSelect()
+
+	want := `SELECT "users".* FROM "users" WHERE NOT EXISTS (SELECT 1 FROM "bans" WHERE "bans"."user_id" = "users"."id")`
+	if sql != want {
+		t.Errorf("got:\n  %s\nwant:\n  %s", sql, want)
+	}
+	if len(args) != 0 {
+		t.Errorf("args = %v, want empty", args)
+	}
+}
+
+func TestWhereScalarSubquery(t *testing.T) {
+	d := PostgresDialect{}
+	sub := NewQuery(d, "orders",
+		Select("MAX(total)"),
+		Where(`"user_id" = ?`, 42),
+	)
+	q := NewQuery(d, "payments",
+		Where(`"amount" > ?`, 0),
+		WhereSubquery(`"amount"`, "=", sub),
+	)
+	sql, args := q.BuildSelect()
+
+	want := `SELECT "payments".* FROM "payments" WHERE "amount" > $1 AND "amount" = (SELECT MAX(total) FROM "orders" WHERE "user_id" = $2)`
+	if sql != want {
+		t.Errorf("got:\n  %s\nwant:\n  %s", sql, want)
+	}
+	if len(args) != 2 || args[0] != 0 || args[1] != 42 {
+		t.Errorf("args = %v", args)
+	}
+}
+
+// --- FROM subquery tests ---
+
+func TestFromSubquery(t *testing.T) {
+	d := PostgresDialect{}
+	inner := NewQuery(d, "orders",
+		Select(`"user_id"`, `SUM("total") AS "order_total"`),
+		GroupBy(`"user_id"`),
+		Having(`SUM("total") > ?`, 1000),
+	)
+	q := NewQuery(d, "",
+		FromSubquery("t", inner),
+		Select(`t."user_id"`, `t."order_total"`),
+		OrderBy(`t."order_total" DESC`),
+	)
+	sql, args := q.BuildSelect()
+
+	want := `SELECT t."user_id", t."order_total" FROM (SELECT "user_id", SUM("total") AS "order_total" FROM "orders" GROUP BY "user_id" HAVING SUM("total") > $1) AS t ORDER BY t."order_total" DESC`
+	if sql != want {
+		t.Errorf("got:\n  %s\nwant:\n  %s", sql, want)
+	}
+	if len(args) != 1 || args[0] != 1000 {
+		t.Errorf("args = %v, want [1000]", args)
+	}
+}
+
+func TestFromSubqueryDefaultCols(t *testing.T) {
+	d := PostgresDialect{}
+	inner := NewQuery(d, "users", Where(`"active" = ?`, true))
+	q := NewQuery(d, "", FromSubquery("active_users", inner))
+	sql, args := q.BuildSelect()
+
+	want := `SELECT active_users.* FROM (SELECT "users".* FROM "users" WHERE "active" = $1) AS active_users`
+	if sql != want {
+		t.Errorf("got:\n  %s\nwant:\n  %s", sql, want)
+	}
+	if len(args) != 1 || args[0] != true {
+		t.Errorf("args = %v", args)
+	}
+}
+
+func TestFromSubqueryWithOuterWhere(t *testing.T) {
+	d := PostgresDialect{}
+	inner := NewQuery(d, "orders",
+		Select(`"user_id"`, `COUNT(*) AS "cnt"`),
+		GroupBy(`"user_id"`),
+	)
+	q := NewQuery(d, "",
+		FromSubquery("t", inner),
+		Select(`t."user_id"`),
+		Where(`t."cnt" > ?`, 5),
+	)
+	sql, args := q.BuildSelect()
+
+	want := `SELECT t."user_id" FROM (SELECT "user_id", COUNT(*) AS "cnt" FROM "orders" GROUP BY "user_id") AS t WHERE t."cnt" > $1`
+	if sql != want {
+		t.Errorf("got:\n  %s\nwant:\n  %s", sql, want)
+	}
+	if len(args) != 1 || args[0] != 5 {
+		t.Errorf("args = %v, want [5]", args)
+	}
+}
+
+// --- UNION / INTERSECT / EXCEPT tests ---
+
+func TestUnion(t *testing.T) {
+	d := PostgresDialect{}
+	q1 := NewQuery(d, "customers", Select(`"name"`), Where(`"type" = ?`, "premium"))
+	q2 := NewQuery(d, "vendors", Select(`"name"`), Where(`"active" = ?`, true))
+	q1Mod := NewQuery(d, "customers",
+		Select(`"name"`),
+		Where(`"type" = ?`, "premium"),
+		Union(q2),
+	)
+	sql, args := q1Mod.BuildSelect()
+
+	want := `SELECT "name" FROM "customers" WHERE "type" = $1 UNION SELECT "name" FROM "vendors" WHERE "active" = $2`
+	_ = q1
+	if sql != want {
+		t.Errorf("got:\n  %s\nwant:\n  %s", sql, want)
+	}
+	if len(args) != 2 || args[0] != "premium" || args[1] != true {
+		t.Errorf("args = %v", args)
+	}
+}
+
+func TestUnionAll(t *testing.T) {
+	d := PostgresDialect{}
+	q2 := NewQuery(d, "archived_orders", Select(`"id"`, `"total"`))
+	q := NewQuery(d, "orders",
+		Select(`"id"`, `"total"`),
+		UnionAll(q2),
+	)
+	sql, args := q.BuildSelect()
+
+	want := `SELECT "id", "total" FROM "orders" UNION ALL SELECT "id", "total" FROM "archived_orders"`
+	if sql != want {
+		t.Errorf("got:\n  %s\nwant:\n  %s", sql, want)
+	}
+	if len(args) != 0 {
+		t.Errorf("args = %v, want empty", args)
+	}
+}
+
+func TestIntersect(t *testing.T) {
+	d := PostgresDialect{}
+	q2 := NewQuery(d, "premium_users", Select(`"id"`))
+	q := NewQuery(d, "active_users",
+		Select(`"id"`),
+		Intersect(q2),
+	)
+	sql, args := q.BuildSelect()
+
+	want := `SELECT "id" FROM "active_users" INTERSECT SELECT "id" FROM "premium_users"`
+	if sql != want {
+		t.Errorf("got:\n  %s\nwant:\n  %s", sql, want)
+	}
+	if len(args) != 0 {
+		t.Errorf("args = %v, want empty", args)
+	}
+}
+
+func TestExcept(t *testing.T) {
+	d := PostgresDialect{}
+	q2 := NewQuery(d, "blocked_users", Select(`"id"`))
+	q := NewQuery(d, "users",
+		Select(`"id"`),
+		Except(q2),
+	)
+	sql, args := q.BuildSelect()
+
+	want := `SELECT "id" FROM "users" EXCEPT SELECT "id" FROM "blocked_users"`
+	if sql != want {
+		t.Errorf("got:\n  %s\nwant:\n  %s", sql, want)
+	}
+	if len(args) != 0 {
+		t.Errorf("args = %v, want empty", args)
+	}
+}
+
+func TestMultipleUnions(t *testing.T) {
+	d := PostgresDialect{}
+	q2 := NewQuery(d, "vendors", Select(`"name"`))
+	q3 := NewQuery(d, "partners", Select(`"name"`))
+	q := NewQuery(d, "customers",
+		Select(`"name"`),
+		Union(q2),
+		Union(q3),
+	)
+	sql, args := q.BuildSelect()
+
+	want := `SELECT "name" FROM "customers" UNION SELECT "name" FROM "vendors" UNION SELECT "name" FROM "partners"`
+	if sql != want {
+		t.Errorf("got:\n  %s\nwant:\n  %s", sql, want)
+	}
+	if len(args) != 0 {
+		t.Errorf("args = %v, want empty", args)
+	}
+}
+
+func TestUnionWithArgs(t *testing.T) {
+	d := PostgresDialect{}
+	q2 := NewQuery(d, "orders",
+		Select(`"user_id"`),
+		Where(`"total" > ?`, 200),
+	)
+	q := NewQuery(d, "users",
+		Select(`"id"`),
+		Where(`"active" = ?`, true),
+		UnionAll(q2),
+	)
+	sql, args := q.BuildSelect()
+
+	want := `SELECT "id" FROM "users" WHERE "active" = $1 UNION ALL SELECT "user_id" FROM "orders" WHERE "total" > $2`
+	if sql != want {
+		t.Errorf("got:\n  %s\nwant:\n  %s", sql, want)
+	}
+	if len(args) != 2 || args[0] != true || args[1] != 200 {
+		t.Errorf("args = %v", args)
+	}
+}
+
+func TestIntersectAll(t *testing.T) {
+	d := PostgresDialect{}
+	q2 := NewQuery(d, "b", Select(`"id"`))
+	q := NewQuery(d, "a", Select(`"id"`), IntersectAll(q2))
+	sql, _ := q.BuildSelect()
+
+	want := `SELECT "id" FROM "a" INTERSECT ALL SELECT "id" FROM "b"`
+	if sql != want {
+		t.Errorf("got:\n  %s\nwant:\n  %s", sql, want)
+	}
+}
+
+func TestExceptAll(t *testing.T) {
+	d := PostgresDialect{}
+	q2 := NewQuery(d, "b", Select(`"id"`))
+	q := NewQuery(d, "a", Select(`"id"`), ExceptAll(q2))
+	sql, _ := q.BuildSelect()
+
+	want := `SELECT "id" FROM "a" EXCEPT ALL SELECT "id" FROM "b"`
+	if sql != want {
+		t.Errorf("got:\n  %s\nwant:\n  %s", sql, want)
+	}
+}
+
+// --- Window function tests ---
+
+func TestWindowFunctionRowNumber(t *testing.T) {
+	d := PostgresDialect{}
+	w := NewWindowDef().OrderBy(`"created_at" DESC`)
+	q := NewQuery(d, "posts",
+		Select(`"id"`, `"title"`),
+		SelectWithWindow("ROW_NUMBER()", w, "row_num"),
+	)
+	sql, args := q.BuildSelect()
+
+	want := `SELECT "id", "title", ROW_NUMBER() OVER (ORDER BY "created_at" DESC) AS row_num FROM "posts"`
+	if sql != want {
+		t.Errorf("got:\n  %s\nwant:\n  %s", sql, want)
+	}
+	if len(args) != 0 {
+		t.Errorf("args = %v, want empty", args)
+	}
+}
+
+func TestWindowFunctionPartitionBy(t *testing.T) {
+	d := PostgresDialect{}
+	w := NewWindowDef().PartitionBy(`"department"`).OrderBy(`"salary" DESC`)
+	q := NewQuery(d, "employees",
+		Select(`"name"`, `"department"`, `"salary"`),
+		SelectWithWindow("RANK()", w, "salary_rank"),
+	)
+	sql, args := q.BuildSelect()
+
+	want := `SELECT "name", "department", "salary", RANK() OVER (PARTITION BY "department" ORDER BY "salary" DESC) AS salary_rank FROM "employees"`
+	if sql != want {
+		t.Errorf("got:\n  %s\nwant:\n  %s", sql, want)
+	}
+	if len(args) != 0 {
+		t.Errorf("args = %v, want empty", args)
+	}
+}
+
+func TestWindowFunctionWithFrame(t *testing.T) {
+	d := PostgresDialect{}
+	w := NewWindowDef().
+		PartitionBy(`"user_id"`).
+		OrderBy(`"created_at"`).
+		Frame("ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW")
+	q := NewQuery(d, "orders",
+		Select(`"user_id"`, `"total"`),
+		SelectWithWindow("SUM(total)", w, "running_total"),
+	)
+	sql, _ := q.BuildSelect()
+
+	want := `SELECT "user_id", "total", SUM(total) OVER (PARTITION BY "user_id" ORDER BY "created_at" ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS running_total FROM "orders"`
+	if sql != want {
+		t.Errorf("got:\n  %s\nwant:\n  %s", sql, want)
+	}
+}
+
+func TestWindowFunctionNoAlias(t *testing.T) {
+	d := PostgresDialect{}
+	w := NewWindowDef().OrderBy(`"id"`)
+	q := NewQuery(d, "items",
+		Select(`"id"`),
+		SelectWithWindow("LAG(price, 1)", w, ""),
+	)
+	sql, _ := q.BuildSelect()
+
+	want := `SELECT "id", LAG(price, 1) OVER (ORDER BY "id") FROM "items"`
+	if sql != want {
+		t.Errorf("got:\n  %s\nwant:\n  %s", sql, want)
+	}
+}
+
+func TestWindowFunctionDenseRank(t *testing.T) {
+	d := PostgresDialect{}
+	w := NewWindowDef().PartitionBy(`"category"`).OrderBy(`"score" DESC`)
+	q := NewQuery(d, "products",
+		Select(`"name"`, `"category"`, `"score"`),
+		SelectWithWindow("DENSE_RANK()", w, "rank"),
+	)
+	sql, _ := q.BuildSelect()
+
+	want := `SELECT "name", "category", "score", DENSE_RANK() OVER (PARTITION BY "category" ORDER BY "score" DESC) AS rank FROM "products"`
+	if sql != want {
+		t.Errorf("got:\n  %s\nwant:\n  %s", sql, want)
+	}
+}
+
+// --- INSERT FROM SELECT tests ---
+
+func TestBuildInsertSelect(t *testing.T) {
+	d := PostgresDialect{}
+	selQ := NewQuery(d, "temp_users",
+		Select(`"name"`, `"email"`),
+		Where(`"verified" = ?`, true),
+	)
+	sql, args := BuildInsertSelect(d, "users", []string{"name", "email"}, selQ, []string{"id"})
+
+	want := `INSERT INTO "users" ("name", "email") SELECT "name", "email" FROM "temp_users" WHERE "verified" = $1 RETURNING "id"`
+	if sql != want {
+		t.Errorf("got:\n  %s\nwant:\n  %s", sql, want)
+	}
+	if len(args) != 1 || args[0] != true {
+		t.Errorf("args = %v, want [true]", args)
+	}
+}
+
+func TestBuildInsertSelectNoReturning(t *testing.T) {
+	d := PostgresDialect{}
+	selQ := NewQuery(d, "staging", Select(`"col_a"`, `"col_b"`))
+	sql, args := BuildInsertSelect(d, "target", []string{"col_a", "col_b"}, selQ, nil)
+
+	want := `INSERT INTO "target" ("col_a", "col_b") SELECT "col_a", "col_b" FROM "staging"`
+	if sql != want {
+		t.Errorf("got:\n  %s\nwant:\n  %s", sql, want)
+	}
+	if len(args) != 0 {
+		t.Errorf("args = %v, want empty", args)
+	}
+}
+
+func TestBuildInsertSelectWithLimit(t *testing.T) {
+	d := PostgresDialect{}
+	selQ := NewQuery(d, "events",
+		Select(`"user_id"`, `"event_type"`),
+		Where(`"created_at" > ?`, "2024-01-01"),
+		Limit(100),
+	)
+	sql, args := BuildInsertSelect(d, "audit_log", []string{"user_id", "event_type"}, selQ, nil)
+
+	want := `INSERT INTO "audit_log" ("user_id", "event_type") SELECT "user_id", "event_type" FROM "events" WHERE "created_at" > $1 LIMIT $2`
+	if sql != want {
+		t.Errorf("got:\n  %s\nwant:\n  %s", sql, want)
+	}
+	if len(args) != 2 || args[0] != "2024-01-01" || args[1] != 100 {
+		t.Errorf("args = %v", args)
+	}
+}
+
+// --- Nested subquery tests ---
+
+func TestNestedSubqueries(t *testing.T) {
+	d := PostgresDialect{}
+	// SELECT * FROM users WHERE id IN (SELECT user_id FROM orders WHERE product_id IN (SELECT id FROM products WHERE price > $1))
+	innermost := NewQuery(d, "products",
+		Select(`"id"`),
+		Where(`"price" > ?`, 99),
+	)
+	middle := NewQuery(d, "orders",
+		Select(`"user_id"`),
+		WhereSubquery(`"product_id"`, "IN", innermost),
+	)
+	q := NewQuery(d, "users",
+		WhereSubquery(`"id"`, "IN", middle),
+	)
+	sql, args := q.BuildSelect()
+
+	want := `SELECT "users".* FROM "users" WHERE "id" IN (SELECT "user_id" FROM "orders" WHERE "product_id" IN (SELECT "id" FROM "products" WHERE "price" > $1))`
+	if sql != want {
+		t.Errorf("got:\n  %s\nwant:\n  %s", sql, want)
+	}
+	if len(args) != 1 || args[0] != 99 {
+		t.Errorf("args = %v, want [99]", args)
+	}
+}
+
+func TestSubqueryInFromWithSubqueryInWhere(t *testing.T) {
+	d := PostgresDialect{}
+	// FROM (SELECT ...) AS t WHERE t.id IN (SELECT ...)
+	inner := NewQuery(d, "orders",
+		Select(`"user_id"`, `SUM("total") AS "sum_total"`),
+		Where(`"status" = ?`, "complete"),
+		GroupBy(`"user_id"`),
+	)
+	filterSub := NewQuery(d, "premium_users", Select(`"id"`))
+	q := NewQuery(d, "",
+		FromSubquery("t", inner),
+		Select(`t."user_id"`, `t."sum_total"`),
+		WhereSubquery(`t."user_id"`, "IN", filterSub),
+	)
+	sql, args := q.BuildSelect()
+
+	want := `SELECT t."user_id", t."sum_total" FROM (SELECT "user_id", SUM("total") AS "sum_total" FROM "orders" WHERE "status" = $1 GROUP BY "user_id") AS t WHERE t."user_id" IN (SELECT "id" FROM "premium_users")`
+	if sql != want {
+		t.Errorf("got:\n  %s\nwant:\n  %s", sql, want)
+	}
+	if len(args) != 1 || args[0] != "complete" {
+		t.Errorf("args = %v", args)
+	}
+}
