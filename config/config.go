@@ -29,6 +29,26 @@ type Config struct {
 
 	// Tables allows per-table configuration overrides.
 	Tables map[string]TableConfig `yaml:"tables"`
+
+	// Polymorphic defines polymorphic relationships that can't be detected from DDL.
+	// Each entry describes a type+id column pair and the tables it references.
+	Polymorphic []PolymorphicConfig `yaml:"polymorphic"`
+}
+
+// PolymorphicConfig defines a polymorphic relationship.
+type PolymorphicConfig struct {
+	// Table is the table containing the type+id columns.
+	Table string `yaml:"table"`
+
+	// TypeColumn is the column holding the type discriminator (e.g., "commentable_type").
+	TypeColumn string `yaml:"type_column"`
+
+	// IDColumn is the column holding the FK value (e.g., "commentable_id").
+	IDColumn string `yaml:"id_column"`
+
+	// Targets maps type discriminator values to target tables.
+	// Example: {"User": "users", "Post": "posts"}
+	Targets map[string]string `yaml:"targets"`
 }
 
 // InputConfig specifies schema input sources.

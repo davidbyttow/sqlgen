@@ -135,10 +135,12 @@ type View struct {
 type RelationType int
 
 const (
-	RelBelongsTo  RelationType = iota // This table has the FK (many-to-one)
-	RelHasOne                         // Other table has FK pointing here, unique constraint
-	RelHasMany                        // Other table has FK pointing here
-	RelManyToMany                     // Join table connects two tables
+	RelBelongsTo      RelationType = iota // This table has the FK (many-to-one)
+	RelHasOne                             // Other table has FK pointing here, unique constraint
+	RelHasMany                            // Other table has FK pointing here
+	RelManyToMany                         // Join table connects two tables
+	RelPolymorphicOne                     // Polymorphic to-one (this table has type+id columns)
+	RelPolymorphicMany                    // Polymorphic to-many (other table has type+id columns pointing here)
 )
 
 // Relationship represents an inferred relationship between tables.
@@ -160,6 +162,11 @@ type Relationship struct {
 
 	// ForeignKey is the FK that produced this relationship.
 	ForeignKey *ForeignKey
+
+	// For polymorphic relationships
+	TypeColumn string   // Column that holds the type discriminator (e.g., "commentable_type")
+	IDColumn   string   // Column that holds the FK value (e.g., "commentable_id")
+	TypeValue  string   // Value of the type column for this specific relationship (e.g., "User")
 }
 
 // Parser is the interface that all DDL parsers implement.

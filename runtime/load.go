@@ -175,6 +175,76 @@ func LoadManyToManyCount(ctx context.Context, exec Executor, dialect Dialect, jo
 	return result, rows.Err()
 }
 
+// LoadPolymorphicMany loads related records from a polymorphic table, filtering by type value.
+// It queries: SELECT * FROM foreignTable WHERE typeCol = typeVal AND idCol IN (parentIDs)
+func LoadPolymorphicMany(ctx context.Context, exec Executor, dialect Dialect, foreignTable, typeCol, typeVal, idCol string, parentIDs []any, mods ...QueryMod) (*sql.Rows, error) {
+	if len(parentIDs) == 0 {
+		return nil, nil
+	}
+
+	q := NewQuery(dialect, foreignTable, mods...)
+	// Filter by type column
+	q.whereParts = append([]wherePart{
+		{
+			clause:      dialect.QuoteIdent(typeCol) + " = ?",
+			args:        []any{typeVal},
+			conjunction: "AND",
+		},
+		{
+			clause:      buildInClause(dialect, idCol, len(parentIDs)),
+			args:        parentIDs,
+			conjunction: "AND",
+		},
+	}, q.whereParts...)
+
+	query, args := q.BuildSelect()
+	return exec.QueryContext(ctx, query, args...)
+}
+
+// LoadPolymorphicCount loads counts for a polymorphic HasMany relationship.
+func LoadPolymorphicCount(ctx context.Context, exec Executor, dialect Dialect, foreignTable, typeCol, typeVal, idCol string, parentIDs []any) (map[string]int64, error) {
+	if len(parentIDs) == 0 {
+		return nil, nil
+	}
+
+	q := NewQuery(dialect, foreignTable)
+	q.selectCols = []string{
+		dialect.QuoteIdent(idCol),
+		"COUNT(*) AS __count",
+	}
+	q.whereParts = append(q.whereParts,
+		wherePart{
+			clause:      dialect.QuoteIdent(typeCol) + " = ?",
+			args:        []any{typeVal},
+			conjunction: "AND",
+		},
+		wherePart{
+			clause:      buildInClause(dialect, idCol, len(parentIDs)),
+			args:        parentIDs,
+			conjunction: "AND",
+		},
+	)
+	q.groupBy = []string{dialect.QuoteIdent(idCol)}
+
+	query, args := q.BuildSelect()
+	rows, err := exec.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	result := make(map[string]int64)
+	for rows.Next() {
+		var key any
+		var count int64
+		if err := rows.Scan(&key, &count); err != nil {
+			return nil, err
+		}
+		result[fmt.Sprint(key)] = count
+	}
+	return result, rows.Err()
+}
+
 // LoadManyToMany executes a query to load related records through a join table.
 // Optional mods are applied to filter the target records.
 func LoadManyToMany(ctx context.Context, exec Executor, dialect Dialect, targetTable, joinTable, joinLocalCol, joinForeignCol, targetPKCol string, localIDs []any, mods ...QueryMod) (*sql.Rows, string, error) {

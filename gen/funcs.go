@@ -182,10 +182,12 @@ func TemplateFuncs(mapper *TypeMapper) template.FuncMap {
 		},
 
 		// Relationship helpers
-		"relBelongsTo":  func() schema.RelationType { return schema.RelBelongsTo },
-		"relHasOne":     func() schema.RelationType { return schema.RelHasOne },
-		"relHasMany":    func() schema.RelationType { return schema.RelHasMany },
-		"relManyToMany": func() schema.RelationType { return schema.RelManyToMany },
+		"relBelongsTo":       func() schema.RelationType { return schema.RelBelongsTo },
+		"relHasOne":          func() schema.RelationType { return schema.RelHasOne },
+		"relHasMany":         func() schema.RelationType { return schema.RelHasMany },
+		"relManyToMany":      func() schema.RelationType { return schema.RelManyToMany },
+		"relPolymorphicOne":  func() schema.RelationType { return schema.RelPolymorphicOne },
+		"relPolymorphicMany": func() schema.RelationType { return schema.RelPolymorphicMany },
 
 		// findTable looks up a table by name from the full schema table list.
 		"findTable": func(tables []*schema.Table, name string) *schema.Table {
@@ -198,6 +200,7 @@ func TemplateFuncs(mapper *TypeMapper) template.FuncMap {
 		},
 
 		// hasToOneRels returns true if the table has any BelongsTo or HasOne relationships.
+		// PolymorphicOne is excluded because it can't be preloaded via LEFT JOIN.
 		"hasToOneRels": func(table *schema.Table) bool {
 			for _, r := range table.Relationships {
 				if r.Type == schema.RelBelongsTo || r.Type == schema.RelHasOne {
@@ -265,6 +268,12 @@ func TemplateFuncs(mapper *TypeMapper) template.FuncMap {
 				}
 				return naming.ToPascal(rel.ForeignTable)
 			case schema.RelManyToMany:
+				return naming.ToPascal(rel.ForeignTable)
+			case schema.RelPolymorphicOne:
+				// e.g., "commentable" -> "CommentableUser" using TypeValue
+				return naming.ToPascal(naming.Singularize(rel.ForeignTable))
+			case schema.RelPolymorphicMany:
+				// e.g., "Comments" on User table where type = "User"
 				return naming.ToPascal(rel.ForeignTable)
 			}
 			return naming.ToPascal(rel.ForeignTable)

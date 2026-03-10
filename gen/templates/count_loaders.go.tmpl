@@ -11,7 +11,7 @@ package {{.Package}}
 
 {{- $hasCountRels := false}}
 {{- range .Table.Relationships}}
-{{- if or (eq .Type (relHasMany)) (eq .Type (relManyToMany))}}
+{{- if or (eq .Type (relHasMany)) (eq .Type (relManyToMany)) (eq .Type (relPolymorphicMany))}}
 {{- $hasCountRels = true}}
 {{- end}}
 {{- end}}
@@ -23,7 +23,7 @@ var {{lower $structName}}CountLoaders = map[string]runtime.CountLoadFunc{}
 
 func init() {
 {{- range .Table.Relationships}}
-{{- if or (eq .Type (relHasMany)) (eq .Type (relManyToMany))}}
+{{- if or (eq .Type (relHasMany)) (eq .Type (relManyToMany)) (eq .Type (relPolymorphicMany))}}
 	{{lower $structName}}CountLoaders["{{relFieldName . $.Table}}"] = loadCount{{$structName}}{{relFieldName . $.Table}}
 {{- end}}
 {{- end}}
@@ -93,6 +93,34 @@ func loadCount{{$structName}}{{$fieldName}}(ctx context.Context, exec runtime.Ex
 	}
 
 	counts, err := runtime.LoadManyToManyCount(ctx, exec, d, "{{$rel.JoinTable}}", "{{$joinLocalCol}}", "{{$joinForeignCol}}", ids)
+	if err != nil {
+		return err
+	}
+
+	for _, m := range models {
+		if m.R == nil {
+			m.R = &{{$relsType}}{}
+		}
+		key := fmt.Sprint(m.{{pascal $localCol}})
+		c := counts[key]
+		m.R.{{$fieldName}}Count = &c
+	}
+	return nil
+}
+{{- else if eq $rel.Type (relPolymorphicMany)}}
+{{- $localCol := index $rel.Columns 0}}
+func loadCount{{$structName}}{{$fieldName}}(ctx context.Context, exec runtime.Executor, d runtime.Dialect, parentModels any) error {
+	models := parentModels.({{$sliceType}})
+	if len(models) == 0 {
+		return nil
+	}
+
+	ids := make([]any, len(models))
+	for i, m := range models {
+		ids[i] = m.{{pascal $localCol}}
+	}
+
+	counts, err := runtime.LoadPolymorphicCount(ctx, exec, d, "{{$rel.ForeignTable}}", "{{$rel.TypeColumn}}", "{{$rel.TypeValue}}", "{{index $rel.ForeignColumns 0}}", ids)
 	if err != nil {
 		return err
 	}

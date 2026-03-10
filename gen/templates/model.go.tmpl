@@ -44,6 +44,11 @@ type {{$structName}}Rels struct {
 {{- else if eq .Type (relManyToMany)}}
 	{{relFieldName . $.Table}} []*{{pascal (singular .ForeignTable)}}
 	{{relFieldName . $.Table}}Count *int64
+{{- else if eq .Type (relPolymorphicOne)}}
+	{{relFieldName . $.Table}} *{{pascal (singular .ForeignTable)}}
+{{- else if eq .Type (relPolymorphicMany)}}
+	{{relFieldName . $.Table}} []*{{pascal (singular .ForeignTable)}}
+	{{relFieldName . $.Table}}Count *int64
 {{- end}}
 {{- end}}
 }
