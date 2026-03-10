@@ -203,6 +203,17 @@ func DeleteAllAuditLogs(ctx context.Context, exec runtime.Executor, mods ...runt
 	return result.RowsAffected()
 }
 
+// EachAuditLog executes a query and calls fn for each row. Iteration stops
+// early if fn returns an error. Rows are not accumulated in memory.
+func EachAuditLog(ctx context.Context, exec runtime.Executor, fn func(*AuditLog) error, mods ...runtime.QueryMod) error {
+	return runtime.Each(ctx, exec, runtime.NewQuery(dialect, AuditLogTableName, mods...), func() *AuditLog { return &AuditLog{} }, fn)
+}
+
+// AuditLogCursor returns a cursor for iterating over audit_log rows one at a time.
+func AuditLogCursor(ctx context.Context, exec runtime.Executor, mods ...runtime.QueryMod) (*runtime.Cursor[*AuditLog], error) {
+	return runtime.NewCursor(ctx, exec, runtime.NewQuery(dialect, AuditLogTableName, mods...), func() *AuditLog { return &AuditLog{} })
+}
+
 // Reload refreshes the AuditLog from the database using its primary key.
 func (o *AuditLog) Reload(ctx context.Context, exec runtime.Executor) error {
 	q := runtime.NewQuery(dialect, AuditLogTableName,

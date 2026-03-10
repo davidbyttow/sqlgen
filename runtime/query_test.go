@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"strings"
 	"testing"
 )
 
@@ -497,6 +498,171 @@ func TestBuildDeleteAllWithWhereIn(t *testing.T) {
 		t.Errorf("got:\n  %s\nwant:\n  %s", sql, want)
 	}
 	if len(args) != 3 || args[0] != 1 || args[1] != 2 || args[2] != 3 {
+		t.Errorf("args = %v", args)
+	}
+}
+
+func TestBuildSelectCTE(t *testing.T) {
+	d := PostgresDialect{}
+	q := NewQuery(d, "employees",
+		WithCTE("managers", "SELECT * FROM employees WHERE role = ?", "manager"),
+		Where(`"department" = ?`, "engineering"),
+	)
+	sql, args := q.BuildSelect()
+
+	want := `WITH "managers" AS (SELECT * FROM employees WHERE role = $1) SELECT "employees".* FROM "employees" WHERE "department" = $2`
+	if sql != want {
+		t.Errorf("got:\n  %s\nwant:\n  %s", sql, want)
+	}
+	if len(args) != 2 || args[0] != "manager" || args[1] != "engineering" {
+		t.Errorf("args = %v", args)
+	}
+}
+
+func TestBuildSelectMultipleCTEs(t *testing.T) {
+	d := PostgresDialect{}
+	q := NewQuery(d, "combined",
+		WithCTE("active_users", "SELECT * FROM users WHERE active = ?", true),
+		WithCTE("recent_posts", "SELECT * FROM posts WHERE created_at > ?", "2024-01-01"),
+	)
+	sql, args := q.BuildSelect()
+
+	want := `WITH "active_users" AS (SELECT * FROM users WHERE active = $1), "recent_posts" AS (SELECT * FROM posts WHERE created_at > $2) SELECT "combined".* FROM "combined"`
+	if sql != want {
+		t.Errorf("got:\n  %s\nwant:\n  %s", sql, want)
+	}
+	if len(args) != 2 {
+		t.Errorf("args = %v", args)
+	}
+}
+
+func TestBuildSelectRecursiveCTE(t *testing.T) {
+	d := PostgresDialect{}
+	q := NewQuery(d, "tree",
+		WithRecursiveCTE("tree", "SELECT id, parent_id, name FROM categories WHERE parent_id IS NULL UNION ALL SELECT c.id, c.parent_id, c.name FROM categories c JOIN tree t ON c.parent_id = t.id"),
+	)
+	sql, args := q.BuildSelect()
+
+	want := `WITH RECURSIVE "tree" AS (SELECT id, parent_id, name FROM categories WHERE parent_id IS NULL UNION ALL SELECT c.id, c.parent_id, c.name FROM categories c JOIN tree t ON c.parent_id = t.id) SELECT "tree".* FROM "tree"`
+	if sql != want {
+		t.Errorf("got:\n  %s\nwant:\n  %s", sql, want)
+	}
+	if len(args) != 0 {
+		t.Errorf("args = %v, want empty", args)
+	}
+}
+
+func TestBuildSelectMixedCTEs(t *testing.T) {
+	d := PostgresDialect{}
+	// If any CTE is recursive, the whole WITH block gets RECURSIVE.
+	q := NewQuery(d, "result",
+		WithCTE("base", "SELECT 1"),
+		WithRecursiveCTE("tree", "SELECT 1 UNION ALL SELECT 1"),
+	)
+	sql, _ := q.BuildSelect()
+
+	if !strings.Contains(sql, "WITH RECURSIVE") {
+		t.Errorf("expected WITH RECURSIVE, got: %s", sql)
+	}
+}
+
+func TestBuildSelectForUpdate(t *testing.T) {
+	d := PostgresDialect{}
+	q := NewQuery(d, "accounts",
+		Where(`"id" = ?`, 1),
+		ForUpdate(),
+	)
+	sql, args := q.BuildSelect()
+
+	want := `SELECT "accounts".* FROM "accounts" WHERE "id" = $1 FOR UPDATE`
+	if sql != want {
+		t.Errorf("got:\n  %s\nwant:\n  %s", sql, want)
+	}
+	if len(args) != 1 {
+		t.Errorf("args = %v", args)
+	}
+}
+
+func TestBuildSelectForShare(t *testing.T) {
+	d := PostgresDialect{}
+	q := NewQuery(d, "accounts",
+		ForShare(),
+	)
+	sql, _ := q.BuildSelect()
+
+	want := `SELECT "accounts".* FROM "accounts" FOR SHARE`
+	if sql != want {
+		t.Errorf("got:\n  %s\nwant:\n  %s", sql, want)
+	}
+}
+
+func TestBuildSelectForUpdateNowait(t *testing.T) {
+	d := PostgresDialect{}
+	q := NewQuery(d, "accounts",
+		Where(`"id" = ?`, 1),
+		ForUpdate(),
+		Nowait(),
+	)
+	sql, _ := q.BuildSelect()
+
+	want := `SELECT "accounts".* FROM "accounts" WHERE "id" = $1 FOR UPDATE NOWAIT`
+	if sql != want {
+		t.Errorf("got:\n  %s\nwant:\n  %s", sql, want)
+	}
+}
+
+func TestBuildSelectForUpdateSkipLocked(t *testing.T) {
+	d := PostgresDialect{}
+	q := NewQuery(d, "jobs",
+		ForUpdate(),
+		SkipLocked(),
+		Limit(1),
+	)
+	sql, _ := q.BuildSelect()
+
+	want := `SELECT "jobs".* FROM "jobs" LIMIT $1 FOR UPDATE SKIP LOCKED`
+	if sql != want {
+		t.Errorf("got:\n  %s\nwant:\n  %s", sql, want)
+	}
+}
+
+func TestBuildSelectForNoKeyUpdate(t *testing.T) {
+	d := PostgresDialect{}
+	q := NewQuery(d, "users", ForNoKeyUpdate())
+	sql, _ := q.BuildSelect()
+
+	want := `SELECT "users".* FROM "users" FOR NO KEY UPDATE`
+	if sql != want {
+		t.Errorf("got:\n  %s\nwant:\n  %s", sql, want)
+	}
+}
+
+func TestBuildSelectForKeyShare(t *testing.T) {
+	d := PostgresDialect{}
+	q := NewQuery(d, "users", ForKeyShare())
+	sql, _ := q.BuildSelect()
+
+	want := `SELECT "users".* FROM "users" FOR KEY SHARE`
+	if sql != want {
+		t.Errorf("got:\n  %s\nwant:\n  %s", sql, want)
+	}
+}
+
+func TestBuildSelectCTEWithLocking(t *testing.T) {
+	d := PostgresDialect{}
+	q := NewQuery(d, "accounts",
+		WithCTE("locked", "SELECT id FROM accounts WHERE balance > ?", 1000),
+		Where(`"id" IN (SELECT id FROM locked)`),
+		ForUpdate(),
+		Nowait(),
+	)
+	sql, args := q.BuildSelect()
+
+	want := `WITH "locked" AS (SELECT id FROM accounts WHERE balance > $1) SELECT "accounts".* FROM "accounts" WHERE "id" IN (SELECT id FROM locked) FOR UPDATE NOWAIT`
+	if sql != want {
+		t.Errorf("got:\n  %s\nwant:\n  %s", sql, want)
+	}
+	if len(args) != 1 || args[0] != 1000 {
 		t.Errorf("args = %v", args)
 	}
 }

@@ -183,6 +183,17 @@ func DeleteAllPostTags(ctx context.Context, exec runtime.Executor, mods ...runti
 	return result.RowsAffected()
 }
 
+// EachPostTag executes a query and calls fn for each row. Iteration stops
+// early if fn returns an error. Rows are not accumulated in memory.
+func EachPostTag(ctx context.Context, exec runtime.Executor, fn func(*PostTag) error, mods ...runtime.QueryMod) error {
+	return runtime.Each(ctx, exec, runtime.NewQuery(dialect, PostTagTableName, mods...), func() *PostTag { return &PostTag{} }, fn)
+}
+
+// PostTagCursor returns a cursor for iterating over post_tags rows one at a time.
+func PostTagCursor(ctx context.Context, exec runtime.Executor, mods ...runtime.QueryMod) (*runtime.Cursor[*PostTag], error) {
+	return runtime.NewCursor(ctx, exec, runtime.NewQuery(dialect, PostTagTableName, mods...), func() *PostTag { return &PostTag{} })
+}
+
 // Reload refreshes the PostTag from the database using its primary key.
 func (o *PostTag) Reload(ctx context.Context, exec runtime.Executor) error {
 	q := runtime.NewQuery(dialect, PostTagTableName,

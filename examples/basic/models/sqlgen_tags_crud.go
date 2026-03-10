@@ -181,6 +181,17 @@ func DeleteAllTags(ctx context.Context, exec runtime.Executor, mods ...runtime.Q
 	return result.RowsAffected()
 }
 
+// EachTag executes a query and calls fn for each row. Iteration stops
+// early if fn returns an error. Rows are not accumulated in memory.
+func EachTag(ctx context.Context, exec runtime.Executor, fn func(*Tag) error, mods ...runtime.QueryMod) error {
+	return runtime.Each(ctx, exec, runtime.NewQuery(dialect, TagTableName, mods...), func() *Tag { return &Tag{} }, fn)
+}
+
+// TagCursor returns a cursor for iterating over tags rows one at a time.
+func TagCursor(ctx context.Context, exec runtime.Executor, mods ...runtime.QueryMod) (*runtime.Cursor[*Tag], error) {
+	return runtime.NewCursor(ctx, exec, runtime.NewQuery(dialect, TagTableName, mods...), func() *Tag { return &Tag{} })
+}
+
 // Reload refreshes the Tag from the database using its primary key.
 func (o *Tag) Reload(ctx context.Context, exec runtime.Executor) error {
 	q := runtime.NewQuery(dialect, TagTableName,

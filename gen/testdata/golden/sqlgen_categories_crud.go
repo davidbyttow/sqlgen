@@ -201,6 +201,17 @@ func DeleteAllCategories(ctx context.Context, exec runtime.Executor, mods ...run
 	return result.RowsAffected()
 }
 
+// EachCategory executes a query and calls fn for each row. Iteration stops
+// early if fn returns an error. Rows are not accumulated in memory.
+func EachCategory(ctx context.Context, exec runtime.Executor, fn func(*Category) error, mods ...runtime.QueryMod) error {
+	return runtime.Each(ctx, exec, runtime.NewQuery(dialect, CategoryTableName, mods...), func() *Category { return &Category{} }, fn)
+}
+
+// CategoryCursor returns a cursor for iterating over categories rows one at a time.
+func CategoryCursor(ctx context.Context, exec runtime.Executor, mods ...runtime.QueryMod) (*runtime.Cursor[*Category], error) {
+	return runtime.NewCursor(ctx, exec, runtime.NewQuery(dialect, CategoryTableName, mods...), func() *Category { return &Category{} })
+}
+
 // Reload refreshes the Category from the database using its primary key.
 func (o *Category) Reload(ctx context.Context, exec runtime.Executor) error {
 	q := runtime.NewQuery(dialect, CategoryTableName,

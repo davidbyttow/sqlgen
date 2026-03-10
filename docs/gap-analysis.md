@@ -31,11 +31,11 @@ The remaining gaps are mostly about DX polish, testing infrastructure, and advan
 | LIMIT / OFFSET | Yes | Yes (+ FETCH WITH TIES) | Yes |
 | DISTINCT / DISTINCT ON | Yes | Yes (Postgres DISTINCT ON) | **Yes** |
 | WhereIn helper | Yes | Yes | **Yes** |
-| CTEs (WITH clause) | Yes | Yes (+ recursive) | No |
+| CTEs (WITH clause) | Yes | Yes (+ recursive) | **Yes** (+ recursive) |
 | Subqueries | Yes | Yes | No |
 | UNION / INTERSECT / EXCEPT | No | Yes | No |
 | Window functions | No | Yes | No |
-| Row locking (FOR UPDATE) | Yes | Yes (4 lock types) | No |
+| Row locking (FOR UPDATE) | Yes | Yes (4 lock types) | **Yes** (4 types + NOWAIT/SKIP LOCKED) |
 | Raw SQL escape hatch | Yes (qm.SQL, queries.Raw) | Yes (Raw, RawQuery) | **Yes** (RawSQL) |
 | **Mutations** | | | |
 | Insert (single row) | Yes | Yes | Yes |
@@ -88,11 +88,11 @@ The remaining gaps are mostly about DX polish, testing infrastructure, and advan
 | Bind to arbitrary struct | Yes (Bind finisher) | No | No |
 | Prepared statement support | No | Yes (Prepare, PrepareQuery) | No |
 | Query caching | No | Yes (bob.Cache) | No |
-| Cursor iteration | No | Yes (Cursor, Each) | No |
+| Cursor iteration | No | Yes (Cursor, Each) | **Yes** (Each, Cursor) |
 
 ---
 
-## Completed (Phases 7-11)
+## Completed (Phases 7-14)
 
 These were the highest-impact gaps. All shipped.
 
@@ -112,6 +112,9 @@ These were the highest-impact gaps. All shipped.
 - **Column whitelist/blacklist** - `Whitelist("email", "name")` / `Blacklist("id")` for Insert/Update/Upsert
 - **Filtered eager loading** - `Load("Posts", Where(...))` passes mods through to loader queries
 - **Preload via LEFT JOIN** - `Preload(PostPreloadUser)` folds to-one relationships into the parent SELECT
+- **CTEs (WITH clause)** - `WithCTE(name, query)` and `WithRecursiveCTE(name, query)` for hierarchical queries
+- **Row locking** - `ForUpdate()`, `ForShare()`, `ForNoKeyUpdate()`, `ForKeyShare()` with `Nowait()` and `SkipLocked()`
+- **Cursor/streaming iteration** - `EachX()` callback and `XCursor()` for memory-efficient row processing
 
 ---
 
@@ -128,22 +131,17 @@ Replacements only match by DB type. Matching by column name/nullability is usefu
 **3. Factory/fixture system**
 Generated test files exist, but no factory system for generating test data. Bob's FactoryBot-inspired factories are genuinely useful for integration tests.
 
-**4. Cursor/streaming iteration**
-For large result sets. Bob has `Cursor()` and `Each()`.
-
-**5. Relationship mutations (Set/Add/Remove)**
+**4. Relationship mutations (Set/Add/Remove)**
 Can't programmatically add/remove related records through the relationship API. Both competitors have this.
 
 ### Lower Impact
 
-**6. CTEs (WITH clause)** - Useful for recursive queries.
-**7. Row locking (FOR UPDATE/SHARE)** - Needed for transactional workflows.
-**8. UNION / INTERSECT / EXCEPT** - Bob has these, SQLBoiler doesn't.
-**9. Soft deletes** - SQLBoiler has first-class support. Doable with hooks.
-**10. Custom templates** - Both competitors let users override templates.
-**11. DB error matching** - Bob generates typed constraint error matchers.
-**12. Prepared statement caching** - Performance optimization. Bob only.
-**13. Batch insert** - Multi-row INSERT. Bob only.
+**5. UNION / INTERSECT / EXCEPT** - Bob has these, SQLBoiler doesn't.
+**6. Soft deletes** - SQLBoiler has first-class support. Doable with hooks.
+**7. Custom templates** - Both competitors let users override templates.
+**8. DB error matching** - Bob generates typed constraint error matchers.
+**9. Prepared statement caching** - Performance optimization. Bob only.
+**10. Batch insert** - Multi-row INSERT. Bob only.
 
 ---
 
@@ -159,20 +157,15 @@ Can't programmatically add/remove related records through the relationship API. 
 
 ## Suggested Roadmap
 
-**Phase 12: Developer Experience** (medium impact, medium effort)
+**Phase 15: Developer Experience** (medium impact, medium effort)
 - Struct tag customization (casing, extra tags)
 - Custom template support
 - Type replacement by column name/nullability
 
-**Phase 13: Testing Support** (medium impact, high effort)
+**Phase 16: Testing Support** (medium impact, high effort)
 - Factory system with random data generation
 - Typed DB error matchers
 
-**Phase 14: Advanced Query Features** (medium impact, medium effort)
-- CTEs (WITH clause)
-- Row locking (FOR UPDATE/SHARE)
-- Cursor/streaming iteration
-
-**Phase 15: More Dialects** (high impact, high effort)
+**Phase 17: More Dialects** (high impact, high effort)
 - MySQL driver
 - SQLite driver

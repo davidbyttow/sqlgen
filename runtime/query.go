@@ -36,6 +36,21 @@ type Query struct {
 	distinct   bool
 	distinctOn []string
 	preloads   []PreloadDef
+	ctes       []ctePart
+	lock       *lockClause
+}
+
+type ctePart struct {
+	name      string
+	query     string
+	args      []any
+	recursive bool
+}
+
+type lockClause struct {
+	strength string // "UPDATE", "SHARE", "NO KEY UPDATE", "KEY SHARE"
+	nowait   bool
+	skip     bool
 }
 
 type wherePart struct {
@@ -203,6 +218,81 @@ func CrossJoin(table string) QueryMod {
 	}
 }
 
+// WithCTE adds a Common Table Expression (WITH clause) to the query.
+// The query string should be a complete SELECT statement.
+func WithCTE(name string, query string, args ...any) QueryMod {
+	return func(q *Query) {
+		q.ctes = append(q.ctes, ctePart{name: name, query: query, args: args})
+	}
+}
+
+// WithRecursiveCTE adds a recursive CTE (WITH RECURSIVE) to the query.
+func WithRecursiveCTE(name string, query string, args ...any) QueryMod {
+	return func(q *Query) {
+		q.ctes = append(q.ctes, ctePart{name: name, query: query, args: args, recursive: true})
+	}
+}
+
+// ForUpdate adds FOR UPDATE row locking to the query.
+func ForUpdate() QueryMod {
+	return func(q *Query) {
+		if q.lock == nil {
+			q.lock = &lockClause{}
+		}
+		q.lock.strength = "UPDATE"
+	}
+}
+
+// ForShare adds FOR SHARE row locking to the query.
+func ForShare() QueryMod {
+	return func(q *Query) {
+		if q.lock == nil {
+			q.lock = &lockClause{}
+		}
+		q.lock.strength = "SHARE"
+	}
+}
+
+// ForNoKeyUpdate adds FOR NO KEY UPDATE row locking to the query.
+func ForNoKeyUpdate() QueryMod {
+	return func(q *Query) {
+		if q.lock == nil {
+			q.lock = &lockClause{}
+		}
+		q.lock.strength = "NO KEY UPDATE"
+	}
+}
+
+// ForKeyShare adds FOR KEY SHARE row locking to the query.
+func ForKeyShare() QueryMod {
+	return func(q *Query) {
+		if q.lock == nil {
+			q.lock = &lockClause{}
+		}
+		q.lock.strength = "KEY SHARE"
+	}
+}
+
+// Nowait adds NOWAIT to the row locking clause. Must be used with ForUpdate/ForShare.
+func Nowait() QueryMod {
+	return func(q *Query) {
+		if q.lock == nil {
+			q.lock = &lockClause{}
+		}
+		q.lock.nowait = true
+	}
+}
+
+// SkipLocked adds SKIP LOCKED to the row locking clause. Must be used with ForUpdate/ForShare.
+func SkipLocked() QueryMod {
+	return func(q *Query) {
+		if q.lock == nil {
+			q.lock = &lockClause{}
+		}
+		q.lock.skip = true
+	}
+}
+
 // Preloads returns the preload definitions registered on this query.
 func (q *Query) Preloads() []PreloadDef {
 	return q.preloads
@@ -213,6 +303,34 @@ func (q *Query) BuildSelect() (string, []any) {
 	var b strings.Builder
 	var args []any
 	argIdx := 0
+
+	// CTEs (WITH clause)
+	if len(q.ctes) > 0 {
+		recursive := false
+		for _, cte := range q.ctes {
+			if cte.recursive {
+				recursive = true
+				break
+			}
+		}
+		if recursive {
+			b.WriteString("WITH RECURSIVE ")
+		} else {
+			b.WriteString("WITH ")
+		}
+		for i, cte := range q.ctes {
+			if i > 0 {
+				b.WriteString(", ")
+			}
+			b.WriteString(q.dialect.QuoteIdent(cte.name))
+			b.WriteString(" AS (")
+			clause, newArgs := q.rewritePlaceholders(cte.query, cte.args, &argIdx)
+			b.WriteString(clause)
+			args = append(args, newArgs...)
+			b.WriteString(")")
+		}
+		b.WriteString(" ")
+	}
 
 	// SELECT
 	b.WriteString("SELECT ")
@@ -308,6 +426,17 @@ func (q *Query) BuildSelect() (string, []any) {
 		b.WriteString(" OFFSET ")
 		b.WriteString(q.dialect.Placeholder(argIdx))
 		args = append(args, *q.offset)
+	}
+
+	// Row locking (FOR UPDATE/SHARE/etc.)
+	if q.lock != nil && q.lock.strength != "" {
+		b.WriteString(" FOR ")
+		b.WriteString(q.lock.strength)
+		if q.lock.nowait {
+			b.WriteString(" NOWAIT")
+		} else if q.lock.skip {
+			b.WriteString(" SKIP LOCKED")
+		}
 	}
 
 	return b.String(), args

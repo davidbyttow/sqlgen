@@ -311,6 +311,17 @@ func DeleteAll{{safePascal (plural (singular $tableName))}}(ctx context.Context,
 	return result.RowsAffected()
 }
 
+// Each{{$structName}} executes a query and calls fn for each row. Iteration stops
+// early if fn returns an error. Rows are not accumulated in memory.
+func Each{{$structName}}(ctx context.Context, exec runtime.Executor, fn func(*{{$structName}}) error, mods ...runtime.QueryMod) error {
+	return runtime.Each(ctx, exec, runtime.NewQuery(dialect, {{$tableConst}}, mods...), func() *{{$structName}} { return &{{$structName}}{} }, fn)
+}
+
+// {{$structName}}Cursor returns a cursor for iterating over {{$tableName}} rows one at a time.
+func {{$structName}}Cursor(ctx context.Context, exec runtime.Executor, mods ...runtime.QueryMod) (*runtime.Cursor[*{{$structName}}], error) {
+	return runtime.NewCursor(ctx, exec, runtime.NewQuery(dialect, {{$tableConst}}, mods...), func() *{{$structName}} { return &{{$structName}}{} })
+}
+
 {{- if .Table.PrimaryKey}}
 // Reload refreshes the {{$structName}} from the database using its primary key.
 func (o *{{$structName}}) Reload(ctx context.Context, exec runtime.Executor) error {

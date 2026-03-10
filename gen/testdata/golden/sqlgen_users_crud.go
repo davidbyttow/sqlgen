@@ -210,6 +210,17 @@ func DeleteAllUsers(ctx context.Context, exec runtime.Executor, mods ...runtime.
 	return result.RowsAffected()
 }
 
+// EachUser executes a query and calls fn for each row. Iteration stops
+// early if fn returns an error. Rows are not accumulated in memory.
+func EachUser(ctx context.Context, exec runtime.Executor, fn func(*User) error, mods ...runtime.QueryMod) error {
+	return runtime.Each(ctx, exec, runtime.NewQuery(dialect, UserTableName, mods...), func() *User { return &User{} }, fn)
+}
+
+// UserCursor returns a cursor for iterating over users rows one at a time.
+func UserCursor(ctx context.Context, exec runtime.Executor, mods ...runtime.QueryMod) (*runtime.Cursor[*User], error) {
+	return runtime.NewCursor(ctx, exec, runtime.NewQuery(dialect, UserTableName, mods...), func() *User { return &User{} })
+}
+
 // Reload refreshes the User from the database using its primary key.
 func (o *User) Reload(ctx context.Context, exec runtime.Executor) error {
 	q := runtime.NewQuery(dialect, UserTableName,

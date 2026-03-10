@@ -185,6 +185,17 @@ func DeleteAllOrganizations(ctx context.Context, exec runtime.Executor, mods ...
 	return result.RowsAffected()
 }
 
+// EachOrganization executes a query and calls fn for each row. Iteration stops
+// early if fn returns an error. Rows are not accumulated in memory.
+func EachOrganization(ctx context.Context, exec runtime.Executor, fn func(*Organization) error, mods ...runtime.QueryMod) error {
+	return runtime.Each(ctx, exec, runtime.NewQuery(dialect, OrganizationTableName, mods...), func() *Organization { return &Organization{} }, fn)
+}
+
+// OrganizationCursor returns a cursor for iterating over organizations rows one at a time.
+func OrganizationCursor(ctx context.Context, exec runtime.Executor, mods ...runtime.QueryMod) (*runtime.Cursor[*Organization], error) {
+	return runtime.NewCursor(ctx, exec, runtime.NewQuery(dialect, OrganizationTableName, mods...), func() *Organization { return &Organization{} })
+}
+
 // Reload refreshes the Organization from the database using its primary key.
 func (o *Organization) Reload(ctx context.Context, exec runtime.Executor) error {
 	q := runtime.NewQuery(dialect, OrganizationTableName,

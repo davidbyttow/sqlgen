@@ -171,7 +171,55 @@ q := models.Posts(
 )
 ```
 
-Other available mods: `GroupBy`, `Having`, `Join`, `LeftJoin`.
+Other available mods: `GroupBy`, `Having`, `Join`, `LeftJoin`, `ForUpdate`, `WithCTE`.
+
+### CTEs (WITH Clause)
+
+Common Table Expressions for complex queries, including recursive CTEs for hierarchical data:
+
+```go
+// Simple CTE
+q := models.Users(
+    runtime.WithCTE("active", "SELECT * FROM users WHERE active = ?", true),
+    runtime.Where(`"id" IN (SELECT id FROM active)`),
+)
+
+// Recursive CTE (e.g., category tree)
+q := runtime.NewQuery(dialect, "tree",
+    runtime.WithRecursiveCTE("tree",
+        "SELECT id, parent_id, name FROM categories WHERE parent_id IS NULL "+
+        "UNION ALL "+
+        "SELECT c.id, c.parent_id, c.name FROM categories c JOIN tree t ON c.parent_id = t.id"),
+)
+```
+
+### Row Locking
+
+Pessimistic locking for transactional workflows:
+
+```go
+// FOR UPDATE (exclusive lock)
+q := models.Users(
+    models.UserWhere.ID.EQ("some-uuid"),
+    runtime.ForUpdate(),
+)
+
+// FOR UPDATE NOWAIT (fail immediately if locked)
+q := models.Users(
+    models.UserWhere.ID.EQ("some-uuid"),
+    runtime.ForUpdate(),
+    runtime.Nowait(),
+)
+
+// FOR UPDATE SKIP LOCKED (skip locked rows, useful for job queues)
+q := models.Users(
+    runtime.ForUpdate(),
+    runtime.SkipLocked(),
+    runtime.Limit(1),
+)
+```
+
+Four lock strengths: `ForUpdate()`, `ForShare()`, `ForNoKeyUpdate()`, `ForKeyShare()`.
 
 ### CRUD Operations
 
@@ -207,6 +255,28 @@ user.Update(ctx, db, runtime.Blacklist("created_at"))
 
 // Partial insert:
 user.Insert(ctx, db, runtime.Whitelist("email", "name"))
+```
+
+### Streaming Iteration
+
+For large result sets where you don't want to load everything into memory:
+
+```go
+// Callback style: process one row at a time
+err := models.EachUser(ctx, db, func(u *models.User) error {
+    fmt.Println(u.Email)
+    return nil
+}, runtime.Where(`"active" = ?`, true))
+
+// Cursor style: manual iteration with explicit close
+cursor, err := models.UserCursor(ctx, db, runtime.OrderBy(`"created_at" DESC`))
+if err != nil { ... }
+defer cursor.Close()
+
+for user, ok := cursor.Next(); ok; user, ok = cursor.Next() {
+    fmt.Println(user.Email)
+}
+if err := cursor.Err(); err != nil { ... }
 ```
 
 ### Enums

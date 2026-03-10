@@ -212,6 +212,17 @@ func DeleteAllPosts(ctx context.Context, exec runtime.Executor, mods ...runtime.
 	return result.RowsAffected()
 }
 
+// EachPost executes a query and calls fn for each row. Iteration stops
+// early if fn returns an error. Rows are not accumulated in memory.
+func EachPost(ctx context.Context, exec runtime.Executor, fn func(*Post) error, mods ...runtime.QueryMod) error {
+	return runtime.Each(ctx, exec, runtime.NewQuery(dialect, PostTableName, mods...), func() *Post { return &Post{} }, fn)
+}
+
+// PostCursor returns a cursor for iterating over posts rows one at a time.
+func PostCursor(ctx context.Context, exec runtime.Executor, mods ...runtime.QueryMod) (*runtime.Cursor[*Post], error) {
+	return runtime.NewCursor(ctx, exec, runtime.NewQuery(dialect, PostTableName, mods...), func() *Post { return &Post{} })
+}
+
 // Reload refreshes the Post from the database using its primary key.
 func (o *Post) Reload(ctx context.Context, exec runtime.Executor) error {
 	q := runtime.NewQuery(dialect, PostTableName,
