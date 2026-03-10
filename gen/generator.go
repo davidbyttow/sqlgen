@@ -323,7 +323,7 @@ func (g *Generator) hasToOneRels(table *schema.Table) bool {
 
 func (g *Generator) hasCountableRels(table *schema.Table) bool {
 	for _, r := range table.Relationships {
-		if r.Type == schema.RelHasMany || r.Type == schema.RelManyToMany {
+		if r.Type == schema.RelHasMany || r.Type == schema.RelManyToMany || r.Type == schema.RelPolymorphicMany {
 			return true
 		}
 	}

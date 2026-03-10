@@ -103,6 +103,19 @@ func runGenerate(ctx context.Context, cfg *config.Config) error {
 	}
 	schema.ResolveRelationships(s)
 
+	if len(cfg.Polymorphic) > 0 {
+		var defs []schema.PolymorphicDef
+		for _, p := range cfg.Polymorphic {
+			defs = append(defs, schema.PolymorphicDef{
+				Table:      p.Table,
+				TypeColumn: p.TypeColumn,
+				IDColumn:   p.IDColumn,
+				Targets:    p.Targets,
+			})
+		}
+		schema.ResolvePolymorphic(s, defs)
+	}
+
 	fmt.Printf("Parsed %d tables, %d enums, %d views\n", len(s.Tables), len(s.Enums), len(s.Views))
 
 	g := gen.NewGenerator(cfg, s)

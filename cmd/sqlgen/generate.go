@@ -33,6 +33,20 @@ func newGenerateCmd() *cobra.Command {
 			// Resolve relationships.
 			schema.ResolveRelationships(s)
 
+			// Resolve polymorphic relationships from config.
+			if len(cfg.Polymorphic) > 0 {
+				var defs []schema.PolymorphicDef
+				for _, p := range cfg.Polymorphic {
+					defs = append(defs, schema.PolymorphicDef{
+						Table:      p.Table,
+						TypeColumn: p.TypeColumn,
+						IDColumn:   p.IDColumn,
+						Targets:    p.Targets,
+					})
+				}
+				schema.ResolvePolymorphic(s, defs)
+			}
+
 			fmt.Printf("Parsed %d tables, %d enums, %d views\n", len(s.Tables), len(s.Enums), len(s.Views))
 
 			// Generate code.

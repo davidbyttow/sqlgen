@@ -218,3 +218,87 @@ func TestIsJoinTable(t *testing.T) {
 		})
 	}
 }
+
+func TestResolvePolymorphic(t *testing.T) {
+	s := &Schema{
+		Tables: []*Table{
+			{
+				Name: "users",
+				Columns: []*Column{
+					{Name: "id", DBType: "integer"},
+					{Name: "name", DBType: "text"},
+				},
+				PrimaryKey: &PrimaryKey{Columns: []string{"id"}},
+			},
+			{
+				Name: "posts",
+				Columns: []*Column{
+					{Name: "id", DBType: "integer"},
+					{Name: "title", DBType: "text"},
+				},
+				PrimaryKey: &PrimaryKey{Columns: []string{"id"}},
+			},
+			{
+				Name: "comments",
+				Columns: []*Column{
+					{Name: "id", DBType: "integer"},
+					{Name: "body", DBType: "text"},
+					{Name: "commentable_type", DBType: "text"},
+					{Name: "commentable_id", DBType: "integer"},
+				},
+				PrimaryKey: &PrimaryKey{Columns: []string{"id"}},
+			},
+		},
+	}
+
+	ResolvePolymorphic(s, []PolymorphicDef{
+		{
+			Table:      "comments",
+			TypeColumn: "commentable_type",
+			IDColumn:   "commentable_id",
+			Targets:    map[string]string{"User": "users", "Post": "posts"},
+		},
+	})
+
+	comments := s.Tables[2]
+	users := s.Tables[0]
+	posts := s.Tables[1]
+
+	// Comments should have two PolymorphicOne relationships
+	polyOnes := 0
+	for _, r := range comments.Relationships {
+		if r.Type == RelPolymorphicOne {
+			polyOnes++
+			if r.TypeColumn != "commentable_type" {
+				t.Errorf("expected TypeColumn 'commentable_type', got %q", r.TypeColumn)
+			}
+			if r.IDColumn != "commentable_id" {
+				t.Errorf("expected IDColumn 'commentable_id', got %q", r.IDColumn)
+			}
+		}
+	}
+	if polyOnes != 2 {
+		t.Errorf("expected 2 PolymorphicOne rels on comments, got %d", polyOnes)
+	}
+
+	// Users should have a PolymorphicMany for comments
+	userPolyMany := findRel(users.Relationships, RelPolymorphicMany, "comments")
+	if userPolyMany == nil {
+		t.Fatal("users should have PolymorphicMany to comments")
+	}
+	if userPolyMany.TypeValue != "User" {
+		t.Errorf("expected TypeValue 'User', got %q", userPolyMany.TypeValue)
+	}
+	if userPolyMany.TypeColumn != "commentable_type" {
+		t.Errorf("expected TypeColumn 'commentable_type', got %q", userPolyMany.TypeColumn)
+	}
+
+	// Posts should have a PolymorphicMany for comments
+	postPolyMany := findRel(posts.Relationships, RelPolymorphicMany, "comments")
+	if postPolyMany == nil {
+		t.Fatal("posts should have PolymorphicMany to comments")
+	}
+	if postPolyMany.TypeValue != "Post" {
+		t.Errorf("expected TypeValue 'Post', got %q", postPolyMany.TypeValue)
+	}
+}

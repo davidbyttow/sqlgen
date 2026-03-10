@@ -292,5 +292,111 @@ func load{{$structName}}{{$fieldName}}(ctx context.Context, exec runtime.Executo
 	}
 	return nil
 }
+{{- else if eq $rel.Type (relPolymorphicOne)}}
+{{- /* PolymorphicOne: this table has type+id columns, load from target table */ -}}
+{{- $localCol := index $rel.Columns 0 -}}
+{{- $foreignCol := index $rel.ForeignColumns 0}}
+func load{{$structName}}{{$fieldName}}(ctx context.Context, exec runtime.Executor, d runtime.Dialect, parentModels any, loads []*runtime.EagerLoadRequest) error {
+	models := parentModels.({{$sliceType}})
+	if len(models) == 0 {
+		return nil
+	}
+
+	// Only load for models matching this type value.
+	seen := make(map[string]bool)
+	var ids []any
+	for _, m := range models {
+		if m.{{pascal $rel.TypeColumn}} != "{{$rel.TypeValue}}" {
+			continue
+		}
+		key := fmt.Sprint(m.{{pascal $localCol}})
+		if !seen[key] {
+			seen[key] = true
+			ids = append(ids, m.{{pascal $localCol}})
+		}
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+
+	mods := {{lower $structName}}LoadMods(loads, "{{$fieldName}}")
+	rows, err := runtime.LoadMany(ctx, exec, d, {{$foreignStructName}}TableName, "{{$foreignCol}}", ids, mods...)
+	if err != nil {
+		return err
+	}
+	if rows == nil {
+		return nil
+	}
+	defer rows.Close()
+
+	resultMap := make(map[string]*{{$foreignStructName}})
+	for rows.Next() {
+		o := &{{$foreignStructName}}{}
+		if err := o.ScanRow(rows); err != nil {
+			return err
+		}
+		resultMap[fmt.Sprint(o.{{pascal $foreignCol}})] = o
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+
+	for _, m := range models {
+		if m.{{pascal $rel.TypeColumn}} != "{{$rel.TypeValue}}" {
+			continue
+		}
+		o := resultMap[fmt.Sprint(m.{{pascal $localCol}})]
+		if o != nil {
+			if m.R == nil {
+				m.R = &{{$relsType}}{}
+			}
+			m.R.{{$fieldName}} = o
+		}
+	}
+	return nil
+}
+{{- else if eq $rel.Type (relPolymorphicMany)}}
+{{- /* PolymorphicMany: foreign table has type+id columns pointing here */ -}}
+{{- $localCol := index $rel.Columns 0 -}}
+{{- $foreignCol := index $rel.ForeignColumns 0}}
+func load{{$structName}}{{$fieldName}}(ctx context.Context, exec runtime.Executor, d runtime.Dialect, parentModels any, loads []*runtime.EagerLoadRequest) error {
+	models := parentModels.({{$sliceType}})
+	if len(models) == 0 {
+		return nil
+	}
+
+	ids := make([]any, len(models))
+	idMap := make(map[string][]*{{$structName}})
+	for i, m := range models {
+		ids[i] = m.{{pascal $localCol}}
+		key := fmt.Sprint(m.{{pascal $localCol}})
+		idMap[key] = append(idMap[key], m)
+	}
+
+	mods := {{lower $structName}}LoadMods(loads, "{{$fieldName}}")
+	rows, err := runtime.LoadPolymorphicMany(ctx, exec, d, {{$foreignStructName}}TableName, "{{$rel.TypeColumn}}", "{{$rel.TypeValue}}", "{{$foreignCol}}", ids, mods...)
+	if err != nil {
+		return err
+	}
+	if rows == nil {
+		return nil
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		o := &{{$foreignStructName}}{}
+		if err := o.ScanRow(rows); err != nil {
+			return err
+		}
+		key := fmt.Sprint(o.{{pascal $foreignCol}})
+		for _, parent := range idMap[key] {
+			if parent.R == nil {
+				parent.R = &{{$relsType}}{}
+			}
+			parent.R.{{$fieldName}} = append(parent.R.{{$fieldName}}, o)
+		}
+	}
+	return rows.Err()
+}
 {{- end}}
 {{end}}

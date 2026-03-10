@@ -148,6 +148,69 @@ func buildManyToMany(joinTable *Table, tableMap map[string]*Table) {
 	})
 }
 
+// PolymorphicDef describes a polymorphic relationship from config.
+type PolymorphicDef struct {
+	Table      string            // Table with type+id columns
+	TypeColumn string            // Column holding type discriminator
+	IDColumn   string            // Column holding FK value
+	Targets    map[string]string // TypeValue -> target table name
+}
+
+// ResolvePolymorphic adds polymorphic relationships to the schema.
+// For each polymorphic definition, it creates:
+// - RelPolymorphicOne on the source table (one per target)
+// - RelPolymorphicMany on each target table
+func ResolvePolymorphic(s *Schema, defs []PolymorphicDef) {
+	tableMap := make(map[string]*Table, len(s.Tables))
+	for _, t := range s.Tables {
+		tableMap[t.Name] = t
+	}
+
+	for _, def := range defs {
+		srcTable := tableMap[def.Table]
+		if srcTable == nil {
+			continue
+		}
+
+		for typeVal, targetName := range def.Targets {
+			targetTable := tableMap[targetName]
+			if targetTable == nil {
+				continue
+			}
+
+			// Find target PK column
+			if targetTable.PrimaryKey == nil || len(targetTable.PrimaryKey.Columns) == 0 {
+				continue
+			}
+			targetPK := targetTable.PrimaryKey.Columns[0]
+
+			// Source table "belongs to" target via polymorphic
+			srcTable.Relationships = append(srcTable.Relationships, &Relationship{
+				Type:           RelPolymorphicOne,
+				Table:          srcTable.Name,
+				Columns:        []string{def.IDColumn},
+				ForeignTable:   targetName,
+				ForeignColumns: []string{targetPK},
+				TypeColumn:     def.TypeColumn,
+				IDColumn:       def.IDColumn,
+				TypeValue:      typeVal,
+			})
+
+			// Target table "has many" source via polymorphic
+			targetTable.Relationships = append(targetTable.Relationships, &Relationship{
+				Type:           RelPolymorphicMany,
+				Table:          targetName,
+				Columns:        []string{targetPK},
+				ForeignTable:   srcTable.Name,
+				ForeignColumns: []string{def.IDColumn},
+				TypeColumn:     def.TypeColumn,
+				IDColumn:       def.IDColumn,
+				TypeValue:      typeVal,
+			})
+		}
+	}
+}
+
 // fkColumnsAreUnique checks if the FK columns are covered by a unique constraint or unique index.
 func fkColumnsAreUnique(t *Table, cols []string) bool {
 	// Single-column FK that IS the primary key.

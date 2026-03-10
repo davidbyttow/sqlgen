@@ -85,6 +85,59 @@ func TestDatabaseNullStrategy(t *testing.T) {
 	t.Log("Database null strategy compiles successfully")
 }
 
+func TestPolymorphicCompile(t *testing.T) {
+	t.Parallel()
+	s := &schema.Schema{
+		Tables: []*schema.Table{
+			{
+				Name: "users",
+				Columns: []*schema.Column{
+					{Name: "id", DBType: "integer", IsAutoIncrement: true, HasDefault: true},
+					{Name: "name", DBType: "text"},
+				},
+				PrimaryKey: &schema.PrimaryKey{Columns: []string{"id"}},
+			},
+			{
+				Name: "posts",
+				Columns: []*schema.Column{
+					{Name: "id", DBType: "integer", IsAutoIncrement: true, HasDefault: true},
+					{Name: "title", DBType: "text"},
+				},
+				PrimaryKey: &schema.PrimaryKey{Columns: []string{"id"}},
+			},
+			{
+				Name: "comments",
+				Columns: []*schema.Column{
+					{Name: "id", DBType: "integer", IsAutoIncrement: true, HasDefault: true},
+					{Name: "body", DBType: "text"},
+					{Name: "commentable_type", DBType: "text"},
+					{Name: "commentable_id", DBType: "integer"},
+				},
+				PrimaryKey: &schema.PrimaryKey{Columns: []string{"id"}},
+			},
+		},
+	}
+
+	schema.ResolveRelationships(s)
+	schema.ResolvePolymorphic(s, []schema.PolymorphicDef{
+		{
+			Table:      "comments",
+			TypeColumn: "commentable_type",
+			IDColumn:   "commentable_id",
+			Targets:    map[string]string{"User": "users", "Post": "posts"},
+		},
+	})
+
+	cfg := &config.Config{
+		Input:  config.InputConfig{Dialect: "postgres", Paths: []string{"x"}},
+		Output: config.OutputConfig{},
+		Types:  config.TypesConfig{NullType: config.NullTypeGeneric},
+	}
+	g := NewGenerator(cfg, s)
+	generateAndBuild(t, g, "polymorphic")
+	t.Log("Polymorphic code compiles successfully")
+}
+
 func TestSkipTable(t *testing.T) {
 	t.Parallel()
 	s := &schema.Schema{
