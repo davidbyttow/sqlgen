@@ -83,8 +83,8 @@ sqlgen covers the core loop plus nearly all high-impact features. That's roughly
 | Struct tag control | ✅ | ✅ | ✅ (configurable) |
 | DB error constants | ❌ | ✅ | ✅ (generated + runtime matchers) |
 | Bind to arbitrary struct | ✅ | ❌ | ✅ (runtime.Bind) |
-| Prepared statements | ❌ | ✅ | ❌ |
-| Query caching | ❌ | ✅ | ❌ |
+| Prepared statements | ❌ | ✅ | ✅ (CachedExecutor) |
+| Query caching | ❌ | ✅ | ✅ (CachedExecutor) |
 | Cursor iteration | ❌ | ✅ | ✅ (Each, Cursor) |
 
 ---
@@ -116,10 +116,6 @@ Things sqlgen has that neither SQLBoiler nor Bob do.
 **1. Factory/fixture system**
 Generated test files exist, but no factory system for generating test data. Bob's FactoryBot-inspired factories are genuinely useful for integration tests.
 
-### Lower Impact
-
-**2. Prepared statement caching** — Performance optimization. Bob only.
-
 ---
 
 ## Suggested Roadmap
@@ -127,9 +123,6 @@ Generated test files exist, but no factory system for generating test data. Bob'
 **Phase 15: Testing Support** (medium impact, high effort)
 - Factory system with random data generation
 
-**Phase 16: Performance** (lower impact, medium effort)
-- Prepared statement caching
-
-**Phase 17: More Dialects** (high impact, high effort)
+**Phase 16: More Dialects** (high impact, high effort)
 - MySQL driver
 - SQLite driver
