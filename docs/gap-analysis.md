@@ -81,7 +81,7 @@ sqlgen covers the core loop plus nearly all high-impact features. That's roughly
 | Column whitelist/blacklist | ✅ | ✅ | ✅ |
 | Custom templates | ✅ | ✅ | ✅ (directory overlay) |
 | Struct tag control | ✅ | ✅ | ✅ (configurable) |
-| DB error constants | ❌ | ✅ | ❌ |
+| DB error constants | ❌ | ✅ | ✅ (generated + runtime matchers) |
 | Bind to arbitrary struct | ✅ | ❌ | ✅ (runtime.Bind) |
 | Prepared statements | ❌ | ✅ | ❌ |
 | Query caching | ❌ | ✅ | ❌ |
@@ -118,9 +118,7 @@ Generated test files exist, but no factory system for generating test data. Bob'
 
 ### Lower Impact
 
-**2. Soft deletes** — SQLBoiler has first-class support. Doable with hooks.
-**3. DB error matching** — Bob generates typed constraint error matchers.
-**4. Prepared statement caching** — Performance optimization. Bob only.
+**2. Prepared statement caching** — Performance optimization. Bob only.
 
 ---
 
@@ -128,8 +126,10 @@ Generated test files exist, but no factory system for generating test data. Bob'
 
 **Phase 15: Testing Support** (medium impact, high effort)
 - Factory system with random data generation
-- Typed DB error matchers
 
-**Phase 16: More Dialects** (high impact, high effort)
+**Phase 16: Performance** (lower impact, medium effort)
+- Prepared statement caching
+
+**Phase 17: More Dialects** (high impact, high effort)
 - MySQL driver
 - SQLite driver

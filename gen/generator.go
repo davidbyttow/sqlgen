@@ -76,6 +76,18 @@ func (g *Generator) Run() error {
 		return err
 	}
 
+	// Generate constraints file if any table has named constraints.
+	constraints := g.collectConstraints()
+	if len(constraints) > 0 {
+		constraintData := map[string]any{
+			"Package":     pkg,
+			"Constraints": constraints,
+		}
+		if err := g.generateFile("constraints.go.tmpl", constraintData, outDir, "sqlgen_constraints.go", generated); err != nil {
+			return fmt.Errorf("generating constraints: %w", err)
+		}
+	}
+
 	// Generate enum files.
 	for _, enum := range g.schema.Enums {
 		data := map[string]any{
@@ -248,6 +260,7 @@ func (g *Generator) generateSingleton(tmplName, outDir, pkg, filename string, ge
 
 // builtinTemplates is the set of template names shipped with sqlgen.
 var builtinTemplates = map[string]bool{
+	"constraints.go.tmpl":   true,
 	"model.go.tmpl":         true,
 	"crud.go.tmpl":          true,
 	"hooks.go.tmpl":         true,
@@ -343,6 +356,60 @@ func (g *Generator) collectLoaderImports() *ImportSet {
 	imports.Add(runtimePkg)
 	return imports
 }
+
+// ConstraintEntry is a deduplicated constraint for template rendering.
+type ConstraintEntry struct {
+	GoName string // e.g., "UserEmailKey"
+	DBName string // e.g., "users_email_key"
+}
+
+func (g *Generator) collectConstraints() []ConstraintEntry {
+	seen := map[string]bool{}
+	var entries []ConstraintEntry
+
+	add := func(tableName, constraintName string) {
+		if constraintName == "" {
+			return
+		}
+		goName := g.constraintConst(tableName, constraintName)
+		if seen[goName] {
+			return
+		}
+		seen[goName] = true
+		entries = append(entries, ConstraintEntry{GoName: goName, DBName: constraintName})
+	}
+
+	for _, t := range g.schema.Tables {
+		if tc, ok := g.cfg.Tables[t.Name]; ok && tc.Skip {
+			continue
+		}
+		if t.PrimaryKey != nil {
+			add(t.Name, t.PrimaryKey.Name)
+		}
+		for _, u := range t.Unique {
+			add(t.Name, u.Name)
+		}
+		for _, fk := range t.ForeignKeys {
+			add(t.Name, fk.Name)
+		}
+		for _, idx := range t.Indexes {
+			if idx.Unique {
+				add(t.Name, idx.Name)
+			}
+		}
+	}
+	return entries
+}
+
+func (g *Generator) constraintConst(tableName, constraintName string) string {
+	structName := naming.ToPascal(naming.Singularize(tableName))
+	clean := constraintName
+	if strings.HasPrefix(clean, tableName+"_") {
+		clean = clean[len(tableName)+1:]
+	}
+	return structName + naming.ToPascal(clean)
+}
+
 
 func (g *Generator) hasToOneRels(table *schema.Table) bool {
 	for _, r := range table.Relationships {
