@@ -20,7 +20,7 @@ var {{$structName}}Where = struct {
 
 {{range .Table.Columns}}
 {{- $colName := pascal .Name -}}
-{{- $colType := goType . -}}
+{{- $colType := goType . $tableName -}}
 // {{$structName}}{{$colName}}Filter provides where clauses for the {{.Name}} column.
 type {{$structName}}{{$colName}}Filter struct {
 	col string

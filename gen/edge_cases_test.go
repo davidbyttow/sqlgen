@@ -3,6 +3,7 @@ package gen
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/davidbyttow/sqlgen/config"
@@ -175,4 +176,71 @@ func TestSkipTable(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(outDir, "sqlgen_keep_model.go")); os.IsNotExist(err) {
 		t.Error("keep table should have been generated")
 	}
+}
+
+func TestColumnTypeReplacement(t *testing.T) {
+	t.Parallel()
+	s := &schema.Schema{
+		Tables: []*schema.Table{
+			{
+				Name: "users",
+				Columns: []*schema.Column{
+					{Name: "id", DBType: "uuid"},
+					{Name: "name", DBType: "text"},
+					{Name: "metadata", DBType: "jsonb"},
+				},
+				PrimaryKey: &schema.PrimaryKey{Columns: []string{"id"}},
+			},
+			{
+				Name: "posts",
+				Columns: []*schema.Column{
+					{Name: "id", DBType: "uuid"},
+					{Name: "title", DBType: "text"},
+					{Name: "metadata", DBType: "jsonb"},
+				},
+				PrimaryKey: &schema.PrimaryKey{Columns: []string{"id"}},
+			},
+		},
+	}
+
+	cfg := &config.Config{
+		Input:  config.InputConfig{Dialect: "postgres", Paths: []string{"x"}},
+		Output: config.OutputConfig{},
+		Types: config.TypesConfig{
+			NullType: config.NullTypeGeneric,
+			// Exact match: users.metadata -> map[string]any
+			// Wildcard: *.id -> string (override uuid default which is also string, but tests the path)
+			ColumnReplacements: map[string]string{
+				"users.metadata": "map[string]any",
+				"*.id":           "string",
+			},
+		},
+	}
+	g := NewGenerator(cfg, s)
+	outDir := generateAndBuild(t, g, "colrepl")
+
+	// Verify that the users model uses map[string]any for metadata (exact match).
+	usersModel, err := os.ReadFile(filepath.Join(outDir, "sqlgen_users_model.go"))
+	if err != nil {
+		t.Fatalf("reading users model: %v", err)
+	}
+	content := string(usersModel)
+	if !contains(content, "map[string]any") {
+		t.Error("expected users model to contain map[string]any for metadata column")
+	}
+
+	// Verify posts model keeps json.RawMessage for metadata (no override for posts.metadata).
+	postsModel, err := os.ReadFile(filepath.Join(outDir, "sqlgen_posts_model.go"))
+	if err != nil {
+		t.Fatalf("reading posts model: %v", err)
+	}
+	postsContent := string(postsModel)
+	if !contains(postsContent, "json.RawMessage") {
+		t.Error("expected posts model to keep json.RawMessage for metadata (no override)")
+	}
+	t.Log("Column type replacement compiles successfully")
+}
+
+func contains(s, substr string) bool {
+	return len(s) > 0 && len(substr) > 0 && strings.Contains(s, substr)
 }

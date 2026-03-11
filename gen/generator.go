@@ -284,7 +284,7 @@ func (g *Generator) collectTableImports(table *schema.Table) *ImportSet {
 	imports.Add(runtimePkg)
 
 	for _, col := range table.Columns {
-		gt := g.mapper.GoTypeFor(col)
+		gt := g.mapper.GoTypeForTable(col, table.Name)
 		imports.AddGoType(gt)
 	}
 
@@ -297,7 +297,7 @@ func (g *Generator) collectCRUDImports(table *schema.Table) *ImportSet {
 	imports.Add(runtimePkg)
 
 	for _, col := range table.Columns {
-		gt := g.mapper.GoTypeFor(col)
+		gt := g.mapper.GoTypeForTable(col, table.Name)
 		imports.AddGoType(gt)
 	}
 
@@ -344,7 +344,7 @@ func (g *Generator) collectPreloadImports(table *schema.Table) *ImportSet {
 			continue
 		}
 		for _, col := range foreignTable.Columns {
-			gt := g.mapper.GoTypeFor(col)
+			gt := g.mapper.GoTypeForTable(col, foreignTable.Name)
 			imports.AddGoType(gt)
 		}
 	}

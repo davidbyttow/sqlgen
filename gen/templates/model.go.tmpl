@@ -25,7 +25,7 @@ var {{$structName}}Columns = struct {
 // {{$structName}} represents a row from the '{{$tableName}}' table.
 type {{$structName}} struct {
 {{- range .Table.Columns}}
-	{{pascal .Name}} {{goType .}} {{structTags . $.Tags}}
+	{{pascal .Name}} {{goType . $tableName}} {{structTags . $.Tags}}
 {{- end}}
 
 	R *{{$structName}}Rels {{relTags $.Tags}}

@@ -132,6 +132,50 @@ func TestGoTypeForReplacement(t *testing.T) {
 	}
 }
 
+func TestGoTypeForTableColumnReplacement(t *testing.T) {
+	cfg := &config.Config{
+		Input:  config.InputConfig{Dialect: "postgres", Paths: []string{"x"}},
+		Output: config.OutputConfig{Dir: "out"},
+		Types: config.TypesConfig{
+			NullType: config.NullTypeGeneric,
+			ColumnReplacements: map[string]string{
+				"users.metadata": "map[string]any",
+				"*.external_id":  "github.com/google/uuid.UUID",
+			},
+		},
+	}
+	m := NewTypeMapper(cfg, "github.com/davidbyttow/sqlgen/runtime")
+
+	// Exact match: users.metadata -> map[string]any
+	col := &schema.Column{Name: "metadata", DBType: "jsonb"}
+	got := m.GoTypeForTable(col, "users")
+	if got.Name != "map[string]any" {
+		t.Errorf("users.metadata = %q, want map[string]any", got.Name)
+	}
+
+	// Same column on different table: falls through to default jsonb mapping.
+	got = m.GoTypeForTable(col, "posts")
+	if got.Name != "json.RawMessage" {
+		t.Errorf("posts.metadata = %q, want json.RawMessage", got.Name)
+	}
+
+	// Wildcard match: *.external_id -> uuid.UUID
+	col2 := &schema.Column{Name: "external_id", DBType: "uuid"}
+	got = m.GoTypeForTable(col2, "orders")
+	if got.Name != "uuid.UUID" {
+		t.Errorf("orders.external_id = %q, want uuid.UUID", got.Name)
+	}
+	if got.Import != "github.com/google/uuid" {
+		t.Errorf("import = %q, want github.com/google/uuid", got.Import)
+	}
+
+	// No table name: column replacements are skipped.
+	got = m.GoTypeFor(col)
+	if got.Name != "json.RawMessage" {
+		t.Errorf("GoTypeFor(metadata) = %q, want json.RawMessage", got.Name)
+	}
+}
+
 func TestParseTypeString(t *testing.T) {
 	tests := []struct {
 		input      string

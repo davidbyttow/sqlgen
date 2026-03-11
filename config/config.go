@@ -110,6 +110,13 @@ type TypesConfig struct {
 	// Replacements maps DB type patterns to custom Go types.
 	// Example: {"uuid": "github.com/google/uuid.UUID"}
 	Replacements map[string]string `yaml:"replacements"`
+
+	// ColumnReplacements maps "table.column" patterns to custom Go types.
+	// Use "*" as table name to match all tables.
+	// Examples:
+	//   "users.metadata": "encoding/json.RawMessage"
+	//   "*.external_id": "github.com/google/uuid.UUID"
+	ColumnReplacements map[string]string `yaml:"column_replacements"`
 }
 
 // TableConfig provides per-table overrides.
