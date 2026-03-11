@@ -241,6 +241,20 @@ func (g *Generator) Run() error {
 			}
 		}
 
+		// Factories (opt-in)
+		if g.cfg.Output.Factories {
+			factoryImports := g.collectFactoryImports(table)
+			factoryData := map[string]any{
+				"Package": pkg,
+				"Table":   table,
+				"Imports": factoryImports.FormatBlock(),
+				"Enums":   g.schema.Enums,
+			}
+			if err := g.generateFile("factory.go.tmpl", factoryData, outDir, fmt.Sprintf("sqlgen_%s_factory.go", snakeName), generated); err != nil {
+				return fmt.Errorf("generating factory for %s: %w", table.Name, err)
+			}
+		}
+
 		// Extra user templates
 		if err := g.renderExtraTemplates(table, tableImports, outDir, pkg, snakeName, generated); err != nil {
 			return err
@@ -261,6 +275,7 @@ func (g *Generator) generateSingleton(tmplName, outDir, pkg, filename string, ge
 // builtinTemplates is the set of template names shipped with sqlgen.
 var builtinTemplates = map[string]bool{
 	"constraints.go.tmpl":   true,
+	"factory.go.tmpl":       true,
 	"model.go.tmpl":         true,
 	"crud.go.tmpl":          true,
 	"hooks.go.tmpl":         true,
@@ -340,6 +355,22 @@ func (g *Generator) collectCRUDImports(table *schema.Table) *ImportSet {
 	imports := NewImportSet()
 	imports.Add("context")
 	imports.Add(runtimePkg)
+
+	for _, col := range table.Columns {
+		gt := g.mapper.GoTypeForTable(col, table.Name)
+		imports.AddGoType(gt)
+	}
+
+	return imports
+}
+
+const fakePkg = "github.com/davidbyttow/sqlgen/runtime/fake"
+
+func (g *Generator) collectFactoryImports(table *schema.Table) *ImportSet {
+	imports := NewImportSet()
+	imports.Add("context")
+	imports.Add(runtimePkg)
+	imports.Add(fakePkg)
 
 	for _, col := range table.Columns {
 		gt := g.mapper.GoTypeForTable(col, table.Name)

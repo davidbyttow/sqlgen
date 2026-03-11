@@ -70,6 +70,26 @@ func TemplateFuncs(mapper *TypeMapper) template.FuncMap {
 			}
 		},
 
+		// fakeExpr returns a Go expression that generates a random value for a column.
+		// Returns "" for auto-increment columns (skip them in factory).
+		"fakeExpr": func(col *schema.Column, tableName string, enums []*schema.Enum) string {
+			if col.IsAutoIncrement {
+				return ""
+			}
+			prefix := tableName + "_" + col.Name
+			expr := fakeExprForType(col, prefix, enums, mapper)
+			if col.IsNullable {
+				gt := mapper.GoTypeForTable(col, tableName)
+				if strings.HasPrefix(gt.Name, "*") {
+					return "fake.Ptr(" + expr + ")"
+				}
+				if strings.HasPrefix(gt.Name, "runtime.Null[") {
+					return "runtime.NewNull(" + expr + ")"
+				}
+			}
+			return expr
+		},
+
 		// nullGoType returns a Null[T]-wrapped version of a column's Go type for preload scanning.
 		// If the column is already nullable, it returns the same Null[T] type.
 		// If non-nullable, wraps in runtime.Null[BaseType].
@@ -332,4 +352,82 @@ func buildRelTags(tags map[string]string) string {
 		parts = append(parts, fmt.Sprintf(`%s:"-"`, tag))
 	}
 	return "`" + strings.Join(parts, " ") + "`"
+}
+
+// fakeExprForType returns a fake.XXX() expression for the base (non-nullable) type of a column.
+func fakeExprForType(col *schema.Column, prefix string, enums []*schema.Enum, mapper *TypeMapper) string {
+	// Enum: use first value.
+	if col.EnumName != "" {
+		for _, e := range enums {
+			if e.Name == col.EnumName && len(e.Values) > 0 {
+				typeName := naming.ToPascal(col.EnumName)
+				return typeName + `("` + e.Values[0] + `")`
+			}
+		}
+	}
+
+	// Array types.
+	if col.IsArray {
+		inner := fakeExprForBaseDBType(col.DBType, prefix)
+		return "[]" + mapDBTypeToGoName(col.DBType) + "{" + inner + "}"
+	}
+
+	return fakeExprForBaseDBType(col.DBType, prefix)
+}
+
+func fakeExprForBaseDBType(dbType, prefix string) string {
+	switch dbType {
+	case "boolean":
+		return "fake.Bool()"
+	case "smallint":
+		return "fake.Int16()"
+	case "integer":
+		return "fake.Int32()"
+	case "bigint":
+		return "fake.Int64()"
+	case "real":
+		return "fake.Float32()"
+	case "double precision":
+		return "fake.Float64()"
+	case "numeric", "money":
+		return "fake.Numeric()"
+	case "text", "character varying", "character", "name", "xml",
+		"inet", "cidr", "macaddr", "bit", "bit varying",
+		"tsvector", "tsquery", "interval",
+		"int4range", "int8range", "numrange", "tsrange", "tstzrange", "daterange",
+		"int4multirange", "int8multirange":
+		return fmt.Sprintf(`fake.String("%s")`, prefix)
+	case "uuid":
+		return "fake.UUID()"
+	case "bytea":
+		return "fake.Bytes(16)"
+	case "timestamp without time zone", "timestamp with time zone",
+		"date", "time without time zone", "time with time zone":
+		return "fake.Time()"
+	case "json", "jsonb":
+		return "fake.JSON()"
+	default:
+		return fmt.Sprintf(`fake.String("%s")`, prefix)
+	}
+}
+
+func mapDBTypeToGoName(dbType string) string {
+	switch dbType {
+	case "boolean":
+		return "bool"
+	case "smallint":
+		return "int16"
+	case "integer":
+		return "int32"
+	case "bigint":
+		return "int64"
+	case "real":
+		return "float32"
+	case "double precision":
+		return "float64"
+	case "bytea":
+		return "[]byte"
+	default:
+		return "string"
+	}
 }

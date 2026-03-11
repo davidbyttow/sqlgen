@@ -84,6 +84,9 @@ type OutputConfig struct {
 	// Files matching built-in template names override them.
 	// Extra .tmpl files are rendered once per table.
 	Templates string `yaml:"templates"`
+
+	// Factories enables generation of factory functions for testing.
+	Factories bool `yaml:"factories"`
 }
 
 // TimestampsConfig controls automatic timestamp management.

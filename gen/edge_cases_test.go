@@ -244,3 +244,131 @@ func TestColumnTypeReplacement(t *testing.T) {
 func contains(s, substr string) bool {
 	return len(s) > 0 && len(substr) > 0 && strings.Contains(s, substr)
 }
+
+func TestFactoryCompile(t *testing.T) {
+	t.Parallel()
+	s := &schema.Schema{
+		Tables: []*schema.Table{
+			{
+				Name: "users",
+				Columns: []*schema.Column{
+					{Name: "id", DBType: "integer", IsAutoIncrement: true, HasDefault: true},
+					{Name: "name", DBType: "text"},
+					{Name: "email", DBType: "text"},
+					{Name: "bio", DBType: "text", IsNullable: true},
+					{Name: "age", DBType: "integer", IsNullable: true},
+					{Name: "active", DBType: "boolean"},
+					{Name: "score", DBType: "double precision"},
+					{Name: "metadata", DBType: "jsonb"},
+					{Name: "created_at", DBType: "timestamp with time zone"},
+				},
+				PrimaryKey: &schema.PrimaryKey{Columns: []string{"id"}},
+			},
+			{
+				Name: "posts",
+				Columns: []*schema.Column{
+					{Name: "id", DBType: "bigint", IsAutoIncrement: true, HasDefault: true},
+					{Name: "title", DBType: "text"},
+					{Name: "body", DBType: "text"},
+					{Name: "user_id", DBType: "integer"},
+				},
+				PrimaryKey: &schema.PrimaryKey{Columns: []string{"id"}},
+				ForeignKeys: []*schema.ForeignKey{
+					{Name: "posts_user_id_fkey", Columns: []string{"user_id"}, RefTable: "users", RefColumns: []string{"id"}},
+				},
+			},
+		},
+		Enums: []*schema.Enum{
+			{Name: "status", Values: []string{"active", "inactive", "pending"}},
+		},
+	}
+	schema.ResolveRelationships(s)
+
+	cfg := &config.Config{
+		Input:  config.InputConfig{Dialect: "postgres", Paths: []string{"x"}},
+		Output: config.OutputConfig{Factories: true},
+		Types:  config.TypesConfig{NullType: config.NullTypeGeneric},
+	}
+	g := NewGenerator(cfg, s)
+	outDir := generateAndBuild(t, g, "factories")
+
+	// Verify factory files exist.
+	if _, err := os.Stat(filepath.Join(outDir, "sqlgen_users_factory.go")); os.IsNotExist(err) {
+		t.Error("users factory file not generated")
+	}
+	if _, err := os.Stat(filepath.Join(outDir, "sqlgen_posts_factory.go")); os.IsNotExist(err) {
+		t.Error("posts factory file not generated")
+	}
+
+	// Verify factory content has NewUser and InsertUser.
+	content, _ := os.ReadFile(filepath.Join(outDir, "sqlgen_users_factory.go"))
+	if !contains(string(content), "func NewUser(") {
+		t.Error("expected NewUser function")
+	}
+	if !contains(string(content), "func InsertUser(") {
+		t.Error("expected InsertUser function")
+	}
+	// Verify auto-increment ID is not in the factory defaults.
+	if contains(string(content), "Id:") {
+		t.Error("auto-increment ID should not be in factory defaults")
+	}
+	t.Log("Factory code compiles successfully")
+}
+
+func TestFactoryWithEnumsCompile(t *testing.T) {
+	t.Parallel()
+	s := &schema.Schema{
+		Tables: []*schema.Table{
+			{
+				Name: "items",
+				Columns: []*schema.Column{
+					{Name: "id", DBType: "integer", IsAutoIncrement: true, HasDefault: true},
+					{Name: "status", DBType: "item_status", EnumName: "item_status"},
+				},
+				PrimaryKey: &schema.PrimaryKey{Columns: []string{"id"}},
+			},
+		},
+		Enums: []*schema.Enum{
+			{Name: "item_status", Values: []string{"active", "inactive"}},
+		},
+	}
+
+	cfg := &config.Config{
+		Input:  config.InputConfig{Dialect: "postgres", Paths: []string{"x"}},
+		Output: config.OutputConfig{Factories: true},
+		Types:  config.TypesConfig{NullType: config.NullTypeGeneric},
+	}
+	g := NewGenerator(cfg, s)
+	outDir := generateAndBuild(t, g, "factenum")
+
+	content, _ := os.ReadFile(filepath.Join(outDir, "sqlgen_items_factory.go"))
+	if !contains(string(content), `ItemStatus("active")`) {
+		t.Error("expected enum factory to use first enum value")
+	}
+	t.Log("Factory with enums compiles successfully")
+}
+
+func TestFactoryNotGeneratedWhenDisabled(t *testing.T) {
+	t.Parallel()
+	s := &schema.Schema{
+		Tables: []*schema.Table{
+			{
+				Name:       "things",
+				Columns:    []*schema.Column{{Name: "id", DBType: "integer"}},
+				PrimaryKey: &schema.PrimaryKey{Columns: []string{"id"}},
+			},
+		},
+	}
+
+	cfg := &config.Config{
+		Input:  config.InputConfig{Dialect: "postgres", Paths: []string{"x"}},
+		Output: config.OutputConfig{Factories: false},
+		Types:  config.TypesConfig{NullType: config.NullTypeGeneric},
+	}
+	g := NewGenerator(cfg, s)
+	outDir := generateAndBuild(t, g, "nofactory")
+
+	if _, err := os.Stat(filepath.Join(outDir, "sqlgen_things_factory.go")); !os.IsNotExist(err) {
+		t.Error("factory file should not be generated when disabled")
+	}
+}
