@@ -79,6 +79,11 @@ type OutputConfig struct {
 
 	// NoHooks disables generation of hook files and hook calls in CRUD.
 	NoHooks bool `yaml:"no_hooks"`
+
+	// Templates is an optional path to a directory of .tmpl files.
+	// Files matching built-in template names override them.
+	// Extra .tmpl files are rendered once per table.
+	Templates string `yaml:"templates"`
 }
 
 // TimestampsConfig controls automatic timestamp management.
@@ -180,6 +185,13 @@ func (c *Config) validate() error {
 	}
 	if c.Output.Dir == "" {
 		return fmt.Errorf("output.dir is required: specify the output directory for generated code")
+	}
+	if c.Output.Templates != "" {
+		if info, err := os.Stat(c.Output.Templates); err != nil {
+			return fmt.Errorf("output.templates: %w", err)
+		} else if !info.IsDir() {
+			return fmt.Errorf("output.templates: %q is not a directory", c.Output.Templates)
+		}
 	}
 	if c.Types.NullType == "" {
 		c.Types.NullType = NullTypeGeneric

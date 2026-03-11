@@ -228,6 +228,11 @@ func (g *Generator) Run() error {
 				return fmt.Errorf("generating tests for %s: %w", table.Name, err)
 			}
 		}
+
+		// Extra user templates
+		if err := g.renderExtraTemplates(table, tableImports, outDir, pkg, snakeName, generated); err != nil {
+			return err
+		}
 	}
 
 	// Stale file cleanup.
@@ -241,8 +246,35 @@ func (g *Generator) generateSingleton(tmplName, outDir, pkg, filename string, ge
 	return g.generateFile(tmplName, data, outDir, filename, generated)
 }
 
+// builtinTemplates is the set of template names shipped with sqlgen.
+var builtinTemplates = map[string]bool{
+	"model.go.tmpl":         true,
+	"crud.go.tmpl":          true,
+	"hooks.go.tmpl":         true,
+	"where.go.tmpl":         true,
+	"loaders.go.tmpl":       true,
+	"relations.go.tmpl":     true,
+	"count_loaders.go.tmpl": true,
+	"preload.go.tmpl":       true,
+	"test.go.tmpl":          true,
+	"enum.go.tmpl":          true,
+	"enum_test.go.tmpl":     true,
+	"dialect.go.tmpl":       true,
+}
+
+// readTemplate reads a template, checking the user's override directory first.
+func (g *Generator) readTemplate(tmplName string) ([]byte, error) {
+	if g.cfg.Output.Templates != "" {
+		userPath := filepath.Join(g.cfg.Output.Templates, tmplName)
+		if data, err := os.ReadFile(userPath); err == nil {
+			return data, nil
+		}
+	}
+	return templateFS.ReadFile("templates/" + tmplName)
+}
+
 func (g *Generator) generateFile(tmplName string, data map[string]any, outDir, filename string, generated map[string]bool) error {
-	tmplContent, err := templateFS.ReadFile("templates/" + tmplName)
+	tmplContent, err := g.readTemplate(tmplName)
 	if err != nil {
 		return fmt.Errorf("reading template %s: %w", tmplName, err)
 	}
@@ -375,6 +407,38 @@ func (g *Generator) detectTimestamps(table *schema.Table) TimestampData {
 	}
 
 	return td
+}
+
+// renderExtraTemplates renders any user-provided templates that aren't built-in overrides.
+func (g *Generator) renderExtraTemplates(table *schema.Table, tableImports *ImportSet, outDir, pkg, snakeName string, generated map[string]bool) error {
+	if g.cfg.Output.Templates == "" {
+		return nil
+	}
+	entries, err := os.ReadDir(g.cfg.Output.Templates)
+	if err != nil {
+		return fmt.Errorf("reading templates dir: %w", err)
+	}
+	for _, entry := range entries {
+		name := entry.Name()
+		if !strings.HasSuffix(name, ".go.tmpl") || builtinTemplates[name] {
+			continue
+		}
+		// Derive output filename: "foo.go.tmpl" -> "sqlgen_{table}_foo.go"
+		base := strings.TrimSuffix(name, ".tmpl")
+		outFilename := fmt.Sprintf("sqlgen_%s_%s", snakeName, base)
+
+		data := map[string]any{
+			"Package":   pkg,
+			"Table":     table,
+			"Imports":   tableImports.FormatBlock(),
+			"Tags":      g.cfg.Tags,
+			"AllTables": g.schema.Tables,
+		}
+		if err := g.generateFile(name, data, outDir, outFilename, generated); err != nil {
+			return fmt.Errorf("generating extra template %s for %s: %w", name, table.Name, err)
+		}
+	}
+	return nil
 }
 
 // cleanStaleFiles removes generated files that weren't produced in this run.
