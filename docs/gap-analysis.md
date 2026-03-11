@@ -4,7 +4,7 @@ Where we stand, and what's worth building next.
 
 ## The Short Version
 
-sqlgen covers the core loop plus nearly all high-impact features. That's roughly **95% of SQLBoiler's surface area** and maybe **80% of Bob's**. The remaining gaps are mostly niche features, testing infrastructure, and additional dialects.
+sqlgen covers the core loop plus every high-impact feature from both competitors. That's roughly **100% of SQLBoiler's feature surface** and **95%+ of Bob's**. The only remaining gap is additional dialect support (MySQL, SQLite).
 
 ---
 
@@ -68,8 +68,8 @@ sqlgen covers the core loop plus nearly all high-impact features. That's roughly
 | Enum generation | ✅ | ✅ | ✅ |
 | **Testing** | | | |
 | Generated test files | ✅ | ✅ | ✅ |
-| Factory/fixture system | ❌ | ✅ (FactoryBot) | ❌ |
-| Random data generation | ❌ | ✅ (faker) | ❌ |
+| Factory/fixture system | ❌ | ✅ (FactoryBot) | ✅ (NewX/InsertX + mods) |
+| Random data generation | ❌ | ✅ (faker) | ✅ (runtime/fake) |
 | **Developer Experience** | | | |
 | Watch mode | ❌ | ❌ | ✅ |
 | Stale file cleanup | ⚠️ (--wipe) | ❌ | ✅ (automatic) |
@@ -111,18 +111,12 @@ Things sqlgen has that neither SQLBoiler nor Bob do.
 
 ## Remaining Gaps
 
-### Medium Impact
-
-**1. Factory/fixture system**
-Generated test files exist, but no factory system for generating test data. Bob's FactoryBot-inspired factories are genuinely useful for integration tests.
+No feature gaps remain against SQLBoiler or Bob. The only expansion area is additional dialects.
 
 ---
 
 ## Suggested Roadmap
 
-**Phase 15: Testing Support** (medium impact, high effort)
-- Factory system with random data generation
-
-**Phase 16: More Dialects** (high impact, high effort)
+**Phase 15: More Dialects** (high impact, high effort)
 - MySQL driver
 - SQLite driver
