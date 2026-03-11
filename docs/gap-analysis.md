@@ -79,10 +79,10 @@ sqlgen covers the core loop plus nearly all high-impact features. That's roughly
 | Automatic timestamps | ✅ | ❌ | ✅ (configurable) |
 | Soft deletes | ✅ | ❌ | ❌ |
 | Column whitelist/blacklist | ✅ | ✅ | ✅ |
-| Custom templates | ✅ | ✅ | ❌ |
+| Custom templates | ✅ | ✅ | ✅ (directory overlay) |
 | Struct tag control | ✅ | ✅ | ✅ (configurable) |
 | DB error constants | ❌ | ✅ | ❌ |
-| Bind to arbitrary struct | ✅ | ❌ | ❌ |
+| Bind to arbitrary struct | ✅ | ❌ | ✅ (runtime.Bind) |
 | Prepared statements | ❌ | ✅ | ❌ |
 | Query caching | ❌ | ✅ | ❌ |
 | Cursor iteration | ❌ | ✅ | ✅ (Each, Cursor) |
@@ -119,22 +119,17 @@ Generated test files exist, but no factory system for generating test data. Bob'
 ### Lower Impact
 
 **2. Soft deletes** — SQLBoiler has first-class support. Doable with hooks.
-**3. Custom templates** — Both competitors let users override templates.
-**4. DB error matching** — Bob generates typed constraint error matchers.
-**5. Prepared statement caching** — Performance optimization. Bob only.
-**6. Bind to arbitrary struct** — SQLBoiler's Bind lets you scan into any struct, not just generated models.
+**3. DB error matching** — Bob generates typed constraint error matchers.
+**4. Prepared statement caching** — Performance optimization. Bob only.
 
 ---
 
 ## Suggested Roadmap
 
-**Phase 15: Developer Experience** (medium impact, medium effort)
-- Custom template support
-
-**Phase 16: Testing Support** (medium impact, high effort)
+**Phase 15: Testing Support** (medium impact, high effort)
 - Factory system with random data generation
 - Typed DB error matchers
 
-**Phase 17: More Dialects** (high impact, high effort)
+**Phase 16: More Dialects** (high impact, high effort)
 - MySQL driver
 - SQLite driver
