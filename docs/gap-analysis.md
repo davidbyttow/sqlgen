@@ -64,7 +64,7 @@ sqlgen covers the core loop plus nearly all high-impact features. That's roughly
 | Nullable: generic wrapper | ✅ (null.String) | ✅ (opt.Val) | ✅ (Null[T]) |
 | Nullable: pointer | ✅ | ✅ | ✅ |
 | Nullable: database/sql | ✅ | ✅ | ✅ |
-| Custom type replacement | ✅ (by type) | ✅ (col/type/nullable) | ✅ (by DB type) |
+| Custom type replacement | ✅ (by type) | ✅ (col/type/nullable) | ✅ (by DB type + column name) |
 | Enum generation | ✅ | ✅ | ✅ |
 | **Testing** | | | |
 | Generated test files | ✅ | ✅ | ✅ |
@@ -113,19 +113,16 @@ Things sqlgen has that neither SQLBoiler nor Bob do.
 
 ### Medium Impact
 
-**1. Custom type replacement by column name**
-Replacements only match by DB type. Matching by column name/nullability is useful for: "all `metadata` columns -> `json.RawMessage`."
-
-**2. Factory/fixture system**
+**1. Factory/fixture system**
 Generated test files exist, but no factory system for generating test data. Bob's FactoryBot-inspired factories are genuinely useful for integration tests.
 
 ### Lower Impact
 
-**3. Soft deletes** — SQLBoiler has first-class support. Doable with hooks.
-**4. Custom templates** — Both competitors let users override templates.
-**5. DB error matching** — Bob generates typed constraint error matchers.
-**6. Prepared statement caching** — Performance optimization. Bob only.
-**7. Bind to arbitrary struct** — SQLBoiler's Bind lets you scan into any struct, not just generated models.
+**2. Soft deletes** — SQLBoiler has first-class support. Doable with hooks.
+**3. Custom templates** — Both competitors let users override templates.
+**4. DB error matching** — Bob generates typed constraint error matchers.
+**5. Prepared statement caching** — Performance optimization. Bob only.
+**6. Bind to arbitrary struct** — SQLBoiler's Bind lets you scan into any struct, not just generated models.
 
 ---
 
@@ -133,7 +130,6 @@ Generated test files exist, but no factory system for generating test data. Bob'
 
 **Phase 15: Developer Experience** (medium impact, medium effort)
 - Custom template support
-- Type replacement by column name/nullability
 
 **Phase 16: Testing Support** (medium impact, high effort)
 - Factory system with random data generation

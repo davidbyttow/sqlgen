@@ -19,7 +19,7 @@ func {{safePascal (plural (singular $tableName))}}(mods ...runtime.QueryMod) *ru
 
 // Find{{$structName}}ByPK finds a {{$structName}} by primary key.
 {{- if .Table.PrimaryKey}}
-func Find{{$structName}}ByPK(ctx context.Context, exec runtime.Executor{{range .Table.PrimaryKey.Columns}}, {{safeCamel .}} {{goType (findCol $.Table .)}}{{end}}) (*{{$structName}}, error) {
+func Find{{$structName}}ByPK(ctx context.Context, exec runtime.Executor{{range .Table.PrimaryKey.Columns}}, {{safeCamel .}} {{goType (findCol $.Table .) $tableName}}{{end}}) (*{{$structName}}, error) {
 	q := runtime.NewQuery(dialect, {{$tableConst}},
 {{- range $i, $col := .Table.PrimaryKey.Columns}}
 		runtime.Where("\"{{$col}}\" = ?", {{safeCamel $col}}),
@@ -274,7 +274,7 @@ func (o *{{$structName}}) Upsert(ctx context.Context, exec runtime.Executor, col
 
 // Exists checks if a row with the given primary key exists.
 {{- if .Table.PrimaryKey}}
-func {{$structName}}Exists(ctx context.Context, exec runtime.Executor{{range .Table.PrimaryKey.Columns}}, {{safeCamel .}} {{goType (findCol $.Table .)}}{{end}}) (bool, error) {
+func {{$structName}}Exists(ctx context.Context, exec runtime.Executor{{range .Table.PrimaryKey.Columns}}, {{safeCamel .}} {{goType (findCol $.Table .) $tableName}}{{end}}) (bool, error) {
 	return runtime.Exists(ctx, exec, dialect, {{$tableConst}},
 {{- range .Table.PrimaryKey.Columns}}
 		runtime.Where("\"{{.}}\" = ?", {{safeCamel .}}),

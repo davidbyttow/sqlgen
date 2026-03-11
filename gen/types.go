@@ -17,23 +17,42 @@ type GoType struct {
 
 // TypeMapper converts database column types to Go types.
 type TypeMapper struct {
-	nullType     config.NullType
-	replacements map[string]string
-	runtimePkg   string // Import path for the runtime package
+	nullType           config.NullType
+	replacements       map[string]string
+	columnReplacements map[string]string
+	runtimePkg         string // Import path for the runtime package
 }
 
 // NewTypeMapper creates a TypeMapper from config.
 func NewTypeMapper(cfg *config.Config, runtimePkg string) *TypeMapper {
 	return &TypeMapper{
-		nullType:     cfg.Types.NullType,
-		replacements: cfg.Types.Replacements,
-		runtimePkg:   runtimePkg,
+		nullType:           cfg.Types.NullType,
+		replacements:       cfg.Types.Replacements,
+		columnReplacements: cfg.Types.ColumnReplacements,
+		runtimePkg:         runtimePkg,
 	}
 }
 
 // GoTypeFor returns the Go type for a schema column.
 func (m *TypeMapper) GoTypeFor(col *schema.Column) GoType {
-	// Check user replacements first.
+	return m.GoTypeForTable(col, "")
+}
+
+// GoTypeForTable returns the Go type for a column, considering table-specific overrides.
+func (m *TypeMapper) GoTypeForTable(col *schema.Column, tableName string) GoType {
+	// Check column-level replacements first (most specific).
+	if m.columnReplacements != nil && tableName != "" {
+		// Exact match: "table.column"
+		if repl, ok := m.columnReplacements[tableName+"."+col.Name]; ok {
+			return parseTypeString(repl)
+		}
+		// Wildcard match: "*.column"
+		if repl, ok := m.columnReplacements["*."+col.Name]; ok {
+			return parseTypeString(repl)
+		}
+	}
+
+	// Check DB type replacements.
 	if m.replacements != nil {
 		if repl, ok := m.replacements[col.DBType]; ok {
 			return parseTypeString(repl)

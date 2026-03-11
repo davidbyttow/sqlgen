@@ -31,11 +31,19 @@ func TemplateFuncs(mapper *TypeMapper) template.FuncMap {
 		"title":      strings.Title,
 
 		// Type mapping
-		"goType": func(col *schema.Column) string {
-			return mapper.GoTypeFor(col).Name
+		"goType": func(col *schema.Column, tableName ...string) string {
+			tn := ""
+			if len(tableName) > 0 {
+				tn = tableName[0]
+			}
+			return mapper.GoTypeForTable(col, tn).Name
 		},
-		"goTypeObj": func(col *schema.Column) GoType {
-			return mapper.GoTypeFor(col)
+		"goTypeObj": func(col *schema.Column, tableName ...string) GoType {
+			tn := ""
+			if len(tableName) > 0 {
+				tn = tableName[0]
+			}
+			return mapper.GoTypeForTable(col, tn)
 		},
 		// testZeroVal returns a valid zero value expression for a column's Go type, for use in generated tests.
 		"testZeroVal": func(col *schema.Column) string {
