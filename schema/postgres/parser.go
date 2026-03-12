@@ -7,7 +7,10 @@ import (
 	"sort"
 	"strings"
 
+	// pg_query_go is used only for its protobuf type definitions (pure Go).
+	// The actual parsing is done by wasilibs/go-pgquery (Wasm, no cgo).
 	pg_query "github.com/pganalyze/pg_query_go/v6"
+	pgparse "github.com/wasilibs/go-pgquery"
 
 	"github.com/davidbyttow/sqlgen/schema"
 )
@@ -55,7 +58,7 @@ func (p *Parser) ParseDir(dir string) (*schema.Schema, error) {
 }
 
 func (p *Parser) ParseString(sql string) (*schema.Schema, error) {
-	result, err := pg_query.Parse(sql)
+	result, err := pgparse.Parse(sql)
 	if err != nil {
 		return nil, fmt.Errorf("parsing SQL: %w", err)
 	}
@@ -426,7 +429,7 @@ func deparseExpr(node *pg_query.Node) string {
 			{Stmt: &pg_query.Node{Node: &pg_query.Node_SelectStmt{SelectStmt: selectStmt}}},
 		},
 	}
-	result, err := pg_query.Deparse(parseResult)
+	result, err := pgparse.Deparse(parseResult)
 	if err != nil {
 		return ""
 	}
@@ -442,7 +445,7 @@ func deparseQuery(node *pg_query.Node) string {
 			{Stmt: node},
 		},
 	}
-	result, err := pg_query.Deparse(parseResult)
+	result, err := pgparse.Deparse(parseResult)
 	if err != nil {
 		return ""
 	}
