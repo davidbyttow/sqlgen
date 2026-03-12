@@ -1,6 +1,8 @@
 # sqlgen
 
-Database-first code generator for Go. Point it at your Postgres DDL files or a live database and it spits out type-safe models, CRUD operations, query builders, and relationship loading.
+Database-first code generator for Go. Point it at your DDL files or a live database and it spits out type-safe models, CRUD operations, query builders, and relationship loading.
+
+Supports **Postgres**, **MySQL**, and **SQLite**. No cgo required.
 
 Inspired by [SQLBoiler](https://github.com/volatiletech/sqlboiler), [Bob](https://github.com/stephenafamo/bob), and [jOOQ](https://www.jooq.org/), rebuilt from scratch.
 
@@ -14,7 +16,7 @@ Inspired by [SQLBoiler](https://github.com/volatiletech/sqlboiler), [Bob](https:
 - **Composable query building.** jOOQ chains methods; sqlgen composes `QueryMod` functions. Both let you build queries piece by piece without string concatenation.
 - **The database is the source of truth.** Both reject the "code defines schema" ORM pattern. Your tables, types, and constraints are defined in SQL, and the generated code reflects them exactly.
 
-Where sqlgen diverges: jOOQ is a full query DSL that covers nearly all of SQL. sqlgen is more opinionated, generating CRUD and relationship loading with a thinner query builder. jOOQ targets Java (and Kotlin/Scala); sqlgen targets Go. And while jOOQ requires a JDBC connection, sqlgen supports both live database introspection *and* offline DDL parsing (using PostgreSQL's actual C parser via pg_query_go).
+Where sqlgen diverges: jOOQ is a full query DSL that covers nearly all of SQL. sqlgen is more opinionated, generating CRUD and relationship loading with a thinner query builder. jOOQ targets Java (and Kotlin/Scala); sqlgen targets Go. And while jOOQ requires a JDBC connection, sqlgen supports both live database introspection *and* offline DDL parsing, with no cgo dependency.
 
 ## Install
 
@@ -22,7 +24,7 @@ Where sqlgen diverges: jOOQ is a full query DSL that covers nearly all of SQL. s
 go install github.com/davidbyttow/sqlgen/cmd/sqlgen@latest
 ```
 
-Requires Go 1.23+ and cgo (the Postgres parser wraps libpg_query via [pg_query_go](https://github.com/pganalyze/pg_query_go)).
+Requires Go 1.23+. Pure Go, no cgo needed. The Postgres DDL parser uses [go-pgquery](https://github.com/wasilibs/go-pgquery) (WebAssembly-based). MySQL and SQLite use hand-written parsers.
 
 ## Quick Start
 
@@ -58,7 +60,7 @@ CREATE TABLE posts (
 
 ```yaml
 input:
-  dialect: postgres
+  dialect: postgres    # or "mysql" or "sqlite"
   paths:
     - schema.sql
 
@@ -101,6 +103,30 @@ sqlgen generate
 ```
 
 See `examples/introspect/` for a working example.
+
+## Supported Dialects
+
+| Dialect | DDL Parsing | Live Introspection | Parser |
+|---------|:-----------:|:------------------:|--------|
+| **Postgres** | ✅ | ✅ | [go-pgquery](https://github.com/wasilibs/go-pgquery) (Wasm, no cgo) |
+| **MySQL** | ✅ | ❌ | Hand-written, zero deps |
+| **SQLite** | ✅ | ❌ | Hand-written, zero deps |
+
+All 3 dialects produce the same schema IR, so the generated Go code is structurally identical regardless of which database you're using.
+
+### MySQL-specific notes
+
+- `ENUM('val1','val2')` column types are extracted and generated as type-safe Go enums
+- Backtick-quoted identifiers are handled automatically
+- `UNSIGNED` integer types map to Go unsigned types (`uint32`, `uint64`, etc.)
+- `TINYINT(1)` is treated as `bool`
+- Table options (`ENGINE`, `CHARSET`, etc.) are parsed and discarded
+
+### SQLite-specific notes
+
+- `INTEGER PRIMARY KEY` is recognized as auto-increment (ROWID alias)
+- Type affinity rules are followed: `VARCHAR(255)` maps to `string`, `REAL` maps to `float64`, etc.
+- No enum support (SQLite doesn't have enums)
 
 ## Generated API
 
@@ -394,13 +420,76 @@ user.Bio.Clear()  // sets Valid = false
 // SQL: implements Scanner and Valuer
 ```
 
+### Factories
+
+When `output.factories: true`, sqlgen generates factory functions for each table. Useful for tests.
+
+```go
+// Create a user with random values for all non-auto-increment fields.
+user := models.NewUser()
+
+// Override specific fields with modifier functions.
+user := models.NewUser(func(u *models.User) {
+    u.Email = "alice@example.com"
+})
+
+// Create and insert in one shot.
+user, err := models.InsertUser(ctx, db, func(u *models.User) {
+    u.Name = "Alice"
+})
+```
+
+Random values come from `runtime/fake` (pure Go, no external deps).
+
+### DB Error Matching
+
+Generated constraint constants and runtime matchers for Postgres errors:
+
+```go
+if runtime.IsUniqueViolation(err) {
+    // handle duplicate
+}
+
+if runtime.IsConstraintViolation(err, models.UsersEmailKey) {
+    // handle specific constraint
+}
+```
+
+Works with both `pgx` and `lib/pq` without importing either (reflection-based).
+
+### Prepared Statement Caching
+
+Wrap your executor to automatically prepare and cache statements:
+
+```go
+cached := runtime.NewCachedExecutor(db)
+defer cached.Close()
+
+// First call prepares; subsequent calls reuse the prepared statement.
+user.Insert(ctx, cached)
+```
+
+### Bind to Arbitrary Struct
+
+Scan query results into any struct, not just generated models:
+
+```go
+type UserSummary struct {
+    Name  string `db:"name"`
+    Count int    `db:"post_count"`
+}
+
+var summaries []UserSummary
+err := runtime.Bind(ctx, db, "SELECT name, COUNT(*) as post_count FROM users JOIN posts ...", &summaries)
+```
+
 ## Configuration
 
 Full `sqlgen.yaml` reference:
 
 ```yaml
 input:
-  dialect: postgres          # only "postgres" for now
+  dialect: postgres          # "postgres", "mysql", or "sqlite"
 
   # Option A: parse DDL files (no database needed)
   paths:                     # SQL files or directories
@@ -415,12 +504,17 @@ output:
   package: models            # Go package name
   tests: false               # generate _test.go files alongside models
   no_hooks: false            # skip hook generation and hook calls in CRUD
+  factories: false           # generate NewX()/InsertX() factory functions
+  templates: ""              # path to custom template directory (overlay)
 
 types:
   null: generic              # "generic" (Null[T]), "pointer" (*T), or "database" (sql.NullString)
   replacements:              # override DB type -> Go type
     uuid: "github.com/google/uuid.UUID"
     jsonb: "encoding/json.RawMessage"
+  column_replacements:       # override by table.column or *.column
+    users.metadata: "map[string]any"
+    "*.external_id": "github.com/google/uuid.UUID"
 
 timestamps:
   created_at: created_at     # column name, or "-" to disable
@@ -435,6 +529,14 @@ tables:
       email:
         name: EmailAddress   # override field name
         type: "net/mail.Address"  # override Go type
+
+# polymorphic:               # define polymorphic relationships
+#   - table: comments
+#     type_column: commentable_type
+#     id_column: commentable_id
+#     targets:
+#       User: users
+#       Post: posts
 ```
 
 ### Null Type Strategies
@@ -459,7 +561,7 @@ Uses fsnotify with 200ms debounce. Watches all `.sql` files referenced in your c
 
 ## How It Works
 
-1. **Parse**: DDL files are parsed by pg_query_go (PostgreSQL 17's actual C parser compiled to Go via cgo). Alternatively, a live database is introspected via `information_schema` and `pg_catalog`.
+1. **Parse**: DDL files are parsed into a schema IR. Postgres uses go-pgquery (the PostgreSQL parser compiled to WebAssembly). MySQL and SQLite use hand-written parsers. Alternatively, a live Postgres database is introspected via `information_schema` and `pg_catalog`.
 2. **Schema IR**: The parsed result is converted to an intermediate representation (tables, columns, constraints, enums, views)
 3. **Resolve**: Foreign keys are walked to infer relationships (belongs-to, has-many, has-one, many-to-many)
 4. **Generate**: Go templates produce type-safe code for each table, enum, and relationship
@@ -473,18 +575,20 @@ Generated files are prefixed with `sqlgen_` and contain a `DO NOT EDIT` header. 
 sqlgen/
   cmd/sqlgen/       CLI (generate, watch commands)
   schema/           Schema IR types and DDL parsing
-    postgres/       Postgres-specific parser (pg_query_go)
+    postgres/       Postgres parser (go-pgquery, Wasm-based)
+    mysql/          MySQL parser (hand-written)
+    sqlite/         SQLite parser (hand-written)
   gen/              Code generation engine and templates
   runtime/          Minimal runtime library imported by generated code
+    fake/           Random value generators for factories
   config/           YAML config parsing
   internal/         Naming utilities (case conversion, pluralization)
 ```
 
 ## Status
 
-v1. Postgres only. Go only.
+v1. Postgres, MySQL, SQLite. Go only. Pure Go, no cgo.
 
 Planned:
 - Custom query support (name a `.sql` file, get a type-safe Go function)
-- More dialects (MySQL, SQLite)
 - More target languages

@@ -4,7 +4,7 @@ Where we stand, and what's worth building next.
 
 ## The Short Version
 
-sqlgen covers the core loop plus every high-impact feature from both competitors. That's roughly **100% of SQLBoiler's feature surface** and **95%+ of Bob's**. The only remaining gap is additional dialect support (MySQL, SQLite).
+sqlgen covers the core loop plus every high-impact feature from both competitors. That's roughly **100% of SQLBoiler's feature surface** and **100% of Bob's**. No feature gaps remain. All 3 major dialects are covered.
 
 ---
 
@@ -16,10 +16,11 @@ sqlgen covers the core loop plus every high-impact feature from both competitors
 | Live DB introspection | ✅ (primary) | ✅ | ✅ |
 | DDL file parsing | ❌ | ✅ | ✅ (primary) |
 | PostgreSQL | ✅ | ✅ | ✅ |
-| MySQL | ✅ | ✅ | ❌ |
-| SQLite | ✅ (community) | ✅ | ❌ |
+| MySQL | ✅ | ✅ | ✅ |
+| SQLite | ✅ (community) | ✅ | ✅ |
 | MSSQL | ✅ | ❌ | ❌ |
 | CockroachDB | ✅ (community) | ❌ | ❌ |
+| No cgo required | ✅ | ✅ | ✅ |
 | **Query Building** | | | |
 | SELECT with mods | ✅ | ✅ | ✅ |
 | WHERE (AND/OR) | ✅ | ✅ | ✅ (Or, Expr grouping) |
@@ -106,17 +107,19 @@ Things sqlgen has that neither SQLBoiler nor Bob do.
 - **Polymorphic relationships.** SQLBoiler doesn't support polymorphic. sqlgen has config-driven polymorphic with type+id columns.
 - **No-hooks flag.** Bob can't disable hook generation. sqlgen has `output.no_hooks: true`.
 - **Configurable automatic timestamps.** Bob doesn't have automatic timestamps at all.
+- **Pure Go, no cgo.** All 3 dialect parsers work with `CGO_ENABLED=0`.
 
 ---
 
 ## Remaining Gaps
 
-No feature gaps remain against SQLBoiler or Bob. The only expansion area is additional dialects.
+No feature gaps remain against SQLBoiler or Bob. The only niche dialects missing are MSSQL and CockroachDB (both SQLBoiler-only, community-maintained).
 
 ---
 
 ## Suggested Roadmap
 
-**Phase 15: More Dialects** (high impact, high effort)
-- MySQL driver
-- SQLite driver
+**Phase 15: Polish & Ecosystem**
+- Live introspection for MySQL and SQLite
+- Custom query support (`.sql` file → type-safe Go function)
+- More target languages
