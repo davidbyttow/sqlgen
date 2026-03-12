@@ -7,6 +7,8 @@ import (
 	"sort"
 	"strings"
 
+	// pg_query_go is used only for its protobuf type definitions (pure Go).
+	// The actual parsing is done by wasilibs/go-pgquery (Wasm, no cgo).
 	pg_query "github.com/pganalyze/pg_query_go/v6"
 	pgparse "github.com/wasilibs/go-pgquery"
 
