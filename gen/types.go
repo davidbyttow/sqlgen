@@ -111,33 +111,51 @@ func mapDBType(dbType string) GoType {
 	// Integer
 	case "smallint":
 		return GoType{Name: "int16"}
-	case "integer":
+	case "integer", "mediumint":
 		return GoType{Name: "int32"}
 	case "bigint":
 		return GoType{Name: "int64"}
+	case "tinyint":
+		return GoType{Name: "int8"}
+
+	// Unsigned integer (MySQL)
+	case "tinyint unsigned":
+		return GoType{Name: "uint8"}
+	case "smallint unsigned":
+		return GoType{Name: "uint16"}
+	case "integer unsigned", "mediumint unsigned":
+		return GoType{Name: "uint32"}
+	case "bigint unsigned":
+		return GoType{Name: "uint64"}
 
 	// Float
-	case "real":
+	case "real", "float":
 		return GoType{Name: "float32"}
-	case "double precision":
+	case "double precision", "double":
 		return GoType{Name: "float64"}
-	case "numeric", "money":
+	case "numeric", "money", "decimal":
 		return GoType{Name: "string"} // Numeric as string to avoid precision loss
 
 	// String
-	case "text", "character varying", "character", "name", "xml":
+	case "text", "character varying", "character", "name", "xml",
+		"varchar", "char", "tinytext", "mediumtext", "longtext", "enum", "set":
 		return GoType{Name: "string"}
 
 	// Binary
-	case "bytea":
+	case "bytea", "blob", "tinyblob", "mediumblob", "longblob", "binary", "varbinary":
 		return GoType{Name: "[]byte"}
 
 	// Date/Time
 	case "timestamp without time zone", "timestamp with time zone",
-		"date", "time without time zone", "time with time zone":
+		"date", "time without time zone", "time with time zone",
+		"datetime", "timestamp":
 		return GoType{Name: "time.Time", Import: "time"}
 	case "interval":
 		return GoType{Name: "string"} // No native Go interval type
+	case "time":
+		return GoType{Name: "string"} // MySQL TIME has no direct Go equivalent
+	case "year":
+		return GoType{Name: "int16"}
 
 	// UUID
 	case "uuid":
