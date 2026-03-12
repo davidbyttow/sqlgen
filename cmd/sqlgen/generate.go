@@ -9,7 +9,9 @@ import (
 	"github.com/davidbyttow/sqlgen/config"
 	"github.com/davidbyttow/sqlgen/gen"
 	"github.com/davidbyttow/sqlgen/schema"
+	"github.com/davidbyttow/sqlgen/schema/mysql"
 	"github.com/davidbyttow/sqlgen/schema/postgres"
+	"github.com/davidbyttow/sqlgen/schema/sqlite"
 	"github.com/spf13/cobra"
 )
 
@@ -77,6 +79,10 @@ func loadSchema(ctx context.Context, cfg *config.Config) (*schema.Schema, error)
 
 func getParser(dialect string) schema.Parser {
 	switch dialect {
+	case "sqlite":
+		return &sqlite.Parser{}
+	case "mysql":
+		return &mysql.Parser{}
 	case "postgres":
 		return &postgres.Parser{}
 	default:

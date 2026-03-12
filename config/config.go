@@ -173,8 +173,11 @@ func (c *Config) validate() error {
 	if c.Input.Dialect == "" {
 		c.Input.Dialect = "postgres"
 	}
-	if c.Input.Dialect != "postgres" {
-		return fmt.Errorf("unsupported dialect: %q (only \"postgres\" is supported)", c.Input.Dialect)
+	switch c.Input.Dialect {
+	case "postgres", "sqlite", "mysql":
+		// valid
+	default:
+		return fmt.Errorf("unsupported dialect: %q (supported: \"postgres\", \"sqlite\", \"mysql\")", c.Input.Dialect)
 	}
 	// Expand env vars in DSN.
 	if c.Input.DSN != "" {
