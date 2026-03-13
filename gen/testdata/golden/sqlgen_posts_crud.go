@@ -78,8 +78,8 @@ func (o *Post) Insert(ctx context.Context, exec sqlgen.Executor, cols ...sqlgen.
 	if err != nil {
 		return err
 	}
-	allCols := []string{"id", "author_id", "title", "body", "published", "created_at"}
-	allVals := []any{o.ID, o.AuthorID, o.Title, o.Body, o.Published, o.CreatedAt}
+	allCols := []string{"author_id", "title", "body", "published", "created_at"}
+	allVals := []any{o.AuthorID, o.Title, o.Body, o.Published, o.CreatedAt}
 	allCols, allVals = sqlgen.FilterColumns(allCols, allVals, cols...)
 
 	returning := []string{"id", "author_id", "title", "body", "published", "created_at"}
@@ -260,12 +260,12 @@ func (s PostSlice) InsertAll(ctx context.Context, exec sqlgen.Executor) error {
 	if len(s) == 0 {
 		return nil
 	}
-	cols := []string{"id", "author_id", "title", "body", "published", "created_at"}
+	cols := []string{"author_id", "title", "body", "published", "created_at"}
 	returning := []string{"id", "author_id", "title", "body", "published", "created_at"}
 
 	rows := make([][]any, len(s))
 	for i, o := range s {
-		rows[i] = []any{o.ID, o.AuthorID, o.Title, o.Body, o.Published, o.CreatedAt}
+		rows[i] = []any{o.AuthorID, o.Title, o.Body, o.Published, o.CreatedAt}
 	}
 
 	query, args := sqlgen.BuildBatchInsert(dialect, PostTableName, cols, rows, returning)

@@ -59,8 +59,8 @@ func (o *Organization) Insert(ctx context.Context, exec sqlgen.Executor, cols ..
 	if err != nil {
 		return err
 	}
-	allCols := []string{"id", "name", "slug", "created_at"}
-	allVals := []any{o.ID, o.Name, o.Slug, o.CreatedAt}
+	allCols := []string{"name", "slug", "created_at"}
+	allVals := []any{o.Name, o.Slug, o.CreatedAt}
 	allCols, allVals = sqlgen.FilterColumns(allCols, allVals, cols...)
 
 	returning := []string{"id", "name", "slug", "created_at"}
@@ -237,12 +237,12 @@ func (s OrganizationSlice) InsertAll(ctx context.Context, exec sqlgen.Executor) 
 	if len(s) == 0 {
 		return nil
 	}
-	cols := []string{"id", "name", "slug", "created_at"}
+	cols := []string{"name", "slug", "created_at"}
 	returning := []string{"id", "name", "slug", "created_at"}
 
 	rows := make([][]any, len(s))
 	for i, o := range s {
-		rows[i] = []any{o.ID, o.Name, o.Slug, o.CreatedAt}
+		rows[i] = []any{o.Name, o.Slug, o.CreatedAt}
 	}
 
 	query, args := sqlgen.BuildBatchInsert(dialect, OrganizationTableName, cols, rows, returning)

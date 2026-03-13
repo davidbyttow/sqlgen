@@ -1,6 +1,7 @@
 package sqlgen
 
 import (
+	"database/sql/driver"
 	"encoding/json"
 	"testing"
 )
@@ -147,6 +148,108 @@ func TestNullJSONInStruct(t *testing.T) {
 	json.Unmarshal(data2, &got2)
 	if got2.Email.Valid {
 		t.Error("null email should be invalid after round-trip")
+	}
+}
+
+func TestNullInt32Value(t *testing.T) {
+	n := NewNull(int32(42))
+	v, err := n.Value()
+	if err != nil {
+		t.Fatal(err)
+	}
+	// driver.Value must be int64, not int32.
+	i64, ok := v.(int64)
+	if !ok {
+		t.Fatalf("Value() returned %T, want int64", v)
+	}
+	if i64 != 42 {
+		t.Errorf("Value() = %d, want 42", i64)
+	}
+}
+
+func TestNullFloat32Value(t *testing.T) {
+	n := NewNull(float32(3.14))
+	v, err := n.Value()
+	if err != nil {
+		t.Fatal(err)
+	}
+	f64, ok := v.(float64)
+	if !ok {
+		t.Fatalf("Value() returned %T, want float64", v)
+	}
+	if f64 < 3.13 || f64 > 3.15 {
+		t.Errorf("Value() = %f, want ~3.14", f64)
+	}
+}
+
+func TestNullNilValue(t *testing.T) {
+	var n Null[int32]
+	v, err := n.Value()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v != nil {
+		t.Errorf("null Value() = %v, want nil", v)
+	}
+}
+
+func TestNullValueTypes(t *testing.T) {
+	tests := []struct {
+		name string
+		val  driver.Valuer
+		want any // expected type
+	}{
+		{"int8", NewNull(int8(1)), int64(1)},
+		{"int16", NewNull(int16(2)), int64(2)},
+		{"int32", NewNull(int32(3)), int64(3)},
+		{"int", NewNull(int(4)), int64(4)},
+		{"uint8", NewNull(uint8(5)), int64(5)},
+		{"uint16", NewNull(uint16(6)), int64(6)},
+		{"uint32", NewNull(uint32(7)), int64(7)},
+		{"float32", NewNull(float32(1.5)), float64(1.5)},
+		{"string", NewNull("hello"), "hello"},
+		{"bool", NewNull(true), true},
+		{"int64", NewNull(int64(99)), int64(99)},
+		{"float64", NewNull(float64(2.5)), float64(2.5)},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			v, err := tt.val.Value()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if v != tt.want {
+				t.Errorf("Value() = %v (%T), want %v (%T)", v, v, tt.want, tt.want)
+			}
+		})
+	}
+}
+
+func TestNullScanBytesIntoRawMessage(t *testing.T) {
+	// json.RawMessage is defined as []byte but is a distinct type.
+	// Drivers return []byte for JSONB, so Scan must handle the conversion.
+	type RawMessage = json.RawMessage
+	var n Null[RawMessage]
+	src := []byte(`{"key":"value"}`)
+	if err := n.Scan(src); err != nil {
+		t.Fatalf("Scan([]byte) into Null[RawMessage]: %v", err)
+	}
+	if !n.Valid {
+		t.Fatal("expected Valid after Scan")
+	}
+	if string(n.Val) != `{"key":"value"}` {
+		t.Errorf("Val = %s, want {\"key\":\"value\"}", n.Val)
+	}
+}
+
+func TestNullScanInt64IntoInt32(t *testing.T) {
+	var n Null[int32]
+	// Drivers return int64, Scan must convert to int32.
+	if err := n.Scan(int64(42)); err != nil {
+		t.Fatalf("Scan(int64) into Null[int32]: %v", err)
+	}
+	if !n.Valid || n.Val != 42 {
+		t.Errorf("got Valid=%v Val=%v, want Valid=true Val=42", n.Valid, n.Val)
 	}
 }
 

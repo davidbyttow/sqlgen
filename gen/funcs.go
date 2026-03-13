@@ -93,17 +93,25 @@ func TemplateFuncs(mapper *TypeMapper) template.FuncMap {
 		// nullGoType returns a Null[T]-wrapped version of a column's Go type for preload scanning.
 		// If the column is already nullable, it returns the same Null[T] type.
 		// If non-nullable, wraps in sqlgen.Null[BaseType].
-		"nullGoType": func(col *schema.Column) string {
-			gt := mapper.GoTypeFor(col)
+		// Accepts optional table name for column_replacements support.
+		"nullGoType": func(col *schema.Column, tableName ...string) string {
+			tn := ""
+			if len(tableName) > 0 {
+				tn = tableName[0]
+			}
+			gt := mapper.GoTypeForTable(col, tn)
 			if col.IsNullable {
-				// Already a Null[T] type, use it directly.
 				return gt.Name
 			}
 			return "sqlgen.Null[" + gt.Name + "]"
 		},
 		// baseGoType returns the inner type name (e.g., "string" for both "string" and "sqlgen.Null[string]").
-		"baseGoType": func(col *schema.Column) string {
-			gt := mapper.GoTypeFor(col)
+		"baseGoType": func(col *schema.Column, tableName ...string) string {
+			tn := ""
+			if len(tableName) > 0 {
+				tn = tableName[0]
+			}
+			gt := mapper.GoTypeForTable(col, tn)
 			name := gt.Name
 			if strings.HasPrefix(name, "sqlgen.Null[") && strings.HasSuffix(name, "]") {
 				return name[len("sqlgen.Null[") : len(name)-1]
@@ -160,11 +168,23 @@ func TemplateFuncs(mapper *TypeMapper) template.FuncMap {
 			return cols
 		},
 		"insertableColumns": func(table *schema.Table) []*schema.Column {
+			pkSet := make(map[string]bool)
+			if table.PrimaryKey != nil {
+				for _, c := range table.PrimaryKey.Columns {
+					pkSet[c] = true
+				}
+			}
 			var cols []*schema.Column
 			for _, c := range table.Columns {
-				if !c.IsAutoIncrement {
-					cols = append(cols, c)
+				if c.IsAutoIncrement {
+					continue
 				}
+				// Skip PK columns with DB defaults (e.g., gen_random_uuid()).
+				// Users can still include them via Whitelist.
+				if pkSet[c.Name] && c.HasDefault {
+					continue
+				}
+				cols = append(cols, c)
 			}
 			return cols
 		},

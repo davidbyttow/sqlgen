@@ -78,8 +78,8 @@ func (o *User) Insert(ctx context.Context, exec sqlgen.Executor, cols ...sqlgen.
 	if err != nil {
 		return err
 	}
-	allCols := []string{"id", "org_id", "email", "role", "name", "created_at", "updated_at"}
-	allVals := []any{o.ID, o.OrgID, o.Email, o.Role, o.Name, o.CreatedAt, o.UpdatedAt}
+	allCols := []string{"org_id", "email", "role", "name", "created_at", "updated_at"}
+	allVals := []any{o.OrgID, o.Email, o.Role, o.Name, o.CreatedAt, o.UpdatedAt}
 	allCols, allVals = sqlgen.FilterColumns(allCols, allVals, cols...)
 
 	returning := []string{"id", "org_id", "email", "role", "name", "created_at", "updated_at"}
@@ -262,12 +262,12 @@ func (s UserSlice) InsertAll(ctx context.Context, exec sqlgen.Executor) error {
 	if len(s) == 0 {
 		return nil
 	}
-	cols := []string{"id", "org_id", "email", "role", "name", "created_at", "updated_at"}
+	cols := []string{"org_id", "email", "role", "name", "created_at", "updated_at"}
 	returning := []string{"id", "org_id", "email", "role", "name", "created_at", "updated_at"}
 
 	rows := make([][]any, len(s))
 	for i, o := range s {
-		rows[i] = []any{o.ID, o.OrgID, o.Email, o.Role, o.Name, o.CreatedAt, o.UpdatedAt}
+		rows[i] = []any{o.OrgID, o.Email, o.Role, o.Name, o.CreatedAt, o.UpdatedAt}
 	}
 
 	query, args := sqlgen.BuildBatchInsert(dialect, UserTableName, cols, rows, returning)

@@ -19,7 +19,7 @@ package {{.Package}}
 // {{lower $structName}}{{$fieldName}}Preload holds nullable scan targets for LEFT JOINed {{$foreignStructName}} columns.
 type {{lower $structName}}{{$fieldName}}Preload struct {
 {{- range $foreignTable.Columns}}
-	{{safeCamel .Name}} {{nullGoType .}}
+	{{safeCamel .Name}} {{nullGoType . $foreignTable.Name}}
 {{- end}}
 }
 
