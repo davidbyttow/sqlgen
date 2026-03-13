@@ -1,4 +1,4 @@
-package runtime
+package sqlgen
 
 // Columns controls which columns are included in Insert/Update/Upsert operations.
 // Use Whitelist or Blacklist to create one.

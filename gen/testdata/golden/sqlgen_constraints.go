@@ -2,35 +2,35 @@
 
 package models
 
-import "github.com/davidbyttow/sqlgen/runtime"
+import "github.com/davidbyttow/sqlgen"
 
 // Database constraint constants for use with IsUniqueViolation, IsForeignKeyViolation, etc.
 const (
-	UserIdxUsersEmailOrg runtime.Constraint = "idx_users_email_org"
-	AuditLogFkAuditUser  runtime.Constraint = "fk_audit_user"
+	UserIdxUsersEmailOrg sqlgen.Constraint = "idx_users_email_org"
+	AuditLogFkAuditUser  sqlgen.Constraint = "fk_audit_user"
 )
 
 // IsUniqueViolation checks if err is a unique constraint violation for the given constraint.
-func IsUniqueViolation(err error, c runtime.Constraint) bool {
-	return runtime.IsUniqueViolation(err, c)
+func IsUniqueViolation(err error, c sqlgen.Constraint) bool {
+	return sqlgen.IsUniqueViolation(err, c)
 }
 
 // IsForeignKeyViolation checks if err is a FK constraint violation for the given constraint.
-func IsForeignKeyViolation(err error, c runtime.Constraint) bool {
-	return runtime.IsForeignKeyViolation(err, c)
+func IsForeignKeyViolation(err error, c sqlgen.Constraint) bool {
+	return sqlgen.IsForeignKeyViolation(err, c)
 }
 
 // IsNotNullViolation checks if err is a NOT NULL violation for the given constraint.
-func IsNotNullViolation(err error, c runtime.Constraint) bool {
-	return runtime.IsNotNullViolation(err, c)
+func IsNotNullViolation(err error, c sqlgen.Constraint) bool {
+	return sqlgen.IsNotNullViolation(err, c)
 }
 
 // IsCheckViolation checks if err is a CHECK constraint violation for the given constraint.
-func IsCheckViolation(err error, c runtime.Constraint) bool {
-	return runtime.IsCheckViolation(err, c)
+func IsCheckViolation(err error, c sqlgen.Constraint) bool {
+	return sqlgen.IsCheckViolation(err, c)
 }
 
 // IsConstraintViolation checks if err is any constraint violation for the given constraint.
-func IsConstraintViolation(err error, c runtime.Constraint) bool {
-	return runtime.IsConstraintViolation(err, c)
+func IsConstraintViolation(err error, c sqlgen.Constraint) bool {
+	return sqlgen.IsConstraintViolation(err, c)
 }

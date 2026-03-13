@@ -5,11 +5,11 @@ package models
 import (
 	"context"
 
-	"github.com/davidbyttow/sqlgen/runtime"
+	"github.com/davidbyttow/sqlgen"
 )
 
 // AddUsers adds models to the Users relationship by setting their FK.
-func (o *Organization) AddUsers(ctx context.Context, exec runtime.Executor, related ...*User) error {
+func (o *Organization) AddUsers(ctx context.Context, exec sqlgen.Executor, related ...*User) error {
 	for _, r := range related {
 		r.OrgID = o.ID
 		query := "UPDATE " + dialect.QuoteIdent(UserTableName) +

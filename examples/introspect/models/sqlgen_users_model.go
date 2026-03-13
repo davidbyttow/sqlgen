@@ -5,7 +5,7 @@ package models
 import (
 	"time"
 
-	"github.com/davidbyttow/sqlgen/runtime"
+	"github.com/davidbyttow/sqlgen"
 )
 
 // UserTableName is the database table name.
@@ -31,7 +31,7 @@ type User struct {
 	ID        string               `json:"id" db:"id"`
 	Email     string               `json:"email" db:"email"`
 	Name      string               `json:"name" db:"name"`
-	Bio       runtime.Null[string] `json:"bio" db:"bio"`
+	Bio       sqlgen.Null[string] `json:"bio" db:"bio"`
 	CreatedAt time.Time            `json:"created_at" db:"created_at"`
 
 	R *UserRels `json:"-" db:"-"`

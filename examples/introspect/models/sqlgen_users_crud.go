@@ -6,19 +6,19 @@ import (
 	"context"
 	"time"
 
-	"github.com/davidbyttow/sqlgen/runtime"
+	"github.com/davidbyttow/sqlgen"
 )
 
 // Users returns a query builder for the users table.
-func Users(mods ...runtime.QueryMod) *runtime.Query {
-	return runtime.NewQuery(dialect, UserTableName, mods...)
+func Users(mods ...sqlgen.QueryMod) *sqlgen.Query {
+	return sqlgen.NewQuery(dialect, UserTableName, mods...)
 }
 
 // FindUserByPK finds a User by primary key.
-func FindUserByPK(ctx context.Context, exec runtime.Executor, id string) (*User, error) {
-	q := runtime.NewQuery(dialect, UserTableName,
-		runtime.Where("\"id\" = ?", id),
-		runtime.Limit(1),
+func FindUserByPK(ctx context.Context, exec sqlgen.Executor, id string) (*User, error) {
+	q := sqlgen.NewQuery(dialect, UserTableName,
+		sqlgen.Where("\"id\" = ?", id),
+		sqlgen.Limit(1),
 	)
 
 	query, args := q.BuildSelect()
@@ -33,8 +33,8 @@ func FindUserByPK(ctx context.Context, exec runtime.Executor, id string) (*User,
 
 // AllUsers retrieves all rows from the users table with the given query mods.
 // Supports Preload() for LEFT JOIN eager loading of to-one relationships.
-func AllUsers(ctx context.Context, exec runtime.Executor, mods ...runtime.QueryMod) (UserSlice, error) {
-	q := runtime.NewQuery(dialect, UserTableName, mods...)
+func AllUsers(ctx context.Context, exec sqlgen.Executor, mods ...sqlgen.QueryMod) (UserSlice, error) {
+	q := sqlgen.NewQuery(dialect, UserTableName, mods...)
 	query, args := q.BuildSelect()
 	rows, err := exec.QueryContext(ctx, query, args...)
 	if err != nil {
@@ -55,19 +55,19 @@ func AllUsers(ctx context.Context, exec runtime.Executor, mods ...runtime.QueryM
 
 // Insert inserts the User into the database.
 // Optional Columns parameter controls which columns are included (Whitelist/Blacklist).
-func (o *User) Insert(ctx context.Context, exec runtime.Executor, cols ...runtime.Columns) error {
-	ctx, err := userHooks.RunIfEnabled(ctx, exec, runtime.BeforeInsert, o)
+func (o *User) Insert(ctx context.Context, exec sqlgen.Executor, cols ...sqlgen.Columns) error {
+	ctx, err := userHooks.RunIfEnabled(ctx, exec, sqlgen.BeforeInsert, o)
 	if err != nil {
 		return err
 	}
 	o.CreatedAt = time.Now()
 	allCols := []string{"id", "email", "name", "bio", "created_at"}
 	allVals := []any{o.ID, o.Email, o.Name, o.Bio, o.CreatedAt}
-	allCols, allVals = runtime.FilterColumns(allCols, allVals, cols...)
+	allCols, allVals = sqlgen.FilterColumns(allCols, allVals, cols...)
 
 	returning := []string{"id", "email", "name", "bio", "created_at"}
 
-	query, args := runtime.BuildInsert(dialect, UserTableName, allCols, allVals, returning)
+	query, args := sqlgen.BuildInsert(dialect, UserTableName, allCols, allVals, returning)
 	err = exec.QueryRowContext(ctx, query, args...).Scan(
 		&o.ID,
 		&o.Email,
@@ -78,36 +78,36 @@ func (o *User) Insert(ctx context.Context, exec runtime.Executor, cols ...runtim
 	if err != nil {
 		return err
 	}
-	_, err = userHooks.RunIfEnabled(ctx, exec, runtime.AfterInsert, o)
+	_, err = userHooks.RunIfEnabled(ctx, exec, sqlgen.AfterInsert, o)
 	return err
 }
 
 // Update updates the User in the database. Only non-PK columns are updated.
 // Optional Columns parameter controls which columns are included (Whitelist/Blacklist).
-func (o *User) Update(ctx context.Context, exec runtime.Executor, cols ...runtime.Columns) error {
-	ctx, err := userHooks.RunIfEnabled(ctx, exec, runtime.BeforeUpdate, o)
+func (o *User) Update(ctx context.Context, exec sqlgen.Executor, cols ...sqlgen.Columns) error {
+	ctx, err := userHooks.RunIfEnabled(ctx, exec, sqlgen.BeforeUpdate, o)
 	if err != nil {
 		return err
 	}
 	setCols := []string{"email", "name", "bio", "created_at"}
 	setVals := []any{o.Email, o.Name, o.Bio, o.CreatedAt}
-	setCols, setVals = runtime.FilterColumns(setCols, setVals, cols...)
+	setCols, setVals = sqlgen.FilterColumns(setCols, setVals, cols...)
 
 	whereClauses := []string{"\"id\" = ?"}
 	whereArgs := []any{o.ID}
 
-	query, args := runtime.BuildUpdate(dialect, UserTableName, setCols, setVals, whereClauses, whereArgs)
+	query, args := sqlgen.BuildUpdate(dialect, UserTableName, setCols, setVals, whereClauses, whereArgs)
 	_, err = exec.ExecContext(ctx, query, args...)
 	if err != nil {
 		return err
 	}
-	_, err = userHooks.RunIfEnabled(ctx, exec, runtime.AfterUpdate, o)
+	_, err = userHooks.RunIfEnabled(ctx, exec, sqlgen.AfterUpdate, o)
 	return err
 }
 
 // Delete deletes the User from the database.
-func (o *User) Delete(ctx context.Context, exec runtime.Executor) error {
-	ctx, err := userHooks.RunIfEnabled(ctx, exec, runtime.BeforeDelete, o)
+func (o *User) Delete(ctx context.Context, exec sqlgen.Executor) error {
+	ctx, err := userHooks.RunIfEnabled(ctx, exec, sqlgen.BeforeDelete, o)
 	if err != nil {
 		return err
 	}
@@ -115,31 +115,31 @@ func (o *User) Delete(ctx context.Context, exec runtime.Executor) error {
 	whereClauses := []string{"\"id\" = ?"}
 	whereArgs := []any{o.ID}
 
-	query, args := runtime.BuildDelete(dialect, UserTableName, whereClauses, whereArgs)
+	query, args := sqlgen.BuildDelete(dialect, UserTableName, whereClauses, whereArgs)
 	_, err = exec.ExecContext(ctx, query, args...)
 	if err != nil {
 		return err
 	}
-	_, err = userHooks.RunIfEnabled(ctx, exec, runtime.AfterDelete, o)
+	_, err = userHooks.RunIfEnabled(ctx, exec, sqlgen.AfterDelete, o)
 	return err
 }
 
 // Upsert inserts or updates the User based on the primary key.
 // Optional Columns parameter controls which non-PK columns are included (Whitelist/Blacklist).
-func (o *User) Upsert(ctx context.Context, exec runtime.Executor, cols ...runtime.Columns) error {
-	ctx, err := userHooks.RunIfEnabled(ctx, exec, runtime.BeforeUpsert, o)
+func (o *User) Upsert(ctx context.Context, exec sqlgen.Executor, cols ...sqlgen.Columns) error {
+	ctx, err := userHooks.RunIfEnabled(ctx, exec, sqlgen.BeforeUpsert, o)
 	if err != nil {
 		return err
 	}
 	allCols := []string{"id", "email", "name", "bio", "created_at"}
 	allVals := []any{o.ID, o.Email, o.Name, o.Bio, o.CreatedAt}
-	allCols, allVals = runtime.FilterColumns(allCols, allVals, cols...)
+	allCols, allVals = sqlgen.FilterColumns(allCols, allVals, cols...)
 	conflictCols := []string{"id"}
 	updateCols := []string{"email", "name", "bio", "created_at"}
-	updateCols, _ = runtime.FilterColumns(updateCols, make([]any, len(updateCols)), cols...)
+	updateCols, _ = sqlgen.FilterColumns(updateCols, make([]any, len(updateCols)), cols...)
 	returning := []string{"id", "email", "name", "bio", "created_at"}
 
-	query, args := runtime.BuildUpsert(dialect, UserTableName, allCols, allVals, conflictCols, updateCols, returning)
+	query, args := sqlgen.BuildUpsert(dialect, UserTableName, allCols, allVals, conflictCols, updateCols, returning)
 	err = exec.QueryRowContext(ctx, query, args...).Scan(
 		&o.ID,
 		&o.Email,
@@ -150,26 +150,26 @@ func (o *User) Upsert(ctx context.Context, exec runtime.Executor, cols ...runtim
 	if err != nil {
 		return err
 	}
-	_, err = userHooks.RunIfEnabled(ctx, exec, runtime.AfterUpsert, o)
+	_, err = userHooks.RunIfEnabled(ctx, exec, sqlgen.AfterUpsert, o)
 	return err
 }
 
 // Exists checks if a row with the given primary key exists.
-func UserExists(ctx context.Context, exec runtime.Executor, id string) (bool, error) {
-	return runtime.Exists(ctx, exec, dialect, UserTableName,
-		runtime.Where("\"id\" = ?", id),
+func UserExists(ctx context.Context, exec sqlgen.Executor, id string) (bool, error) {
+	return sqlgen.Exists(ctx, exec, dialect, UserTableName,
+		sqlgen.Where("\"id\" = ?", id),
 	)
 }
 
 // CountUsers returns the count of rows matching the query mods.
-func CountUsers(ctx context.Context, exec runtime.Executor, mods ...runtime.QueryMod) (int64, error) {
-	return runtime.Count(ctx, exec, dialect, UserTableName, mods...)
+func CountUsers(ctx context.Context, exec sqlgen.Executor, mods ...sqlgen.QueryMod) (int64, error) {
+	return sqlgen.Count(ctx, exec, dialect, UserTableName, mods...)
 }
 
 // UpdateAllUsers updates all rows matching the given mods.
 // set is a map of column name -> new value.
-func UpdateAllUsers(ctx context.Context, exec runtime.Executor, set map[string]any, mods ...runtime.QueryMod) (int64, error) {
-	q := runtime.NewQuery(dialect, UserTableName, mods...)
+func UpdateAllUsers(ctx context.Context, exec sqlgen.Executor, set map[string]any, mods ...sqlgen.QueryMod) (int64, error) {
+	q := sqlgen.NewQuery(dialect, UserTableName, mods...)
 	query, args := q.BuildUpdateAll(set)
 	result, err := exec.ExecContext(ctx, query, args...)
 	if err != nil {
@@ -179,8 +179,8 @@ func UpdateAllUsers(ctx context.Context, exec runtime.Executor, set map[string]a
 }
 
 // DeleteAllUsers deletes all rows matching the given mods.
-func DeleteAllUsers(ctx context.Context, exec runtime.Executor, mods ...runtime.QueryMod) (int64, error) {
-	q := runtime.NewQuery(dialect, UserTableName, mods...)
+func DeleteAllUsers(ctx context.Context, exec sqlgen.Executor, mods ...sqlgen.QueryMod) (int64, error) {
+	q := sqlgen.NewQuery(dialect, UserTableName, mods...)
 	query, args := q.BuildDeleteAll()
 	result, err := exec.ExecContext(ctx, query, args...)
 	if err != nil {
@@ -190,17 +190,17 @@ func DeleteAllUsers(ctx context.Context, exec runtime.Executor, mods ...runtime.
 }
 
 // Reload refreshes the User from the database using its primary key.
-func (o *User) Reload(ctx context.Context, exec runtime.Executor) error {
-	q := runtime.NewQuery(dialect, UserTableName,
-		runtime.Where("\"id\" = ?", o.ID),
-		runtime.Limit(1),
+func (o *User) Reload(ctx context.Context, exec sqlgen.Executor) error {
+	q := sqlgen.NewQuery(dialect, UserTableName,
+		sqlgen.Where("\"id\" = ?", o.ID),
+		sqlgen.Limit(1),
 	)
 	query, args := q.BuildSelect()
 	return o.ScanRow(exec.QueryRowContext(ctx, query, args...))
 }
 
 // UpdateAll updates all models in the slice with the given column values.
-func (s UserSlice) UpdateAll(ctx context.Context, exec runtime.Executor, set map[string]any) (int64, error) {
+func (s UserSlice) UpdateAll(ctx context.Context, exec sqlgen.Executor, set map[string]any) (int64, error) {
 	if len(s) == 0 {
 		return 0, nil
 	}
@@ -208,11 +208,11 @@ func (s UserSlice) UpdateAll(ctx context.Context, exec runtime.Executor, set map
 	for i, o := range s {
 		ids[i] = o.ID
 	}
-	return UpdateAllUsers(ctx, exec, set, runtime.WhereIn("\"id\"", ids...))
+	return UpdateAllUsers(ctx, exec, set, sqlgen.WhereIn("\"id\"", ids...))
 }
 
 // DeleteAll deletes all models in the slice.
-func (s UserSlice) DeleteAll(ctx context.Context, exec runtime.Executor) (int64, error) {
+func (s UserSlice) DeleteAll(ctx context.Context, exec sqlgen.Executor) (int64, error) {
 	if len(s) == 0 {
 		return 0, nil
 	}
@@ -220,5 +220,5 @@ func (s UserSlice) DeleteAll(ctx context.Context, exec runtime.Executor) (int64,
 	for i, o := range s {
 		ids[i] = o.ID
 	}
-	return DeleteAllUsers(ctx, exec, runtime.WhereIn("\"id\"", ids...))
+	return DeleteAllUsers(ctx, exec, sqlgen.WhereIn("\"id\"", ids...))
 }

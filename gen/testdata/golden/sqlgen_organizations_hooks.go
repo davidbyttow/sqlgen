@@ -5,19 +5,19 @@ package models
 import (
 	"context"
 
-	"github.com/davidbyttow/sqlgen/runtime"
+	"github.com/davidbyttow/sqlgen"
 )
 
 // organizationHooks stores the hooks for Organization.
-var organizationHooks = runtime.NewHooks()
+var organizationHooks = sqlgen.NewHooks()
 
 // OrganizationHook is a typed hook function for Organization lifecycle events.
-type OrganizationHook func(ctx context.Context, exec runtime.Executor, model *Organization) (context.Context, error)
+type OrganizationHook func(ctx context.Context, exec sqlgen.Executor, model *Organization) (context.Context, error)
 
 // AddOrganizationHook registers a typed hook for the given hook point.
 // The hook receives the model pointer and can inspect or modify it.
-func AddOrganizationHook(point runtime.HookPoint, fn OrganizationHook) {
-	organizationHooks.Add(point, func(ctx context.Context, exec runtime.Executor, model any) (context.Context, error) {
+func AddOrganizationHook(point sqlgen.HookPoint, fn OrganizationHook) {
+	organizationHooks.Add(point, func(ctx context.Context, exec sqlgen.Executor, model any) (context.Context, error) {
 		return fn(ctx, exec, model.(*Organization))
 	})
 }

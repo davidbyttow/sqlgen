@@ -6,18 +6,18 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/davidbyttow/sqlgen/runtime"
+	"github.com/davidbyttow/sqlgen"
 )
 
 // auditlogLoaders maps relationship names to their loader functions.
-var auditlogLoaders = map[string]runtime.LoadFunc{}
+var auditlogLoaders = map[string]sqlgen.LoadFunc{}
 
 func init() {
 	auditlogLoaders["User"] = loadAuditLogUser
 }
 
 // LoadRelations eagerly loads the specified relationships for a slice of AuditLog.
-func (s AuditLogSlice) LoadRelations(ctx context.Context, exec runtime.Executor, loads ...*runtime.EagerLoadRequest) error {
+func (s AuditLogSlice) LoadRelations(ctx context.Context, exec sqlgen.Executor, loads ...*sqlgen.EagerLoadRequest) error {
 	for _, load := range loads {
 		fn, ok := auditlogLoaders[load.Name]
 		if !ok {
@@ -31,7 +31,7 @@ func (s AuditLogSlice) LoadRelations(ctx context.Context, exec runtime.Executor,
 }
 
 // auditlogLoadMods extracts query mods for the named relationship from the load requests.
-func auditlogLoadMods(loads []*runtime.EagerLoadRequest, name string) []runtime.QueryMod {
+func auditlogLoadMods(loads []*sqlgen.EagerLoadRequest, name string) []sqlgen.QueryMod {
 	for _, l := range loads {
 		if l.Name == name {
 			return l.Mods
@@ -40,7 +40,7 @@ func auditlogLoadMods(loads []*runtime.EagerLoadRequest, name string) []runtime.
 	return nil
 }
 
-func loadAuditLogUser(ctx context.Context, exec runtime.Executor, d runtime.Dialect, parentModels any, loads []*runtime.EagerLoadRequest) error {
+func loadAuditLogUser(ctx context.Context, exec sqlgen.Executor, d sqlgen.Dialect, parentModels any, loads []*sqlgen.EagerLoadRequest) error {
 	models := parentModels.(AuditLogSlice)
 	if len(models) == 0 {
 		return nil
@@ -58,7 +58,7 @@ func loadAuditLogUser(ctx context.Context, exec runtime.Executor, d runtime.Dial
 	}
 
 	mods := auditlogLoadMods(loads, "User")
-	rows, err := runtime.LoadMany(ctx, exec, d, UserTableName, "id", ids, mods...)
+	rows, err := sqlgen.LoadMany(ctx, exec, d, UserTableName, "id", ids, mods...)
 	if err != nil {
 		return err
 	}

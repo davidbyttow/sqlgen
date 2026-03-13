@@ -5,7 +5,7 @@ package models
 import (
 	"time"
 
-	"github.com/davidbyttow/sqlgen/runtime"
+	"github.com/davidbyttow/sqlgen"
 )
 
 // PostTableName is the database table name.
@@ -38,7 +38,7 @@ type Post struct {
 	Body        string                  `json:"body" db:"body"`
 	Status      PostStatus              `json:"status" db:"status"`
 	CreatedAt   time.Time               `json:"created_at" db:"created_at"`
-	PublishedAt runtime.Null[time.Time] `json:"published_at" db:"published_at"`
+	PublishedAt sqlgen.Null[time.Time] `json:"published_at" db:"published_at"`
 
 	R *PostRels `json:"-" db:"-"`
 }

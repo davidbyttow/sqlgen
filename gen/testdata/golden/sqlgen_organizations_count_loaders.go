@@ -6,11 +6,11 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/davidbyttow/sqlgen/runtime"
+	"github.com/davidbyttow/sqlgen"
 )
 
 // organizationCountLoaders maps relationship names to their count loader functions.
-var organizationCountLoaders = map[string]runtime.CountLoadFunc{}
+var organizationCountLoaders = map[string]sqlgen.CountLoadFunc{}
 
 func init() {
 	organizationCountLoaders["Users"] = loadCountOrganizationUsers
@@ -18,7 +18,7 @@ func init() {
 
 // LoadCountRelations loads counts for the specified relationships.
 // Pass relationship names (e.g., "Posts", "Tags") to load their counts.
-func (s OrganizationSlice) LoadCountRelations(ctx context.Context, exec runtime.Executor, names ...string) error {
+func (s OrganizationSlice) LoadCountRelations(ctx context.Context, exec sqlgen.Executor, names ...string) error {
 	for _, name := range names {
 		fn, ok := organizationCountLoaders[name]
 		if !ok {
@@ -31,7 +31,7 @@ func (s OrganizationSlice) LoadCountRelations(ctx context.Context, exec runtime.
 	return nil
 }
 
-func loadCountOrganizationUsers(ctx context.Context, exec runtime.Executor, d runtime.Dialect, parentModels any) error {
+func loadCountOrganizationUsers(ctx context.Context, exec sqlgen.Executor, d sqlgen.Dialect, parentModels any) error {
 	models := parentModels.(OrganizationSlice)
 	if len(models) == 0 {
 		return nil
@@ -42,7 +42,7 @@ func loadCountOrganizationUsers(ctx context.Context, exec runtime.Executor, d ru
 		ids[i] = m.ID
 	}
 
-	counts, err := runtime.LoadCount(ctx, exec, d, "users", "org_id", ids)
+	counts, err := sqlgen.LoadCount(ctx, exec, d, "users", "org_id", ids)
 	if err != nil {
 		return err
 	}

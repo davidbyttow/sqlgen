@@ -5,7 +5,7 @@ package models
 import (
 	"time"
 
-	"github.com/davidbyttow/sqlgen/runtime"
+	"github.com/davidbyttow/sqlgen"
 )
 
 // UserWhere provides type-safe where clause builders for each column.
@@ -28,31 +28,31 @@ type UserIDFilter struct {
 	col string
 }
 
-func (f UserIDFilter) EQ(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" = ?", val)
+func (f UserIDFilter) EQ(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" = ?", val)
 }
 
-func (f UserIDFilter) NEQ(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" != ?", val)
+func (f UserIDFilter) NEQ(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" != ?", val)
 }
 
-func (f UserIDFilter) LT(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" < ?", val)
+func (f UserIDFilter) LT(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" < ?", val)
 }
 
-func (f UserIDFilter) LTE(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" <= ?", val)
+func (f UserIDFilter) LTE(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" <= ?", val)
 }
 
-func (f UserIDFilter) GT(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" > ?", val)
+func (f UserIDFilter) GT(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" > ?", val)
 }
 
-func (f UserIDFilter) GTE(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" >= ?", val)
+func (f UserIDFilter) GTE(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" >= ?", val)
 }
 
-func (f UserIDFilter) IN(vals ...string) runtime.QueryMod {
+func (f UserIDFilter) IN(vals ...string) sqlgen.QueryMod {
 	args := make([]any, len(vals))
 	for i, v := range vals {
 		args[i] = v
@@ -64,7 +64,7 @@ func (f UserIDFilter) IN(vals ...string) runtime.QueryMod {
 		}
 		placeholders = append(placeholders, '?')
 	}
-	return runtime.Where("\""+f.col+"\" IN ("+string(placeholders)+")", args...)
+	return sqlgen.Where("\""+f.col+"\" IN ("+string(placeholders)+")", args...)
 }
 
 // UserEmailFilter provides where clauses for the email column.
@@ -72,31 +72,31 @@ type UserEmailFilter struct {
 	col string
 }
 
-func (f UserEmailFilter) EQ(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" = ?", val)
+func (f UserEmailFilter) EQ(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" = ?", val)
 }
 
-func (f UserEmailFilter) NEQ(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" != ?", val)
+func (f UserEmailFilter) NEQ(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" != ?", val)
 }
 
-func (f UserEmailFilter) LT(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" < ?", val)
+func (f UserEmailFilter) LT(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" < ?", val)
 }
 
-func (f UserEmailFilter) LTE(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" <= ?", val)
+func (f UserEmailFilter) LTE(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" <= ?", val)
 }
 
-func (f UserEmailFilter) GT(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" > ?", val)
+func (f UserEmailFilter) GT(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" > ?", val)
 }
 
-func (f UserEmailFilter) GTE(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" >= ?", val)
+func (f UserEmailFilter) GTE(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" >= ?", val)
 }
 
-func (f UserEmailFilter) IN(vals ...string) runtime.QueryMod {
+func (f UserEmailFilter) IN(vals ...string) sqlgen.QueryMod {
 	args := make([]any, len(vals))
 	for i, v := range vals {
 		args[i] = v
@@ -108,7 +108,7 @@ func (f UserEmailFilter) IN(vals ...string) runtime.QueryMod {
 		}
 		placeholders = append(placeholders, '?')
 	}
-	return runtime.Where("\""+f.col+"\" IN ("+string(placeholders)+")", args...)
+	return sqlgen.Where("\""+f.col+"\" IN ("+string(placeholders)+")", args...)
 }
 
 // UserNameFilter provides where clauses for the name column.
@@ -116,31 +116,31 @@ type UserNameFilter struct {
 	col string
 }
 
-func (f UserNameFilter) EQ(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" = ?", val)
+func (f UserNameFilter) EQ(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" = ?", val)
 }
 
-func (f UserNameFilter) NEQ(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" != ?", val)
+func (f UserNameFilter) NEQ(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" != ?", val)
 }
 
-func (f UserNameFilter) LT(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" < ?", val)
+func (f UserNameFilter) LT(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" < ?", val)
 }
 
-func (f UserNameFilter) LTE(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" <= ?", val)
+func (f UserNameFilter) LTE(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" <= ?", val)
 }
 
-func (f UserNameFilter) GT(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" > ?", val)
+func (f UserNameFilter) GT(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" > ?", val)
 }
 
-func (f UserNameFilter) GTE(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" >= ?", val)
+func (f UserNameFilter) GTE(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" >= ?", val)
 }
 
-func (f UserNameFilter) IN(vals ...string) runtime.QueryMod {
+func (f UserNameFilter) IN(vals ...string) sqlgen.QueryMod {
 	args := make([]any, len(vals))
 	for i, v := range vals {
 		args[i] = v
@@ -152,7 +152,7 @@ func (f UserNameFilter) IN(vals ...string) runtime.QueryMod {
 		}
 		placeholders = append(placeholders, '?')
 	}
-	return runtime.Where("\""+f.col+"\" IN ("+string(placeholders)+")", args...)
+	return sqlgen.Where("\""+f.col+"\" IN ("+string(placeholders)+")", args...)
 }
 
 // UserBioFilter provides where clauses for the bio column.
@@ -160,31 +160,31 @@ type UserBioFilter struct {
 	col string
 }
 
-func (f UserBioFilter) EQ(val runtime.Null[string]) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" = ?", val)
+func (f UserBioFilter) EQ(val sqlgen.Null[string]) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" = ?", val)
 }
 
-func (f UserBioFilter) NEQ(val runtime.Null[string]) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" != ?", val)
+func (f UserBioFilter) NEQ(val sqlgen.Null[string]) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" != ?", val)
 }
 
-func (f UserBioFilter) LT(val runtime.Null[string]) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" < ?", val)
+func (f UserBioFilter) LT(val sqlgen.Null[string]) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" < ?", val)
 }
 
-func (f UserBioFilter) LTE(val runtime.Null[string]) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" <= ?", val)
+func (f UserBioFilter) LTE(val sqlgen.Null[string]) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" <= ?", val)
 }
 
-func (f UserBioFilter) GT(val runtime.Null[string]) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" > ?", val)
+func (f UserBioFilter) GT(val sqlgen.Null[string]) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" > ?", val)
 }
 
-func (f UserBioFilter) GTE(val runtime.Null[string]) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" >= ?", val)
+func (f UserBioFilter) GTE(val sqlgen.Null[string]) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" >= ?", val)
 }
 
-func (f UserBioFilter) IN(vals ...runtime.Null[string]) runtime.QueryMod {
+func (f UserBioFilter) IN(vals ...sqlgen.Null[string]) sqlgen.QueryMod {
 	args := make([]any, len(vals))
 	for i, v := range vals {
 		args[i] = v
@@ -196,15 +196,15 @@ func (f UserBioFilter) IN(vals ...runtime.Null[string]) runtime.QueryMod {
 		}
 		placeholders = append(placeholders, '?')
 	}
-	return runtime.Where("\""+f.col+"\" IN ("+string(placeholders)+")", args...)
+	return sqlgen.Where("\""+f.col+"\" IN ("+string(placeholders)+")", args...)
 }
 
-func (f UserBioFilter) IsNull() runtime.QueryMod {
-	return runtime.Where("\"" + f.col + "\" IS NULL")
+func (f UserBioFilter) IsNull() sqlgen.QueryMod {
+	return sqlgen.Where("\"" + f.col + "\" IS NULL")
 }
 
-func (f UserBioFilter) IsNotNull() runtime.QueryMod {
-	return runtime.Where("\"" + f.col + "\" IS NOT NULL")
+func (f UserBioFilter) IsNotNull() sqlgen.QueryMod {
+	return sqlgen.Where("\"" + f.col + "\" IS NOT NULL")
 }
 
 // UserCreatedAtFilter provides where clauses for the created_at column.
@@ -212,31 +212,31 @@ type UserCreatedAtFilter struct {
 	col string
 }
 
-func (f UserCreatedAtFilter) EQ(val time.Time) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" = ?", val)
+func (f UserCreatedAtFilter) EQ(val time.Time) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" = ?", val)
 }
 
-func (f UserCreatedAtFilter) NEQ(val time.Time) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" != ?", val)
+func (f UserCreatedAtFilter) NEQ(val time.Time) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" != ?", val)
 }
 
-func (f UserCreatedAtFilter) LT(val time.Time) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" < ?", val)
+func (f UserCreatedAtFilter) LT(val time.Time) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" < ?", val)
 }
 
-func (f UserCreatedAtFilter) LTE(val time.Time) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" <= ?", val)
+func (f UserCreatedAtFilter) LTE(val time.Time) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" <= ?", val)
 }
 
-func (f UserCreatedAtFilter) GT(val time.Time) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" > ?", val)
+func (f UserCreatedAtFilter) GT(val time.Time) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" > ?", val)
 }
 
-func (f UserCreatedAtFilter) GTE(val time.Time) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" >= ?", val)
+func (f UserCreatedAtFilter) GTE(val time.Time) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" >= ?", val)
 }
 
-func (f UserCreatedAtFilter) IN(vals ...time.Time) runtime.QueryMod {
+func (f UserCreatedAtFilter) IN(vals ...time.Time) sqlgen.QueryMod {
 	args := make([]any, len(vals))
 	for i, v := range vals {
 		args[i] = v
@@ -248,5 +248,5 @@ func (f UserCreatedAtFilter) IN(vals ...time.Time) runtime.QueryMod {
 		}
 		placeholders = append(placeholders, '?')
 	}
-	return runtime.Where("\""+f.col+"\" IN ("+string(placeholders)+")", args...)
+	return sqlgen.Where("\""+f.col+"\" IN ("+string(placeholders)+")", args...)
 }

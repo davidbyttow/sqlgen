@@ -10,7 +10,7 @@ package {{.Package}}
 {{.Imports}}
 
 // {{lower $structName}}Loaders maps relationship names to their loader functions.
-var {{lower $structName}}Loaders = map[string]runtime.LoadFunc{}
+var {{lower $structName}}Loaders = map[string]sqlgen.LoadFunc{}
 
 func init() {
 {{- range .Table.Relationships}}
@@ -19,7 +19,7 @@ func init() {
 }
 
 // LoadRelations eagerly loads the specified relationships for a slice of {{$structName}}.
-func (s {{$sliceType}}) LoadRelations(ctx context.Context, exec runtime.Executor, loads ...*runtime.EagerLoadRequest) error {
+func (s {{$sliceType}}) LoadRelations(ctx context.Context, exec sqlgen.Executor, loads ...*sqlgen.EagerLoadRequest) error {
 	for _, load := range loads {
 		fn, ok := {{lower $structName}}Loaders[load.Name]
 		if !ok {
@@ -33,7 +33,7 @@ func (s {{$sliceType}}) LoadRelations(ctx context.Context, exec runtime.Executor
 }
 
 // {{lower $structName}}LoadMods extracts query mods for the named relationship from the load requests.
-func {{lower $structName}}LoadMods(loads []*runtime.EagerLoadRequest, name string) []runtime.QueryMod {
+func {{lower $structName}}LoadMods(loads []*sqlgen.EagerLoadRequest, name string) []sqlgen.QueryMod {
 	for _, l := range loads {
 		if l.Name == name {
 			return l.Mods
@@ -51,7 +51,7 @@ func {{lower $structName}}LoadMods(loads []*runtime.EagerLoadRequest, name strin
 {{- /* BelongsTo: this table has FK column(s) pointing to foreign table's PK */ -}}
 {{- $localCol := index $rel.Columns 0 -}}
 {{- $foreignCol := index $rel.ForeignColumns 0}}
-func load{{$structName}}{{$fieldName}}(ctx context.Context, exec runtime.Executor, d runtime.Dialect, parentModels any, loads []*runtime.EagerLoadRequest) error {
+func load{{$structName}}{{$fieldName}}(ctx context.Context, exec sqlgen.Executor, d sqlgen.Dialect, parentModels any, loads []*sqlgen.EagerLoadRequest) error {
 	models := parentModels.({{$sliceType}})
 	if len(models) == 0 {
 		return nil
@@ -69,7 +69,7 @@ func load{{$structName}}{{$fieldName}}(ctx context.Context, exec runtime.Executo
 	}
 
 	mods := {{lower $structName}}LoadMods(loads, "{{$fieldName}}")
-	rows, err := runtime.LoadMany(ctx, exec, d, {{$foreignStructName}}TableName, "{{$foreignCol}}", ids, mods...)
+	rows, err := sqlgen.LoadMany(ctx, exec, d, {{$foreignStructName}}TableName, "{{$foreignCol}}", ids, mods...)
 	if err != nil {
 		return err
 	}
@@ -105,7 +105,7 @@ func load{{$structName}}{{$fieldName}}(ctx context.Context, exec runtime.Executo
 {{- /* HasOne: foreign table has FK column pointing to this table's PK */ -}}
 {{- $localCol := index $rel.Columns 0 -}}
 {{- $foreignCol := index $rel.ForeignColumns 0}}
-func load{{$structName}}{{$fieldName}}(ctx context.Context, exec runtime.Executor, d runtime.Dialect, parentModels any, loads []*runtime.EagerLoadRequest) error {
+func load{{$structName}}{{$fieldName}}(ctx context.Context, exec sqlgen.Executor, d sqlgen.Dialect, parentModels any, loads []*sqlgen.EagerLoadRequest) error {
 	models := parentModels.({{$sliceType}})
 	if len(models) == 0 {
 		return nil
@@ -118,7 +118,7 @@ func load{{$structName}}{{$fieldName}}(ctx context.Context, exec runtime.Executo
 	}
 
 	mods := {{lower $structName}}LoadMods(loads, "{{$fieldName}}")
-	rows, err := runtime.LoadMany(ctx, exec, d, {{$foreignStructName}}TableName, "{{$foreignCol}}", ids, mods...)
+	rows, err := sqlgen.LoadMany(ctx, exec, d, {{$foreignStructName}}TableName, "{{$foreignCol}}", ids, mods...)
 	if err != nil {
 		return err
 	}
@@ -154,7 +154,7 @@ func load{{$structName}}{{$fieldName}}(ctx context.Context, exec runtime.Executo
 {{- /* HasMany: foreign table has FK column pointing to this table's PK */ -}}
 {{- $localCol := index $rel.Columns 0 -}}
 {{- $foreignCol := index $rel.ForeignColumns 0}}
-func load{{$structName}}{{$fieldName}}(ctx context.Context, exec runtime.Executor, d runtime.Dialect, parentModels any, loads []*runtime.EagerLoadRequest) error {
+func load{{$structName}}{{$fieldName}}(ctx context.Context, exec sqlgen.Executor, d sqlgen.Dialect, parentModels any, loads []*sqlgen.EagerLoadRequest) error {
 	models := parentModels.({{$sliceType}})
 	if len(models) == 0 {
 		return nil
@@ -170,7 +170,7 @@ func load{{$structName}}{{$fieldName}}(ctx context.Context, exec runtime.Executo
 	}
 
 	mods := {{lower $structName}}LoadMods(loads, "{{$fieldName}}")
-	rows, err := runtime.LoadMany(ctx, exec, d, {{$foreignStructName}}TableName, "{{$foreignCol}}", ids, mods...)
+	rows, err := sqlgen.LoadMany(ctx, exec, d, {{$foreignStructName}}TableName, "{{$foreignCol}}", ids, mods...)
 	if err != nil {
 		return err
 	}
@@ -218,7 +218,7 @@ func load{{$structName}}{{$fieldName}}(ctx context.Context, exec runtime.Executo
 {{- $foreignCol := index $rel.ForeignColumns 0 -}}
 {{- $joinLocalCol := index $rel.JoinLocalColumns 0 -}}
 {{- $joinForeignCol := index $rel.JoinForeignColumns 0}}
-func load{{$structName}}{{$fieldName}}(ctx context.Context, exec runtime.Executor, d runtime.Dialect, parentModels any, loads []*runtime.EagerLoadRequest) error {
+func load{{$structName}}{{$fieldName}}(ctx context.Context, exec sqlgen.Executor, d sqlgen.Dialect, parentModels any, loads []*sqlgen.EagerLoadRequest) error {
 	models := parentModels.({{$sliceType}})
 	if len(models) == 0 {
 		return nil
@@ -234,7 +234,7 @@ func load{{$structName}}{{$fieldName}}(ctx context.Context, exec runtime.Executo
 	}
 
 	mods := {{lower $structName}}LoadMods(loads, "{{$fieldName}}")
-	rows, joinKeyAlias, err := runtime.LoadManyToMany(ctx, exec, d,
+	rows, joinKeyAlias, err := sqlgen.LoadManyToMany(ctx, exec, d,
 		{{$foreignStructName}}TableName,
 		"{{$rel.JoinTable}}",
 		"{{$joinLocalCol}}",
@@ -296,7 +296,7 @@ func load{{$structName}}{{$fieldName}}(ctx context.Context, exec runtime.Executo
 {{- /* PolymorphicOne: this table has type+id columns, load from target table */ -}}
 {{- $localCol := index $rel.Columns 0 -}}
 {{- $foreignCol := index $rel.ForeignColumns 0}}
-func load{{$structName}}{{$fieldName}}(ctx context.Context, exec runtime.Executor, d runtime.Dialect, parentModels any, loads []*runtime.EagerLoadRequest) error {
+func load{{$structName}}{{$fieldName}}(ctx context.Context, exec sqlgen.Executor, d sqlgen.Dialect, parentModels any, loads []*sqlgen.EagerLoadRequest) error {
 	models := parentModels.({{$sliceType}})
 	if len(models) == 0 {
 		return nil
@@ -320,7 +320,7 @@ func load{{$structName}}{{$fieldName}}(ctx context.Context, exec runtime.Executo
 	}
 
 	mods := {{lower $structName}}LoadMods(loads, "{{$fieldName}}")
-	rows, err := runtime.LoadMany(ctx, exec, d, {{$foreignStructName}}TableName, "{{$foreignCol}}", ids, mods...)
+	rows, err := sqlgen.LoadMany(ctx, exec, d, {{$foreignStructName}}TableName, "{{$foreignCol}}", ids, mods...)
 	if err != nil {
 		return err
 	}
@@ -359,7 +359,7 @@ func load{{$structName}}{{$fieldName}}(ctx context.Context, exec runtime.Executo
 {{- /* PolymorphicMany: foreign table has type+id columns pointing here */ -}}
 {{- $localCol := index $rel.Columns 0 -}}
 {{- $foreignCol := index $rel.ForeignColumns 0}}
-func load{{$structName}}{{$fieldName}}(ctx context.Context, exec runtime.Executor, d runtime.Dialect, parentModels any, loads []*runtime.EagerLoadRequest) error {
+func load{{$structName}}{{$fieldName}}(ctx context.Context, exec sqlgen.Executor, d sqlgen.Dialect, parentModels any, loads []*sqlgen.EagerLoadRequest) error {
 	models := parentModels.({{$sliceType}})
 	if len(models) == 0 {
 		return nil
@@ -374,7 +374,7 @@ func load{{$structName}}{{$fieldName}}(ctx context.Context, exec runtime.Executo
 	}
 
 	mods := {{lower $structName}}LoadMods(loads, "{{$fieldName}}")
-	rows, err := runtime.LoadPolymorphicMany(ctx, exec, d, {{$foreignStructName}}TableName, "{{$rel.TypeColumn}}", "{{$rel.TypeValue}}", "{{$foreignCol}}", ids, mods...)
+	rows, err := sqlgen.LoadPolymorphicMany(ctx, exec, d, {{$foreignStructName}}TableName, "{{$rel.TypeColumn}}", "{{$rel.TypeValue}}", "{{$foreignCol}}", ids, mods...)
 	if err != nil {
 		return err
 	}

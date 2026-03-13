@@ -5,19 +5,19 @@ package models
 import (
 	"context"
 
-	"github.com/davidbyttow/sqlgen/runtime"
+	"github.com/davidbyttow/sqlgen"
 )
 
 // AuditLogs returns a query builder for the audit_log table.
-func AuditLogs(mods ...runtime.QueryMod) *runtime.Query {
-	return runtime.NewQuery(dialect, AuditLogTableName, mods...)
+func AuditLogs(mods ...sqlgen.QueryMod) *sqlgen.Query {
+	return sqlgen.NewQuery(dialect, AuditLogTableName, mods...)
 }
 
 // FindAuditLogByPK finds a AuditLog by primary key.
-func FindAuditLogByPK(ctx context.Context, exec runtime.Executor, id int64) (*AuditLog, error) {
-	q := runtime.NewQuery(dialect, AuditLogTableName,
-		runtime.Where("\"id\" = ?", id),
-		runtime.Limit(1),
+func FindAuditLogByPK(ctx context.Context, exec sqlgen.Executor, id int64) (*AuditLog, error) {
+	q := sqlgen.NewQuery(dialect, AuditLogTableName,
+		sqlgen.Where("\"id\" = ?", id),
+		sqlgen.Limit(1),
 	)
 
 	query, args := q.BuildSelect()
@@ -32,8 +32,8 @@ func FindAuditLogByPK(ctx context.Context, exec runtime.Executor, id int64) (*Au
 
 // AllAuditLogs retrieves all rows from the audit_log table with the given query mods.
 // Supports Preload() for LEFT JOIN eager loading of to-one relationships.
-func AllAuditLogs(ctx context.Context, exec runtime.Executor, mods ...runtime.QueryMod) (AuditLogSlice, error) {
-	q := runtime.NewQuery(dialect, AuditLogTableName, mods...)
+func AllAuditLogs(ctx context.Context, exec sqlgen.Executor, mods ...sqlgen.QueryMod) (AuditLogSlice, error) {
+	q := sqlgen.NewQuery(dialect, AuditLogTableName, mods...)
 	query, args := q.BuildSelect()
 	rows, err := exec.QueryContext(ctx, query, args...)
 	if err != nil {
@@ -73,16 +73,16 @@ func AllAuditLogs(ctx context.Context, exec runtime.Executor, mods ...runtime.Qu
 
 // Insert inserts the AuditLog into the database.
 // Optional Columns parameter controls which columns are included (Whitelist/Blacklist).
-func (o *AuditLog) Insert(ctx context.Context, exec runtime.Executor, cols ...runtime.Columns) error {
-	ctx, err := auditlogHooks.RunIfEnabled(ctx, exec, runtime.BeforeInsert, o)
+func (o *AuditLog) Insert(ctx context.Context, exec sqlgen.Executor, cols ...sqlgen.Columns) error {
+	ctx, err := auditlogHooks.RunIfEnabled(ctx, exec, sqlgen.BeforeInsert, o)
 	if err != nil {
 		return err
 	}
 	insertCols := []string{"org_id", "user_id", "action", "created_at"}
 	insertVals := []any{o.OrgID, o.UserID, o.Action, o.CreatedAt}
-	insertCols, insertVals = runtime.FilterColumns(insertCols, insertVals, cols...)
+	insertCols, insertVals = sqlgen.FilterColumns(insertCols, insertVals, cols...)
 
-	query, args := runtime.BuildInsert(dialect, AuditLogTableName,
+	query, args := sqlgen.BuildInsert(dialect, AuditLogTableName,
 		insertCols, insertVals,
 		[]string{"id"},
 	)
@@ -92,36 +92,36 @@ func (o *AuditLog) Insert(ctx context.Context, exec runtime.Executor, cols ...ru
 	if err != nil {
 		return err
 	}
-	_, err = auditlogHooks.RunIfEnabled(ctx, exec, runtime.AfterInsert, o)
+	_, err = auditlogHooks.RunIfEnabled(ctx, exec, sqlgen.AfterInsert, o)
 	return err
 }
 
 // Update updates the AuditLog in the database. Only non-PK columns are updated.
 // Optional Columns parameter controls which columns are included (Whitelist/Blacklist).
-func (o *AuditLog) Update(ctx context.Context, exec runtime.Executor, cols ...runtime.Columns) error {
-	ctx, err := auditlogHooks.RunIfEnabled(ctx, exec, runtime.BeforeUpdate, o)
+func (o *AuditLog) Update(ctx context.Context, exec sqlgen.Executor, cols ...sqlgen.Columns) error {
+	ctx, err := auditlogHooks.RunIfEnabled(ctx, exec, sqlgen.BeforeUpdate, o)
 	if err != nil {
 		return err
 	}
 	setCols := []string{"org_id", "user_id", "action", "created_at"}
 	setVals := []any{o.OrgID, o.UserID, o.Action, o.CreatedAt}
-	setCols, setVals = runtime.FilterColumns(setCols, setVals, cols...)
+	setCols, setVals = sqlgen.FilterColumns(setCols, setVals, cols...)
 
 	whereClauses := []string{"\"id\" = ?"}
 	whereArgs := []any{o.ID}
 
-	query, args := runtime.BuildUpdate(dialect, AuditLogTableName, setCols, setVals, whereClauses, whereArgs)
+	query, args := sqlgen.BuildUpdate(dialect, AuditLogTableName, setCols, setVals, whereClauses, whereArgs)
 	_, err = exec.ExecContext(ctx, query, args...)
 	if err != nil {
 		return err
 	}
-	_, err = auditlogHooks.RunIfEnabled(ctx, exec, runtime.AfterUpdate, o)
+	_, err = auditlogHooks.RunIfEnabled(ctx, exec, sqlgen.AfterUpdate, o)
 	return err
 }
 
 // Delete deletes the AuditLog from the database.
-func (o *AuditLog) Delete(ctx context.Context, exec runtime.Executor) error {
-	ctx, err := auditlogHooks.RunIfEnabled(ctx, exec, runtime.BeforeDelete, o)
+func (o *AuditLog) Delete(ctx context.Context, exec sqlgen.Executor) error {
+	ctx, err := auditlogHooks.RunIfEnabled(ctx, exec, sqlgen.BeforeDelete, o)
 	if err != nil {
 		return err
 	}
@@ -129,31 +129,31 @@ func (o *AuditLog) Delete(ctx context.Context, exec runtime.Executor) error {
 	whereClauses := []string{"\"id\" = ?"}
 	whereArgs := []any{o.ID}
 
-	query, args := runtime.BuildDelete(dialect, AuditLogTableName, whereClauses, whereArgs)
+	query, args := sqlgen.BuildDelete(dialect, AuditLogTableName, whereClauses, whereArgs)
 	_, err = exec.ExecContext(ctx, query, args...)
 	if err != nil {
 		return err
 	}
-	_, err = auditlogHooks.RunIfEnabled(ctx, exec, runtime.AfterDelete, o)
+	_, err = auditlogHooks.RunIfEnabled(ctx, exec, sqlgen.AfterDelete, o)
 	return err
 }
 
 // Upsert inserts or updates the AuditLog based on the primary key.
 // Optional Columns parameter controls which non-PK columns are included (Whitelist/Blacklist).
-func (o *AuditLog) Upsert(ctx context.Context, exec runtime.Executor, cols ...runtime.Columns) error {
-	ctx, err := auditlogHooks.RunIfEnabled(ctx, exec, runtime.BeforeUpsert, o)
+func (o *AuditLog) Upsert(ctx context.Context, exec sqlgen.Executor, cols ...sqlgen.Columns) error {
+	ctx, err := auditlogHooks.RunIfEnabled(ctx, exec, sqlgen.BeforeUpsert, o)
 	if err != nil {
 		return err
 	}
 	allCols := []string{"id", "org_id", "user_id", "action", "created_at"}
 	allVals := []any{o.ID, o.OrgID, o.UserID, o.Action, o.CreatedAt}
-	allCols, allVals = runtime.FilterColumns(allCols, allVals, cols...)
+	allCols, allVals = sqlgen.FilterColumns(allCols, allVals, cols...)
 	conflictCols := []string{"id"}
 	updateCols := []string{"org_id", "user_id", "action", "created_at"}
-	updateCols, _ = runtime.FilterColumns(updateCols, make([]any, len(updateCols)), cols...)
+	updateCols, _ = sqlgen.FilterColumns(updateCols, make([]any, len(updateCols)), cols...)
 	returning := []string{"id", "org_id", "user_id", "action", "created_at"}
 
-	query, args := runtime.BuildUpsert(dialect, AuditLogTableName, allCols, allVals, conflictCols, updateCols, returning)
+	query, args := sqlgen.BuildUpsert(dialect, AuditLogTableName, allCols, allVals, conflictCols, updateCols, returning)
 	err = exec.QueryRowContext(ctx, query, args...).Scan(
 		&o.ID,
 		&o.OrgID,
@@ -164,26 +164,26 @@ func (o *AuditLog) Upsert(ctx context.Context, exec runtime.Executor, cols ...ru
 	if err != nil {
 		return err
 	}
-	_, err = auditlogHooks.RunIfEnabled(ctx, exec, runtime.AfterUpsert, o)
+	_, err = auditlogHooks.RunIfEnabled(ctx, exec, sqlgen.AfterUpsert, o)
 	return err
 }
 
 // Exists checks if a row with the given primary key exists.
-func AuditLogExists(ctx context.Context, exec runtime.Executor, id int64) (bool, error) {
-	return runtime.Exists(ctx, exec, dialect, AuditLogTableName,
-		runtime.Where("\"id\" = ?", id),
+func AuditLogExists(ctx context.Context, exec sqlgen.Executor, id int64) (bool, error) {
+	return sqlgen.Exists(ctx, exec, dialect, AuditLogTableName,
+		sqlgen.Where("\"id\" = ?", id),
 	)
 }
 
 // CountAuditLogs returns the count of rows matching the query mods.
-func CountAuditLogs(ctx context.Context, exec runtime.Executor, mods ...runtime.QueryMod) (int64, error) {
-	return runtime.Count(ctx, exec, dialect, AuditLogTableName, mods...)
+func CountAuditLogs(ctx context.Context, exec sqlgen.Executor, mods ...sqlgen.QueryMod) (int64, error) {
+	return sqlgen.Count(ctx, exec, dialect, AuditLogTableName, mods...)
 }
 
 // UpdateAllAuditLogs updates all rows matching the given mods.
 // set is a map of column name -> new value.
-func UpdateAllAuditLogs(ctx context.Context, exec runtime.Executor, set map[string]any, mods ...runtime.QueryMod) (int64, error) {
-	q := runtime.NewQuery(dialect, AuditLogTableName, mods...)
+func UpdateAllAuditLogs(ctx context.Context, exec sqlgen.Executor, set map[string]any, mods ...sqlgen.QueryMod) (int64, error) {
+	q := sqlgen.NewQuery(dialect, AuditLogTableName, mods...)
 	query, args := q.BuildUpdateAll(set)
 	result, err := exec.ExecContext(ctx, query, args...)
 	if err != nil {
@@ -193,8 +193,8 @@ func UpdateAllAuditLogs(ctx context.Context, exec runtime.Executor, set map[stri
 }
 
 // DeleteAllAuditLogs deletes all rows matching the given mods.
-func DeleteAllAuditLogs(ctx context.Context, exec runtime.Executor, mods ...runtime.QueryMod) (int64, error) {
-	q := runtime.NewQuery(dialect, AuditLogTableName, mods...)
+func DeleteAllAuditLogs(ctx context.Context, exec sqlgen.Executor, mods ...sqlgen.QueryMod) (int64, error) {
+	q := sqlgen.NewQuery(dialect, AuditLogTableName, mods...)
 	query, args := q.BuildDeleteAll()
 	result, err := exec.ExecContext(ctx, query, args...)
 	if err != nil {
@@ -205,27 +205,27 @@ func DeleteAllAuditLogs(ctx context.Context, exec runtime.Executor, mods ...runt
 
 // EachAuditLog executes a query and calls fn for each row. Iteration stops
 // early if fn returns an error. Rows are not accumulated in memory.
-func EachAuditLog(ctx context.Context, exec runtime.Executor, fn func(*AuditLog) error, mods ...runtime.QueryMod) error {
-	return runtime.Each(ctx, exec, runtime.NewQuery(dialect, AuditLogTableName, mods...), func() *AuditLog { return &AuditLog{} }, fn)
+func EachAuditLog(ctx context.Context, exec sqlgen.Executor, fn func(*AuditLog) error, mods ...sqlgen.QueryMod) error {
+	return sqlgen.Each(ctx, exec, sqlgen.NewQuery(dialect, AuditLogTableName, mods...), func() *AuditLog { return &AuditLog{} }, fn)
 }
 
 // AuditLogCursor returns a cursor for iterating over audit_log rows one at a time.
-func AuditLogCursor(ctx context.Context, exec runtime.Executor, mods ...runtime.QueryMod) (*runtime.Cursor[*AuditLog], error) {
-	return runtime.NewCursor(ctx, exec, runtime.NewQuery(dialect, AuditLogTableName, mods...), func() *AuditLog { return &AuditLog{} })
+func AuditLogCursor(ctx context.Context, exec sqlgen.Executor, mods ...sqlgen.QueryMod) (*sqlgen.Cursor[*AuditLog], error) {
+	return sqlgen.NewCursor(ctx, exec, sqlgen.NewQuery(dialect, AuditLogTableName, mods...), func() *AuditLog { return &AuditLog{} })
 }
 
 // Reload refreshes the AuditLog from the database using its primary key.
-func (o *AuditLog) Reload(ctx context.Context, exec runtime.Executor) error {
-	q := runtime.NewQuery(dialect, AuditLogTableName,
-		runtime.Where("\"id\" = ?", o.ID),
-		runtime.Limit(1),
+func (o *AuditLog) Reload(ctx context.Context, exec sqlgen.Executor) error {
+	q := sqlgen.NewQuery(dialect, AuditLogTableName,
+		sqlgen.Where("\"id\" = ?", o.ID),
+		sqlgen.Limit(1),
 	)
 	query, args := q.BuildSelect()
 	return o.ScanRow(exec.QueryRowContext(ctx, query, args...))
 }
 
 // UpdateAll updates all models in the slice with the given column values.
-func (s AuditLogSlice) UpdateAll(ctx context.Context, exec runtime.Executor, set map[string]any) (int64, error) {
+func (s AuditLogSlice) UpdateAll(ctx context.Context, exec sqlgen.Executor, set map[string]any) (int64, error) {
 	if len(s) == 0 {
 		return 0, nil
 	}
@@ -233,11 +233,11 @@ func (s AuditLogSlice) UpdateAll(ctx context.Context, exec runtime.Executor, set
 	for i, o := range s {
 		ids[i] = o.ID
 	}
-	return UpdateAllAuditLogs(ctx, exec, set, runtime.WhereIn("\"id\"", ids...))
+	return UpdateAllAuditLogs(ctx, exec, set, sqlgen.WhereIn("\"id\"", ids...))
 }
 
 // DeleteAll deletes all models in the slice.
-func (s AuditLogSlice) DeleteAll(ctx context.Context, exec runtime.Executor) (int64, error) {
+func (s AuditLogSlice) DeleteAll(ctx context.Context, exec sqlgen.Executor) (int64, error) {
 	if len(s) == 0 {
 		return 0, nil
 	}
@@ -245,13 +245,13 @@ func (s AuditLogSlice) DeleteAll(ctx context.Context, exec runtime.Executor) (in
 	for i, o := range s {
 		ids[i] = o.ID
 	}
-	return DeleteAllAuditLogs(ctx, exec, runtime.WhereIn("\"id\"", ids...))
+	return DeleteAllAuditLogs(ctx, exec, sqlgen.WhereIn("\"id\"", ids...))
 }
 
 // InsertAll batch-inserts all models in the slice. Each model's columns are
 // scanned back via RETURNING, picking up defaults and generated values.
 // Hooks are not fired (consistent with UpdateAll/DeleteAll).
-func (s AuditLogSlice) InsertAll(ctx context.Context, exec runtime.Executor) error {
+func (s AuditLogSlice) InsertAll(ctx context.Context, exec sqlgen.Executor) error {
 	if len(s) == 0 {
 		return nil
 	}
@@ -263,7 +263,7 @@ func (s AuditLogSlice) InsertAll(ctx context.Context, exec runtime.Executor) err
 		rows[i] = []any{o.OrgID, o.UserID, o.Action, o.CreatedAt}
 	}
 
-	query, args := runtime.BuildBatchInsert(dialect, AuditLogTableName, cols, rows, returning)
+	query, args := sqlgen.BuildBatchInsert(dialect, AuditLogTableName, cols, rows, returning)
 	result, err := exec.QueryContext(ctx, query, args...)
 	if err != nil {
 		return err

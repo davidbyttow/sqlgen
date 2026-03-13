@@ -11,7 +11,7 @@ import (
 	"fmt"
 
 	"github.com/davidbyttow/sqlgen/examples/basic/models"
-	"github.com/davidbyttow/sqlgen/runtime"
+	"github.com/davidbyttow/sqlgen"
 )
 
 func main() {
@@ -23,11 +23,11 @@ func main() {
 	fmt.Println("All values:", models.AllPostStatusValues())
 
 	// --- Model structs ---
-	// Each table gets a struct with typed fields. Nullable columns use runtime.Null[T].
+	// Each table gets a struct with typed fields. Nullable columns use sqlgen.Null[T].
 	user := models.User{
 		Email: "alice@example.com",
 		Name:  "Alice",
-		Bio:   runtime.NewNull("Writes Go for fun."),
+		Bio:   sqlgen.NewNull("Writes Go for fun."),
 	}
 	fmt.Printf("\nUser: %s <%s>\n", user.Name, user.Email)
 	fmt.Printf("Bio: %s\n", user.Bio)
@@ -42,10 +42,10 @@ func main() {
 
 	// --- Type-safe where clauses ---
 	// Each table gets a <Model>Where var with per-column filter methods.
-	// These return runtime.QueryMod values you can compose freely.
+	// These return sqlgen.QueryMod values you can compose freely.
 	q := models.Users(
 		models.UserWhere.Email.EQ("alice@example.com"),
-		runtime.Limit(1),
+		sqlgen.Limit(1),
 	)
 	sql, args := q.BuildSelect()
 	fmt.Printf("\nFind user by email:\n  SQL:  %s\n  Args: %v\n", sql, args)
@@ -53,7 +53,7 @@ func main() {
 	// Nullable columns get IsNull/IsNotNull helpers.
 	q = models.Users(
 		models.UserWhere.Bio.IsNotNull(),
-		runtime.OrderBy("created_at DESC"),
+		sqlgen.OrderBy("created_at DESC"),
 	)
 	sql, args = q.BuildSelect()
 	fmt.Printf("\nUsers with bios:\n  SQL:  %s\n  Args: %v\n", sql, args)
@@ -63,9 +63,9 @@ func main() {
 	q = models.Posts(
 		models.PostWhere.Status.EQ(models.PostStatusPublished),
 		models.PostWhere.AuthorID.EQ("some-uuid"),
-		runtime.OrderBy("published_at DESC"),
-		runtime.Limit(10),
-		runtime.Offset(20),
+		sqlgen.OrderBy("published_at DESC"),
+		sqlgen.Limit(10),
+		sqlgen.Offset(20),
 	)
 	sql, args = q.BuildSelect()
 	fmt.Printf("\nPublished posts by author (paginated):\n  SQL:  %s\n  Args: %v\n", sql, args)
@@ -79,8 +79,8 @@ func main() {
 
 	// --- Insert SQL ---
 	// Model.Insert() runs against an Executor (db or tx). Here we just show the shape.
-	insertSQL, insertArgs := runtime.BuildInsert(
-		runtime.PostgresDialect{},
+	insertSQL, insertArgs := sqlgen.BuildInsert(
+		sqlgen.PostgresDialect{},
 		models.PostTableName,
 		[]string{"author_id", "title", "body", "status"},
 		[]any{post.AuthorID, post.Title, post.Body, post.Status},
@@ -91,19 +91,19 @@ func main() {
 	// --- Hook registration ---
 	// Each model has an AddXxxHook function for lifecycle events.
 	// Hooks receive a typed model pointer so you can inspect or modify it.
-	models.AddUserHook(runtime.BeforeInsert, func(ctx context.Context, exec runtime.Executor, model *models.User) (context.Context, error) {
+	models.AddUserHook(sqlgen.BeforeInsert, func(ctx context.Context, exec sqlgen.Executor, model *models.User) (context.Context, error) {
 		fmt.Printf("\n[hook] BeforeInsert fired for User: %s\n", model.Email)
 		return ctx, nil
 	})
 
-	models.AddPostHook(runtime.AfterInsert, func(ctx context.Context, exec runtime.Executor, model *models.Post) (context.Context, error) {
+	models.AddPostHook(sqlgen.AfterInsert, func(ctx context.Context, exec sqlgen.Executor, model *models.Post) (context.Context, error) {
 		fmt.Printf("[hook] AfterInsert fired for Post: %s\n", model.Title)
 		return ctx, nil
 	})
 
 	// Hooks can be skipped per-call via context.
-	ctx := runtime.SkipHooks(context.Background())
-	fmt.Println("Hooks skipped?", runtime.ShouldSkipHooks(ctx))
+	ctx := sqlgen.SkipHooks(context.Background())
+	fmt.Println("Hooks skipped?", sqlgen.ShouldSkipHooks(ctx))
 
 	// --- Column name constants ---
 	// Each model has a <Model>Columns var for safe column references.
@@ -116,17 +116,17 @@ func main() {
 	//
 	// Example (requires a real DB connection):
 	//   users, _ := models.AllUsers(ctx, db)
-	//   users.LoadRelations(ctx, db, runtime.Load("Posts"))
+	//   users.LoadRelations(ctx, db, sqlgen.Load("Posts"))
 	//
 	// Nested loading with dot notation:
-	//   users.LoadRelations(ctx, db, runtime.Load("Posts.Tags"))
+	//   users.LoadRelations(ctx, db, sqlgen.Load("Posts.Tags"))
 	//
 	// Multiple relationships at once:
 	//   posts, _ := models.AllPosts(ctx, db)
-	//   posts.LoadRelations(ctx, db, runtime.Load("User"), runtime.Load("Tags"))
+	//   posts.LoadRelations(ctx, db, sqlgen.Load("User"), sqlgen.Load("Tags"))
 
 	// Demonstrate the Load helper constructs the right request.
-	load := runtime.Load("Posts.Tags")
+	load := sqlgen.Load("Posts.Tags")
 	fmt.Printf("\nEager load request: Name=%q, Nested=%v\n", load.Name, load.Nested != nil)
 	if len(load.Nested) > 0 {
 		fmt.Printf("  Nested: Name=%q\n", load.Nested[0].Name)

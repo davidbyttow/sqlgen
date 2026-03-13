@@ -6,11 +6,11 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/davidbyttow/sqlgen/runtime"
+	"github.com/davidbyttow/sqlgen"
 )
 
 // categoryCountLoaders maps relationship names to their count loader functions.
-var categoryCountLoaders = map[string]runtime.CountLoadFunc{}
+var categoryCountLoaders = map[string]sqlgen.CountLoadFunc{}
 
 func init() {
 	categoryCountLoaders["ParentsInverse"] = loadCountCategoryParentsInverse
@@ -18,7 +18,7 @@ func init() {
 
 // LoadCountRelations loads counts for the specified relationships.
 // Pass relationship names (e.g., "Posts", "Tags") to load their counts.
-func (s CategorySlice) LoadCountRelations(ctx context.Context, exec runtime.Executor, names ...string) error {
+func (s CategorySlice) LoadCountRelations(ctx context.Context, exec sqlgen.Executor, names ...string) error {
 	for _, name := range names {
 		fn, ok := categoryCountLoaders[name]
 		if !ok {
@@ -31,7 +31,7 @@ func (s CategorySlice) LoadCountRelations(ctx context.Context, exec runtime.Exec
 	return nil
 }
 
-func loadCountCategoryParentsInverse(ctx context.Context, exec runtime.Executor, d runtime.Dialect, parentModels any) error {
+func loadCountCategoryParentsInverse(ctx context.Context, exec sqlgen.Executor, d sqlgen.Dialect, parentModels any) error {
 	models := parentModels.(CategorySlice)
 	if len(models) == 0 {
 		return nil
@@ -42,7 +42,7 @@ func loadCountCategoryParentsInverse(ctx context.Context, exec runtime.Executor,
 		ids[i] = m.ID
 	}
 
-	counts, err := runtime.LoadCount(ctx, exec, d, "categories", "parent_id", ids)
+	counts, err := sqlgen.LoadCount(ctx, exec, d, "categories", "parent_id", ids)
 	if err != nil {
 		return err
 	}

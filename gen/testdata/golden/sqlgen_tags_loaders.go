@@ -6,18 +6,18 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/davidbyttow/sqlgen/runtime"
+	"github.com/davidbyttow/sqlgen"
 )
 
 // tagLoaders maps relationship names to their loader functions.
-var tagLoaders = map[string]runtime.LoadFunc{}
+var tagLoaders = map[string]sqlgen.LoadFunc{}
 
 func init() {
 	tagLoaders["Posts"] = loadTagPosts
 }
 
 // LoadRelations eagerly loads the specified relationships for a slice of Tag.
-func (s TagSlice) LoadRelations(ctx context.Context, exec runtime.Executor, loads ...*runtime.EagerLoadRequest) error {
+func (s TagSlice) LoadRelations(ctx context.Context, exec sqlgen.Executor, loads ...*sqlgen.EagerLoadRequest) error {
 	for _, load := range loads {
 		fn, ok := tagLoaders[load.Name]
 		if !ok {
@@ -31,7 +31,7 @@ func (s TagSlice) LoadRelations(ctx context.Context, exec runtime.Executor, load
 }
 
 // tagLoadMods extracts query mods for the named relationship from the load requests.
-func tagLoadMods(loads []*runtime.EagerLoadRequest, name string) []runtime.QueryMod {
+func tagLoadMods(loads []*sqlgen.EagerLoadRequest, name string) []sqlgen.QueryMod {
 	for _, l := range loads {
 		if l.Name == name {
 			return l.Mods
@@ -40,7 +40,7 @@ func tagLoadMods(loads []*runtime.EagerLoadRequest, name string) []runtime.Query
 	return nil
 }
 
-func loadTagPosts(ctx context.Context, exec runtime.Executor, d runtime.Dialect, parentModels any, loads []*runtime.EagerLoadRequest) error {
+func loadTagPosts(ctx context.Context, exec sqlgen.Executor, d sqlgen.Dialect, parentModels any, loads []*sqlgen.EagerLoadRequest) error {
 	models := parentModels.(TagSlice)
 	if len(models) == 0 {
 		return nil
@@ -56,7 +56,7 @@ func loadTagPosts(ctx context.Context, exec runtime.Executor, d runtime.Dialect,
 	}
 
 	mods := tagLoadMods(loads, "Posts")
-	rows, joinKeyAlias, err := runtime.LoadManyToMany(ctx, exec, d,
+	rows, joinKeyAlias, err := sqlgen.LoadManyToMany(ctx, exec, d,
 		PostTableName,
 		"post_tags",
 		"tag_id",

@@ -70,7 +70,7 @@ sqlgen covers the core loop plus every high-impact feature from both competitors
 | **Testing** | | | |
 | Generated test files | ✅ | ✅ | ✅ |
 | Factory/fixture system | ❌ | ✅ (FactoryBot) | ✅ (NewX/InsertX + mods) |
-| Random data generation | ❌ | ✅ (faker) | ✅ (runtime/fake) |
+| Random data generation | ❌ | ✅ (faker) | ✅ (fake/) |
 | **Developer Experience** | | | |
 | Watch mode | ❌ | ❌ | ✅ |
 | Stale file cleanup | ⚠️ (--wipe) | ❌ | ✅ (automatic) |
@@ -83,7 +83,7 @@ sqlgen covers the core loop plus every high-impact feature from both competitors
 | Custom templates | ✅ | ✅ | ✅ (directory overlay) |
 | Struct tag control | ✅ | ✅ | ✅ (configurable) |
 | DB error constants | ❌ | ✅ | ✅ (generated + runtime matchers) |
-| Bind to arbitrary struct | ✅ | ❌ | ✅ (runtime.Bind) |
+| Bind to arbitrary struct | ✅ | ❌ | ✅ (sqlgen.Bind) |
 | Prepared statements | ❌ | ✅ | ✅ (CachedExecutor) |
 | Query caching | ❌ | ✅ | ✅ (CachedExecutor) |
 | Cursor iteration | ❌ | ✅ | ✅ (Each, Cursor) |

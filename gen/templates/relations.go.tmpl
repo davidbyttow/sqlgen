@@ -19,7 +19,7 @@ package {{.Package}}
 {{- $foreignTable := findTable $.AllTables $rel.ForeignTable}}
 
 // Set{{$fieldName}} sets the {{$fieldName}} relationship by updating the FK column.
-func (o *{{$structName}}) Set{{$fieldName}}(ctx context.Context, exec runtime.Executor, related *{{$foreignStructName}}) error {
+func (o *{{$structName}}) Set{{$fieldName}}(ctx context.Context, exec sqlgen.Executor, related *{{$foreignStructName}}) error {
 	o.{{pascal $localCol}} = {{fkWrap $.Table $localCol $foreignTable $foreignCol (printf "related.%s" (pascal $foreignCol))}}
 	query := "UPDATE " + dialect.QuoteIdent({{$structName}}TableName) +
 		" SET " + dialect.QuoteIdent("{{$localCol}}") + " = " + dialect.Placeholder(1) +
@@ -41,7 +41,7 @@ func (o *{{$structName}}) Set{{$fieldName}}(ctx context.Context, exec runtime.Ex
 {{- if isNullable $fkCol}}
 
 // Remove{{$fieldName}} clears the {{$fieldName}} relationship by setting the FK to NULL.
-func (o *{{$structName}}) Remove{{$fieldName}}(ctx context.Context, exec runtime.Executor) error {
+func (o *{{$structName}}) Remove{{$fieldName}}(ctx context.Context, exec sqlgen.Executor) error {
 	query := "UPDATE " + dialect.QuoteIdent({{$structName}}TableName) +
 		" SET " + dialect.QuoteIdent("{{$localCol}}") + " = NULL" +
 		" WHERE "
@@ -66,7 +66,7 @@ func (o *{{$structName}}) Remove{{$fieldName}}(ctx context.Context, exec runtime
 {{- $foreignTable := findTable $.AllTables $rel.ForeignTable}}
 
 // Set{{$fieldName}} sets the {{$fieldName}} relationship by updating the related model's FK.
-func (o *{{$structName}}) Set{{$fieldName}}(ctx context.Context, exec runtime.Executor, related *{{$foreignStructName}}) error {
+func (o *{{$structName}}) Set{{$fieldName}}(ctx context.Context, exec sqlgen.Executor, related *{{$foreignStructName}}) error {
 	related.{{pascal $foreignCol}} = {{fkWrap $foreignTable $foreignCol $.Table $localCol (printf "o.%s" (pascal $localCol))}}
 	query := "UPDATE " + dialect.QuoteIdent({{$foreignStructName}}TableName) +
 		" SET " + dialect.QuoteIdent("{{$foreignCol}}") + " = " + dialect.Placeholder(1) +
@@ -88,7 +88,7 @@ func (o *{{$structName}}) Set{{$fieldName}}(ctx context.Context, exec runtime.Ex
 {{- if isNullable $fkCol}}
 
 // Remove{{$fieldName}} clears the {{$fieldName}} relationship by setting the related model's FK to NULL.
-func (o *{{$structName}}) Remove{{$fieldName}}(ctx context.Context, exec runtime.Executor) error {
+func (o *{{$structName}}) Remove{{$fieldName}}(ctx context.Context, exec sqlgen.Executor) error {
 	if o.R == nil || o.R.{{$fieldName}} == nil {
 		return nil
 	}
@@ -115,7 +115,7 @@ func (o *{{$structName}}) Remove{{$fieldName}}(ctx context.Context, exec runtime
 {{- $foreignTable := findTable $.AllTables $rel.ForeignTable}}
 
 // Add{{$fieldName}} adds models to the {{$fieldName}} relationship by setting their FK.
-func (o *{{$structName}}) Add{{$fieldName}}(ctx context.Context, exec runtime.Executor, related ...*{{$foreignStructName}}) error {
+func (o *{{$structName}}) Add{{$fieldName}}(ctx context.Context, exec sqlgen.Executor, related ...*{{$foreignStructName}}) error {
 	for _, r := range related {
 		r.{{pascal $foreignCol}} = {{fkWrap $foreignTable $foreignCol $.Table $localCol (printf "o.%s" (pascal $localCol))}}
 		query := "UPDATE " + dialect.QuoteIdent({{$foreignStructName}}TableName) +
@@ -139,7 +139,7 @@ func (o *{{$structName}}) Add{{$fieldName}}(ctx context.Context, exec runtime.Ex
 {{- if isNullable $fkCol}}
 
 // Remove{{$fieldName}} removes models from the {{$fieldName}} relationship by setting their FK to NULL.
-func (o *{{$structName}}) Remove{{$fieldName}}(ctx context.Context, exec runtime.Executor, related ...*{{$foreignStructName}}) error {
+func (o *{{$structName}}) Remove{{$fieldName}}(ctx context.Context, exec sqlgen.Executor, related ...*{{$foreignStructName}}) error {
 	toRemove := make(map[string]bool)
 	for _, r := range related {
 		query := "UPDATE " + dialect.QuoteIdent({{$foreignStructName}}TableName) +
@@ -178,7 +178,7 @@ func (o *{{$structName}}) Remove{{$fieldName}}(ctx context.Context, exec runtime
 {{- $joinForeignCol := index $rel.JoinForeignColumns 0}}
 
 // Add{{$fieldName}} adds to the {{$fieldName}} relationship by inserting join table rows.
-func (o *{{$structName}}) Add{{$fieldName}}(ctx context.Context, exec runtime.Executor, related ...*{{$foreignStructName}}) error {
+func (o *{{$structName}}) Add{{$fieldName}}(ctx context.Context, exec sqlgen.Executor, related ...*{{$foreignStructName}}) error {
 	for _, r := range related {
 		query := "INSERT INTO " + dialect.QuoteIdent("{{$rel.JoinTable}}") +
 			" (" + dialect.QuoteIdent("{{$joinLocalCol}}") + ", " + dialect.QuoteIdent("{{$joinForeignCol}}") + ")" +
@@ -196,7 +196,7 @@ func (o *{{$structName}}) Add{{$fieldName}}(ctx context.Context, exec runtime.Ex
 }
 
 // Remove{{$fieldName}} removes from the {{$fieldName}} relationship by deleting join table rows.
-func (o *{{$structName}}) Remove{{$fieldName}}(ctx context.Context, exec runtime.Executor, related ...*{{$foreignStructName}}) error {
+func (o *{{$structName}}) Remove{{$fieldName}}(ctx context.Context, exec sqlgen.Executor, related ...*{{$foreignStructName}}) error {
 	toRemove := make(map[string]bool)
 	for _, r := range related {
 		query := "DELETE FROM " + dialect.QuoteIdent("{{$rel.JoinTable}}") +
@@ -222,7 +222,7 @@ func (o *{{$structName}}) Remove{{$fieldName}}(ctx context.Context, exec runtime
 
 // Set{{$fieldName}} replaces the {{$fieldName}} relationship entirely.
 // Deletes all existing join rows, then inserts new ones.
-func (o *{{$structName}}) Set{{$fieldName}}(ctx context.Context, exec runtime.Executor, related ...*{{$foreignStructName}}) error {
+func (o *{{$structName}}) Set{{$fieldName}}(ctx context.Context, exec sqlgen.Executor, related ...*{{$foreignStructName}}) error {
 	// Delete all existing associations.
 	query := "DELETE FROM " + dialect.QuoteIdent("{{$rel.JoinTable}}") +
 		" WHERE " + dialect.QuoteIdent("{{$joinLocalCol}}") + " = " + dialect.Placeholder(1)

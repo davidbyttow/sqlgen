@@ -19,7 +19,7 @@ package {{.Package}}
 {{- if $hasCountRels}}
 
 // {{lower $structName}}CountLoaders maps relationship names to their count loader functions.
-var {{lower $structName}}CountLoaders = map[string]runtime.CountLoadFunc{}
+var {{lower $structName}}CountLoaders = map[string]sqlgen.CountLoadFunc{}
 
 func init() {
 {{- range .Table.Relationships}}
@@ -31,7 +31,7 @@ func init() {
 
 // LoadCountRelations loads counts for the specified relationships.
 // Pass relationship names (e.g., "Posts", "Tags") to load their counts.
-func (s {{$sliceType}}) LoadCountRelations(ctx context.Context, exec runtime.Executor, names ...string) error {
+func (s {{$sliceType}}) LoadCountRelations(ctx context.Context, exec sqlgen.Executor, names ...string) error {
 	for _, name := range names {
 		fn, ok := {{lower $structName}}CountLoaders[name]
 		if !ok {
@@ -50,7 +50,7 @@ func (s {{$sliceType}}) LoadCountRelations(ctx context.Context, exec runtime.Exe
 {{- if eq $rel.Type (relHasMany)}}
 {{- $localCol := index $rel.Columns 0 -}}
 {{- $foreignCol := index $rel.ForeignColumns 0}}
-func loadCount{{$structName}}{{$fieldName}}(ctx context.Context, exec runtime.Executor, d runtime.Dialect, parentModels any) error {
+func loadCount{{$structName}}{{$fieldName}}(ctx context.Context, exec sqlgen.Executor, d sqlgen.Dialect, parentModels any) error {
 	models := parentModels.({{$sliceType}})
 	if len(models) == 0 {
 		return nil
@@ -61,7 +61,7 @@ func loadCount{{$structName}}{{$fieldName}}(ctx context.Context, exec runtime.Ex
 		ids[i] = m.{{pascal $localCol}}
 	}
 
-	counts, err := runtime.LoadCount(ctx, exec, d, "{{$rel.ForeignTable}}", "{{$foreignCol}}", ids)
+	counts, err := sqlgen.LoadCount(ctx, exec, d, "{{$rel.ForeignTable}}", "{{$foreignCol}}", ids)
 	if err != nil {
 		return err
 	}
@@ -81,7 +81,7 @@ func loadCount{{$structName}}{{$fieldName}}(ctx context.Context, exec runtime.Ex
 {{- $localCol := index $rel.Columns 0 -}}
 {{- $joinLocalCol := index $rel.JoinLocalColumns 0 -}}
 {{- $joinForeignCol := index $rel.JoinForeignColumns 0}}
-func loadCount{{$structName}}{{$fieldName}}(ctx context.Context, exec runtime.Executor, d runtime.Dialect, parentModels any) error {
+func loadCount{{$structName}}{{$fieldName}}(ctx context.Context, exec sqlgen.Executor, d sqlgen.Dialect, parentModels any) error {
 	models := parentModels.({{$sliceType}})
 	if len(models) == 0 {
 		return nil
@@ -92,7 +92,7 @@ func loadCount{{$structName}}{{$fieldName}}(ctx context.Context, exec runtime.Ex
 		ids[i] = m.{{pascal $localCol}}
 	}
 
-	counts, err := runtime.LoadManyToManyCount(ctx, exec, d, "{{$rel.JoinTable}}", "{{$joinLocalCol}}", "{{$joinForeignCol}}", ids)
+	counts, err := sqlgen.LoadManyToManyCount(ctx, exec, d, "{{$rel.JoinTable}}", "{{$joinLocalCol}}", "{{$joinForeignCol}}", ids)
 	if err != nil {
 		return err
 	}
@@ -109,7 +109,7 @@ func loadCount{{$structName}}{{$fieldName}}(ctx context.Context, exec runtime.Ex
 }
 {{- else if eq $rel.Type (relPolymorphicMany)}}
 {{- $localCol := index $rel.Columns 0}}
-func loadCount{{$structName}}{{$fieldName}}(ctx context.Context, exec runtime.Executor, d runtime.Dialect, parentModels any) error {
+func loadCount{{$structName}}{{$fieldName}}(ctx context.Context, exec sqlgen.Executor, d sqlgen.Dialect, parentModels any) error {
 	models := parentModels.({{$sliceType}})
 	if len(models) == 0 {
 		return nil
@@ -120,7 +120,7 @@ func loadCount{{$structName}}{{$fieldName}}(ctx context.Context, exec runtime.Ex
 		ids[i] = m.{{pascal $localCol}}
 	}
 
-	counts, err := runtime.LoadPolymorphicCount(ctx, exec, d, "{{$rel.ForeignTable}}", "{{$rel.TypeColumn}}", "{{$rel.TypeValue}}", "{{index $rel.ForeignColumns 0}}", ids)
+	counts, err := sqlgen.LoadPolymorphicCount(ctx, exec, d, "{{$rel.ForeignTable}}", "{{$rel.TypeColumn}}", "{{$rel.TypeValue}}", "{{index $rel.ForeignColumns 0}}", ids)
 	if err != nil {
 		return err
 	}

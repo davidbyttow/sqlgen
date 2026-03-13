@@ -6,12 +6,12 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/davidbyttow/sqlgen/runtime"
+	"github.com/davidbyttow/sqlgen"
 )
 
 // SetParent sets the Parent relationship by updating the FK column.
-func (o *Category) SetParent(ctx context.Context, exec runtime.Executor, related *Category) error {
-	o.ParentID = runtime.NewNull(related.ID)
+func (o *Category) SetParent(ctx context.Context, exec sqlgen.Executor, related *Category) error {
+	o.ParentID = sqlgen.NewNull(related.ID)
 	query := "UPDATE " + dialect.QuoteIdent(CategoryTableName) +
 		" SET " + dialect.QuoteIdent("parent_id") + " = " + dialect.Placeholder(1) +
 		" WHERE " + dialect.QuoteIdent("id") + " = " + dialect.Placeholder(2)
@@ -27,7 +27,7 @@ func (o *Category) SetParent(ctx context.Context, exec runtime.Executor, related
 }
 
 // RemoveParent clears the Parent relationship by setting the FK to NULL.
-func (o *Category) RemoveParent(ctx context.Context, exec runtime.Executor) error {
+func (o *Category) RemoveParent(ctx context.Context, exec sqlgen.Executor) error {
 	query := "UPDATE " + dialect.QuoteIdent(CategoryTableName) +
 		" SET " + dialect.QuoteIdent("parent_id") + " = NULL" +
 		" WHERE " + dialect.QuoteIdent("id") + " = " + dialect.Placeholder(1)
@@ -42,9 +42,9 @@ func (o *Category) RemoveParent(ctx context.Context, exec runtime.Executor) erro
 }
 
 // AddParentsInverse adds models to the ParentsInverse relationship by setting their FK.
-func (o *Category) AddParentsInverse(ctx context.Context, exec runtime.Executor, related ...*Category) error {
+func (o *Category) AddParentsInverse(ctx context.Context, exec sqlgen.Executor, related ...*Category) error {
 	for _, r := range related {
-		r.ParentID = runtime.NewNull(o.ID)
+		r.ParentID = sqlgen.NewNull(o.ID)
 		query := "UPDATE " + dialect.QuoteIdent(CategoryTableName) +
 			" SET " + dialect.QuoteIdent("parent_id") + " = " + dialect.Placeholder(1) +
 			" WHERE " + dialect.QuoteIdent("id") + " = " + dialect.Placeholder(2)
@@ -61,7 +61,7 @@ func (o *Category) AddParentsInverse(ctx context.Context, exec runtime.Executor,
 }
 
 // RemoveParentsInverse removes models from the ParentsInverse relationship by setting their FK to NULL.
-func (o *Category) RemoveParentsInverse(ctx context.Context, exec runtime.Executor, related ...*Category) error {
+func (o *Category) RemoveParentsInverse(ctx context.Context, exec sqlgen.Executor, related ...*Category) error {
 	toRemove := make(map[string]bool)
 	for _, r := range related {
 		query := "UPDATE " + dialect.QuoteIdent(CategoryTableName) +

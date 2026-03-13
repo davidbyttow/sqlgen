@@ -6,18 +6,18 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/davidbyttow/sqlgen/runtime"
+	"github.com/davidbyttow/sqlgen"
 )
 
 // organizationLoaders maps relationship names to their loader functions.
-var organizationLoaders = map[string]runtime.LoadFunc{}
+var organizationLoaders = map[string]sqlgen.LoadFunc{}
 
 func init() {
 	organizationLoaders["Users"] = loadOrganizationUsers
 }
 
 // LoadRelations eagerly loads the specified relationships for a slice of Organization.
-func (s OrganizationSlice) LoadRelations(ctx context.Context, exec runtime.Executor, loads ...*runtime.EagerLoadRequest) error {
+func (s OrganizationSlice) LoadRelations(ctx context.Context, exec sqlgen.Executor, loads ...*sqlgen.EagerLoadRequest) error {
 	for _, load := range loads {
 		fn, ok := organizationLoaders[load.Name]
 		if !ok {
@@ -31,7 +31,7 @@ func (s OrganizationSlice) LoadRelations(ctx context.Context, exec runtime.Execu
 }
 
 // organizationLoadMods extracts query mods for the named relationship from the load requests.
-func organizationLoadMods(loads []*runtime.EagerLoadRequest, name string) []runtime.QueryMod {
+func organizationLoadMods(loads []*sqlgen.EagerLoadRequest, name string) []sqlgen.QueryMod {
 	for _, l := range loads {
 		if l.Name == name {
 			return l.Mods
@@ -40,7 +40,7 @@ func organizationLoadMods(loads []*runtime.EagerLoadRequest, name string) []runt
 	return nil
 }
 
-func loadOrganizationUsers(ctx context.Context, exec runtime.Executor, d runtime.Dialect, parentModels any, loads []*runtime.EagerLoadRequest) error {
+func loadOrganizationUsers(ctx context.Context, exec sqlgen.Executor, d sqlgen.Dialect, parentModels any, loads []*sqlgen.EagerLoadRequest) error {
 	models := parentModels.(OrganizationSlice)
 	if len(models) == 0 {
 		return nil
@@ -56,7 +56,7 @@ func loadOrganizationUsers(ctx context.Context, exec runtime.Executor, d runtime
 	}
 
 	mods := organizationLoadMods(loads, "Users")
-	rows, err := runtime.LoadMany(ctx, exec, d, UserTableName, "org_id", ids, mods...)
+	rows, err := sqlgen.LoadMany(ctx, exec, d, UserTableName, "org_id", ids, mods...)
 	if err != nil {
 		return err
 	}

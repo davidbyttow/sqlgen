@@ -1,12 +1,13 @@
-// Package runtime provides the minimal runtime library that generated code imports.
+// Package sqlgen provides the runtime library that generated code imports.
 // Keep this package small and stable; it's a public API.
-package runtime
+package sqlgen
 
 import (
 	"database/sql"
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
+	"reflect"
 )
 
 // Null represents an optional value that may be NULL in the database.
@@ -103,11 +104,33 @@ func (n *Null[T]) Scan(src any) error {
 		return nil
 	}
 
-	// Try common conversions.
+	// Handle []byte source assignable to T (e.g., json.RawMessage).
+	if b, ok := src.([]byte); ok {
+		rv := reflect.ValueOf(&n.Val).Elem()
+		if rv.Type().Kind() == reflect.Slice && rv.Type().Elem().Kind() == reflect.Uint8 {
+			cp := make([]byte, len(b))
+			copy(cp, b)
+			rv.Set(reflect.ValueOf(cp).Convert(rv.Type()))
+			n.Valid = true
+			return nil
+		}
+	}
+
+	// Handle int64 source assignable to smaller int types.
+	if i, ok := src.(int64); ok {
+		rv := reflect.ValueOf(&n.Val).Elem()
+		if rv.Type().ConvertibleTo(reflect.TypeFor[int64]()) {
+			rv.Set(reflect.ValueOf(i).Convert(rv.Type()))
+			n.Valid = true
+			return nil
+		}
+	}
+
 	return fmt.Errorf("sqlgen: cannot scan %T into Null[%T]", src, n.Val)
 }
 
 // Value implements driver.Valuer for writing to the database.
+// Converts narrow numeric types to driver-compatible int64/float64.
 func (n Null[T]) Value() (driver.Value, error) {
 	if !n.Valid {
 		return nil, nil
@@ -118,7 +141,34 @@ func (n Null[T]) Value() (driver.Value, error) {
 		return valuer.Value()
 	}
 
-	return n.Val, nil
+	return toDriverValue(n.Val)
+}
+
+// toDriverValue converts v to a valid driver.Value. The driver package
+// only accepts int64, float64, bool, []byte, string, and time.Time.
+func toDriverValue(v any) (driver.Value, error) {
+	switch c := v.(type) {
+	case int8:
+		return int64(c), nil
+	case int16:
+		return int64(c), nil
+	case int32:
+		return int64(c), nil
+	case int:
+		return int64(c), nil
+	case uint8:
+		return int64(c), nil
+	case uint16:
+		return int64(c), nil
+	case uint32:
+		return int64(c), nil
+	case uint64:
+		return int64(c), nil
+	case float32:
+		return float64(c), nil
+	default:
+		return v, nil
+	}
 }
 
 // String returns a string representation for debugging.

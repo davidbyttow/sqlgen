@@ -2,7 +2,7 @@
 
 package models
 
-import "github.com/davidbyttow/sqlgen/runtime"
+import "github.com/davidbyttow/sqlgen"
 
 // TagWhere provides type-safe where clause builders for each column.
 var TagWhere = struct {
@@ -18,31 +18,31 @@ type TagIDFilter struct {
 	col string
 }
 
-func (f TagIDFilter) EQ(val int32) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" = ?", val)
+func (f TagIDFilter) EQ(val int32) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" = ?", val)
 }
 
-func (f TagIDFilter) NEQ(val int32) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" != ?", val)
+func (f TagIDFilter) NEQ(val int32) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" != ?", val)
 }
 
-func (f TagIDFilter) LT(val int32) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" < ?", val)
+func (f TagIDFilter) LT(val int32) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" < ?", val)
 }
 
-func (f TagIDFilter) LTE(val int32) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" <= ?", val)
+func (f TagIDFilter) LTE(val int32) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" <= ?", val)
 }
 
-func (f TagIDFilter) GT(val int32) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" > ?", val)
+func (f TagIDFilter) GT(val int32) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" > ?", val)
 }
 
-func (f TagIDFilter) GTE(val int32) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" >= ?", val)
+func (f TagIDFilter) GTE(val int32) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" >= ?", val)
 }
 
-func (f TagIDFilter) IN(vals ...int32) runtime.QueryMod {
+func (f TagIDFilter) IN(vals ...int32) sqlgen.QueryMod {
 	args := make([]any, len(vals))
 	for i, v := range vals {
 		args[i] = v
@@ -54,7 +54,7 @@ func (f TagIDFilter) IN(vals ...int32) runtime.QueryMod {
 		}
 		placeholders = append(placeholders, '?')
 	}
-	return runtime.Where("\""+f.col+"\" IN ("+string(placeholders)+")", args...)
+	return sqlgen.Where("\""+f.col+"\" IN ("+string(placeholders)+")", args...)
 }
 
 // TagNameFilter provides where clauses for the name column.
@@ -62,31 +62,31 @@ type TagNameFilter struct {
 	col string
 }
 
-func (f TagNameFilter) EQ(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" = ?", val)
+func (f TagNameFilter) EQ(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" = ?", val)
 }
 
-func (f TagNameFilter) NEQ(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" != ?", val)
+func (f TagNameFilter) NEQ(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" != ?", val)
 }
 
-func (f TagNameFilter) LT(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" < ?", val)
+func (f TagNameFilter) LT(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" < ?", val)
 }
 
-func (f TagNameFilter) LTE(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" <= ?", val)
+func (f TagNameFilter) LTE(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" <= ?", val)
 }
 
-func (f TagNameFilter) GT(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" > ?", val)
+func (f TagNameFilter) GT(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" > ?", val)
 }
 
-func (f TagNameFilter) GTE(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" >= ?", val)
+func (f TagNameFilter) GTE(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" >= ?", val)
 }
 
-func (f TagNameFilter) IN(vals ...string) runtime.QueryMod {
+func (f TagNameFilter) IN(vals ...string) sqlgen.QueryMod {
 	args := make([]any, len(vals))
 	for i, v := range vals {
 		args[i] = v
@@ -98,5 +98,5 @@ func (f TagNameFilter) IN(vals ...string) runtime.QueryMod {
 		}
 		placeholders = append(placeholders, '?')
 	}
-	return runtime.Where("\""+f.col+"\" IN ("+string(placeholders)+")", args...)
+	return sqlgen.Where("\""+f.col+"\" IN ("+string(placeholders)+")", args...)
 }

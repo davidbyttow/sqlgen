@@ -6,11 +6,11 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/davidbyttow/sqlgen/runtime"
+	"github.com/davidbyttow/sqlgen"
 )
 
 // postLoaders maps relationship names to their loader functions.
-var postLoaders = map[string]runtime.LoadFunc{}
+var postLoaders = map[string]sqlgen.LoadFunc{}
 
 func init() {
 	postLoaders["User"] = loadPostUser
@@ -18,7 +18,7 @@ func init() {
 }
 
 // LoadRelations eagerly loads the specified relationships for a slice of Post.
-func (s PostSlice) LoadRelations(ctx context.Context, exec runtime.Executor, loads ...*runtime.EagerLoadRequest) error {
+func (s PostSlice) LoadRelations(ctx context.Context, exec sqlgen.Executor, loads ...*sqlgen.EagerLoadRequest) error {
 	for _, load := range loads {
 		fn, ok := postLoaders[load.Name]
 		if !ok {
@@ -32,7 +32,7 @@ func (s PostSlice) LoadRelations(ctx context.Context, exec runtime.Executor, loa
 }
 
 // postLoadMods extracts query mods for the named relationship from the load requests.
-func postLoadMods(loads []*runtime.EagerLoadRequest, name string) []runtime.QueryMod {
+func postLoadMods(loads []*sqlgen.EagerLoadRequest, name string) []sqlgen.QueryMod {
 	for _, l := range loads {
 		if l.Name == name {
 			return l.Mods
@@ -41,7 +41,7 @@ func postLoadMods(loads []*runtime.EagerLoadRequest, name string) []runtime.Quer
 	return nil
 }
 
-func loadPostUser(ctx context.Context, exec runtime.Executor, d runtime.Dialect, parentModels any, loads []*runtime.EagerLoadRequest) error {
+func loadPostUser(ctx context.Context, exec sqlgen.Executor, d sqlgen.Dialect, parentModels any, loads []*sqlgen.EagerLoadRequest) error {
 	models := parentModels.(PostSlice)
 	if len(models) == 0 {
 		return nil
@@ -59,7 +59,7 @@ func loadPostUser(ctx context.Context, exec runtime.Executor, d runtime.Dialect,
 	}
 
 	mods := postLoadMods(loads, "User")
-	rows, err := runtime.LoadMany(ctx, exec, d, UserTableName, "id", ids, mods...)
+	rows, err := sqlgen.LoadMany(ctx, exec, d, UserTableName, "id", ids, mods...)
 	if err != nil {
 		return err
 	}
@@ -92,7 +92,7 @@ func loadPostUser(ctx context.Context, exec runtime.Executor, d runtime.Dialect,
 	return nil
 }
 
-func loadPostTags(ctx context.Context, exec runtime.Executor, d runtime.Dialect, parentModels any, loads []*runtime.EagerLoadRequest) error {
+func loadPostTags(ctx context.Context, exec sqlgen.Executor, d sqlgen.Dialect, parentModels any, loads []*sqlgen.EagerLoadRequest) error {
 	models := parentModels.(PostSlice)
 	if len(models) == 0 {
 		return nil
@@ -108,7 +108,7 @@ func loadPostTags(ctx context.Context, exec runtime.Executor, d runtime.Dialect,
 	}
 
 	mods := postLoadMods(loads, "Tags")
-	rows, joinKeyAlias, err := runtime.LoadManyToMany(ctx, exec, d,
+	rows, joinKeyAlias, err := sqlgen.LoadManyToMany(ctx, exec, d,
 		TagTableName,
 		"post_tags",
 		"post_id",

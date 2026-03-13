@@ -13,7 +13,7 @@ func newMapper(nullType config.NullType, replacements map[string]string) *TypeMa
 		Output: config.OutputConfig{Dir: "out"},
 		Types:  config.TypesConfig{NullType: nullType, Replacements: replacements},
 	}
-	return NewTypeMapper(cfg, "github.com/davidbyttow/sqlgen/runtime")
+	return NewTypeMapper(cfg, "github.com/davidbyttow/sqlgen")
 }
 
 func TestGoTypeForBasic(t *testing.T) {
@@ -49,10 +49,10 @@ func TestGoTypeForNullableGeneric(t *testing.T) {
 
 	col := &schema.Column{DBType: "text", IsNullable: true}
 	got := m.GoTypeFor(col)
-	if got.Name != "runtime.Null[string]" {
-		t.Errorf("nullable text = %q, want runtime.Null[string]", got.Name)
+	if got.Name != "sqlgen.Null[string]" {
+		t.Errorf("nullable text = %q, want sqlgen.Null[string]", got.Name)
 	}
-	if got.Import != "github.com/davidbyttow/sqlgen/runtime" {
+	if got.Import != "github.com/davidbyttow/sqlgen" {
 		t.Errorf("import = %q", got.Import)
 	}
 }
@@ -112,8 +112,8 @@ func TestGoTypeForEnum(t *testing.T) {
 
 	col.IsNullable = true
 	got = m.GoTypeFor(col)
-	if got.Name != "runtime.Null[UserRole]" {
-		t.Errorf("nullable enum = %q, want runtime.Null[UserRole]", got.Name)
+	if got.Name != "sqlgen.Null[UserRole]" {
+		t.Errorf("nullable enum = %q, want sqlgen.Null[UserRole]", got.Name)
 	}
 }
 
@@ -144,7 +144,7 @@ func TestGoTypeForTableColumnReplacement(t *testing.T) {
 			},
 		},
 	}
-	m := NewTypeMapper(cfg, "github.com/davidbyttow/sqlgen/runtime")
+	m := NewTypeMapper(cfg, "github.com/davidbyttow/sqlgen")
 
 	// Exact match: users.metadata -> map[string]any
 	col := &schema.Column{Name: "metadata", DBType: "jsonb"}

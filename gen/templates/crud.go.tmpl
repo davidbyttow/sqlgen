@@ -13,18 +13,18 @@ package {{.Package}}
 {{.Imports}}
 
 // {{plural $structName}} returns a query builder for the {{$tableName}} table.
-func {{safePascal (plural (singular $tableName))}}(mods ...runtime.QueryMod) *runtime.Query {
-	return runtime.NewQuery(dialect, {{$tableConst}}, mods...)
+func {{safePascal (plural (singular $tableName))}}(mods ...sqlgen.QueryMod) *sqlgen.Query {
+	return sqlgen.NewQuery(dialect, {{$tableConst}}, mods...)
 }
 
 // Find{{$structName}}ByPK finds a {{$structName}} by primary key.
 {{- if .Table.PrimaryKey}}
-func Find{{$structName}}ByPK(ctx context.Context, exec runtime.Executor{{range .Table.PrimaryKey.Columns}}, {{safeCamel .}} {{goType (findCol $.Table .) $tableName}}{{end}}) (*{{$structName}}, error) {
-	q := runtime.NewQuery(dialect, {{$tableConst}},
+func Find{{$structName}}ByPK(ctx context.Context, exec sqlgen.Executor{{range .Table.PrimaryKey.Columns}}, {{safeCamel .}} {{goType (findCol $.Table .) $tableName}}{{end}}) (*{{$structName}}, error) {
+	q := sqlgen.NewQuery(dialect, {{$tableConst}},
 {{- range $i, $col := .Table.PrimaryKey.Columns}}
-		runtime.Where("\"{{$col}}\" = ?", {{safeCamel $col}}),
+		sqlgen.Where("\"{{$col}}\" = ?", {{safeCamel $col}}),
 {{- end}}
-		runtime.Limit(1),
+		sqlgen.Limit(1),
 	)
 
 	query, args := q.BuildSelect()
@@ -40,8 +40,8 @@ func Find{{$structName}}ByPK(ctx context.Context, exec runtime.Executor{{range .
 
 // All{{plural $structName}} retrieves all rows from the {{$tableName}} table with the given query mods.
 // Supports Preload() for LEFT JOIN eager loading of to-one relationships.
-func All{{safePascal (plural (singular $tableName))}}(ctx context.Context, exec runtime.Executor, mods ...runtime.QueryMod) ({{$structName}}Slice, error) {
-	q := runtime.NewQuery(dialect, {{$tableConst}}, mods...)
+func All{{safePascal (plural (singular $tableName))}}(ctx context.Context, exec sqlgen.Executor, mods ...sqlgen.QueryMod) ({{$structName}}Slice, error) {
+	q := sqlgen.NewQuery(dialect, {{$tableConst}}, mods...)
 	query, args := q.BuildSelect()
 	rows, err := exec.QueryContext(ctx, query, args...)
 	if err != nil {
@@ -90,9 +90,9 @@ func All{{safePascal (plural (singular $tableName))}}(ctx context.Context, exec 
 
 // Insert inserts the {{$structName}} into the database.
 // Optional Columns parameter controls which columns are included (Whitelist/Blacklist).
-func (o *{{$structName}}) Insert(ctx context.Context, exec runtime.Executor, cols ...runtime.Columns) error {
+func (o *{{$structName}}) Insert(ctx context.Context, exec sqlgen.Executor, cols ...sqlgen.Columns) error {
 {{- if $hooks}}
-	ctx, err := {{$hooksVar}}Hooks.RunIfEnabled(ctx, exec, runtime.BeforeInsert, o)
+	ctx, err := {{$hooksVar}}Hooks.RunIfEnabled(ctx, exec, sqlgen.BeforeInsert, o)
 	if err != nil {
 		return err
 	}
@@ -107,9 +107,9 @@ func (o *{{$structName}}) Insert(ctx context.Context, exec runtime.Executor, col
 {{- if $hasAutoIncrPK}}
 	insertCols := []string{ {{- range $i, $c := $insertCols}}{{if $i}}, {{end}}"{{$c.Name}}"{{end -}} }
 	insertVals := []any{ {{- range $i, $c := $insertCols}}{{if $i}}, {{end}}o.{{pascal $c.Name}}{{end -}} }
-	insertCols, insertVals = runtime.FilterColumns(insertCols, insertVals, cols...)
+	insertCols, insertVals = sqlgen.FilterColumns(insertCols, insertVals, cols...)
 
-	query, args := runtime.BuildInsert(dialect, {{$tableConst}},
+	query, args := sqlgen.BuildInsert(dialect, {{$tableConst}},
 		insertCols, insertVals,
 		[]string{ {{- range $i, $c := .Table.PrimaryKey.Columns}}{{if $i}}, {{end}}"{{$c}}"{{end -}} },
 	)
@@ -126,11 +126,11 @@ func (o *{{$structName}}) Insert(ctx context.Context, exec runtime.Executor, col
 {{- else}}
 	allCols := []string{ {{- range $i, $c := $insertCols}}{{if $i}}, {{end}}"{{$c.Name}}"{{end -}} }
 	allVals := []any{ {{- range $i, $c := $insertCols}}{{if $i}}, {{end}}o.{{pascal $c.Name}}{{end -}} }
-	allCols, allVals = runtime.FilterColumns(allCols, allVals, cols...)
+	allCols, allVals = sqlgen.FilterColumns(allCols, allVals, cols...)
 
 	returning := []string{ {{- range $i, $c := .Table.Columns}}{{if $i}}, {{end}}"{{$c.Name}}"{{end -}} }
 
-	query, args := runtime.BuildInsert(dialect, {{$tableConst}}, allCols, allVals, returning)
+	query, args := sqlgen.BuildInsert(dialect, {{$tableConst}}, allCols, allVals, returning)
 
 {{- if $hooks}}
 	err = exec.QueryRowContext(ctx, query, args...).Scan(
@@ -147,7 +147,7 @@ func (o *{{$structName}}) Insert(ctx context.Context, exec runtime.Executor, col
 	}
 
 {{- if $hooks}}
-	_, err = {{$hooksVar}}Hooks.RunIfEnabled(ctx, exec, runtime.AfterInsert, o)
+	_, err = {{$hooksVar}}Hooks.RunIfEnabled(ctx, exec, sqlgen.AfterInsert, o)
 	return err
 {{- else}}
 	return nil
@@ -157,9 +157,9 @@ func (o *{{$structName}}) Insert(ctx context.Context, exec runtime.Executor, col
 // Update updates the {{$structName}} in the database. Only non-PK columns are updated.
 // Optional Columns parameter controls which columns are included (Whitelist/Blacklist).
 {{- if .Table.PrimaryKey}}
-func (o *{{$structName}}) Update(ctx context.Context, exec runtime.Executor, cols ...runtime.Columns) error {
+func (o *{{$structName}}) Update(ctx context.Context, exec sqlgen.Executor, cols ...sqlgen.Columns) error {
 {{- if $hooks}}
-	ctx, err := {{$hooksVar}}Hooks.RunIfEnabled(ctx, exec, runtime.BeforeUpdate, o)
+	ctx, err := {{$hooksVar}}Hooks.RunIfEnabled(ctx, exec, sqlgen.BeforeUpdate, o)
 	if err != nil {
 		return err
 	}
@@ -171,12 +171,12 @@ func (o *{{$structName}}) Update(ctx context.Context, exec runtime.Executor, col
 {{- $nonPK := nonPKColumns .Table}}
 	setCols := []string{ {{- range $i, $c := $nonPK}}{{if $i}}, {{end}}"{{$c.Name}}"{{end -}} }
 	setVals := []any{ {{- range $i, $c := $nonPK}}{{if $i}}, {{end}}o.{{pascal $c.Name}}{{end -}} }
-	setCols, setVals = runtime.FilterColumns(setCols, setVals, cols...)
+	setCols, setVals = sqlgen.FilterColumns(setCols, setVals, cols...)
 
 	whereClauses := []string{ {{- range $i, $c := .Table.PrimaryKey.Columns}}{{if $i}}, {{end}}"\"{{$c}}\" = ?"{{end -}} }
 	whereArgs := []any{ {{- range $i, $c := .Table.PrimaryKey.Columns}}{{if $i}}, {{end}}o.{{pascal $c}}{{end -}} }
 
-	query, args := runtime.BuildUpdate(dialect, {{$tableConst}}, setCols, setVals, whereClauses, whereArgs)
+	query, args := sqlgen.BuildUpdate(dialect, {{$tableConst}}, setCols, setVals, whereClauses, whereArgs)
 {{- if $hooks}}
 	_, err = exec.ExecContext(ctx, query, args...)
 {{- else}}
@@ -187,7 +187,7 @@ func (o *{{$structName}}) Update(ctx context.Context, exec runtime.Executor, col
 	}
 
 {{- if $hooks}}
-	_, err = {{$hooksVar}}Hooks.RunIfEnabled(ctx, exec, runtime.AfterUpdate, o)
+	_, err = {{$hooksVar}}Hooks.RunIfEnabled(ctx, exec, sqlgen.AfterUpdate, o)
 	return err
 {{- else}}
 	return nil
@@ -197,9 +197,9 @@ func (o *{{$structName}}) Update(ctx context.Context, exec runtime.Executor, col
 
 // Delete deletes the {{$structName}} from the database.
 {{- if .Table.PrimaryKey}}
-func (o *{{$structName}}) Delete(ctx context.Context, exec runtime.Executor) error {
+func (o *{{$structName}}) Delete(ctx context.Context, exec sqlgen.Executor) error {
 {{- if $hooks}}
-	ctx, err := {{$hooksVar}}Hooks.RunIfEnabled(ctx, exec, runtime.BeforeDelete, o)
+	ctx, err := {{$hooksVar}}Hooks.RunIfEnabled(ctx, exec, sqlgen.BeforeDelete, o)
 	if err != nil {
 		return err
 	}
@@ -208,7 +208,7 @@ func (o *{{$structName}}) Delete(ctx context.Context, exec runtime.Executor) err
 	whereClauses := []string{ {{- range $i, $c := .Table.PrimaryKey.Columns}}{{if $i}}, {{end}}"\"{{$c}}\" = ?"{{end -}} }
 	whereArgs := []any{ {{- range $i, $c := .Table.PrimaryKey.Columns}}{{if $i}}, {{end}}o.{{pascal $c}}{{end -}} }
 
-	query, args := runtime.BuildDelete(dialect, {{$tableConst}}, whereClauses, whereArgs)
+	query, args := sqlgen.BuildDelete(dialect, {{$tableConst}}, whereClauses, whereArgs)
 {{- if $hooks}}
 	_, err = exec.ExecContext(ctx, query, args...)
 {{- else}}
@@ -219,7 +219,7 @@ func (o *{{$structName}}) Delete(ctx context.Context, exec runtime.Executor) err
 	}
 
 {{- if $hooks}}
-	_, err = {{$hooksVar}}Hooks.RunIfEnabled(ctx, exec, runtime.AfterDelete, o)
+	_, err = {{$hooksVar}}Hooks.RunIfEnabled(ctx, exec, sqlgen.AfterDelete, o)
 	return err
 {{- else}}
 	return nil
@@ -230,9 +230,9 @@ func (o *{{$structName}}) Delete(ctx context.Context, exec runtime.Executor) err
 // Upsert inserts or updates the {{$structName}} based on the primary key.
 // Optional Columns parameter controls which non-PK columns are included (Whitelist/Blacklist).
 {{- if .Table.PrimaryKey}}
-func (o *{{$structName}}) Upsert(ctx context.Context, exec runtime.Executor, cols ...runtime.Columns) error {
+func (o *{{$structName}}) Upsert(ctx context.Context, exec sqlgen.Executor, cols ...sqlgen.Columns) error {
 {{- if $hooks}}
-	ctx, err := {{$hooksVar}}Hooks.RunIfEnabled(ctx, exec, runtime.BeforeUpsert, o)
+	ctx, err := {{$hooksVar}}Hooks.RunIfEnabled(ctx, exec, sqlgen.BeforeUpsert, o)
 	if err != nil {
 		return err
 	}
@@ -241,14 +241,14 @@ func (o *{{$structName}}) Upsert(ctx context.Context, exec runtime.Executor, col
 {{- $nonPK := nonPKColumns .Table}}
 	allCols := []string{ {{- range $i, $c := .Table.Columns}}{{if $i}}, {{end}}"{{$c.Name}}"{{end -}} }
 	allVals := []any{ {{- range $i, $c := .Table.Columns}}{{if $i}}, {{end}}o.{{pascal $c.Name}}{{end -}} }
-	allCols, allVals = runtime.FilterColumns(allCols, allVals, cols...)
+	allCols, allVals = sqlgen.FilterColumns(allCols, allVals, cols...)
 	conflictCols := []string{ {{- range $i, $c := .Table.PrimaryKey.Columns}}{{if $i}}, {{end}}"{{$c}}"{{end -}} }
 	updateCols := []string{ {{- range $i, $c := $nonPK}}{{if $i}}, {{end}}"{{$c.Name}}"{{end -}} }
 	{{- /* Filter updateCols to match the filtered insert columns (minus PKs). */}}
-	updateCols, _ = runtime.FilterColumns(updateCols, make([]any, len(updateCols)), cols...)
+	updateCols, _ = sqlgen.FilterColumns(updateCols, make([]any, len(updateCols)), cols...)
 	returning := []string{ {{- range $i, $c := .Table.Columns}}{{if $i}}, {{end}}"{{$c.Name}}"{{end -}} }
 
-	query, args := runtime.BuildUpsert(dialect, {{$tableConst}}, allCols, allVals, conflictCols, updateCols, returning)
+	query, args := sqlgen.BuildUpsert(dialect, {{$tableConst}}, allCols, allVals, conflictCols, updateCols, returning)
 
 {{- if $hooks}}
 	err = exec.QueryRowContext(ctx, query, args...).Scan(
@@ -264,7 +264,7 @@ func (o *{{$structName}}) Upsert(ctx context.Context, exec runtime.Executor, col
 	}
 
 {{- if $hooks}}
-	_, err = {{$hooksVar}}Hooks.RunIfEnabled(ctx, exec, runtime.AfterUpsert, o)
+	_, err = {{$hooksVar}}Hooks.RunIfEnabled(ctx, exec, sqlgen.AfterUpsert, o)
 	return err
 {{- else}}
 	return nil
@@ -274,24 +274,24 @@ func (o *{{$structName}}) Upsert(ctx context.Context, exec runtime.Executor, col
 
 // Exists checks if a row with the given primary key exists.
 {{- if .Table.PrimaryKey}}
-func {{$structName}}Exists(ctx context.Context, exec runtime.Executor{{range .Table.PrimaryKey.Columns}}, {{safeCamel .}} {{goType (findCol $.Table .) $tableName}}{{end}}) (bool, error) {
-	return runtime.Exists(ctx, exec, dialect, {{$tableConst}},
+func {{$structName}}Exists(ctx context.Context, exec sqlgen.Executor{{range .Table.PrimaryKey.Columns}}, {{safeCamel .}} {{goType (findCol $.Table .) $tableName}}{{end}}) (bool, error) {
+	return sqlgen.Exists(ctx, exec, dialect, {{$tableConst}},
 {{- range .Table.PrimaryKey.Columns}}
-		runtime.Where("\"{{.}}\" = ?", {{safeCamel .}}),
+		sqlgen.Where("\"{{.}}\" = ?", {{safeCamel .}}),
 {{- end}}
 	)
 }
 {{- end}}
 
 // Count{{plural $structName}} returns the count of rows matching the query mods.
-func Count{{safePascal (plural (singular $tableName))}}(ctx context.Context, exec runtime.Executor, mods ...runtime.QueryMod) (int64, error) {
-	return runtime.Count(ctx, exec, dialect, {{$tableConst}}, mods...)
+func Count{{safePascal (plural (singular $tableName))}}(ctx context.Context, exec sqlgen.Executor, mods ...sqlgen.QueryMod) (int64, error) {
+	return sqlgen.Count(ctx, exec, dialect, {{$tableConst}}, mods...)
 }
 
 // UpdateAll{{safePascal (plural (singular $tableName))}} updates all rows matching the given mods.
 // set is a map of column name -> new value.
-func UpdateAll{{safePascal (plural (singular $tableName))}}(ctx context.Context, exec runtime.Executor, set map[string]any, mods ...runtime.QueryMod) (int64, error) {
-	q := runtime.NewQuery(dialect, {{$tableConst}}, mods...)
+func UpdateAll{{safePascal (plural (singular $tableName))}}(ctx context.Context, exec sqlgen.Executor, set map[string]any, mods ...sqlgen.QueryMod) (int64, error) {
+	q := sqlgen.NewQuery(dialect, {{$tableConst}}, mods...)
 	query, args := q.BuildUpdateAll(set)
 	result, err := exec.ExecContext(ctx, query, args...)
 	if err != nil {
@@ -301,8 +301,8 @@ func UpdateAll{{safePascal (plural (singular $tableName))}}(ctx context.Context,
 }
 
 // DeleteAll{{safePascal (plural (singular $tableName))}} deletes all rows matching the given mods.
-func DeleteAll{{safePascal (plural (singular $tableName))}}(ctx context.Context, exec runtime.Executor, mods ...runtime.QueryMod) (int64, error) {
-	q := runtime.NewQuery(dialect, {{$tableConst}}, mods...)
+func DeleteAll{{safePascal (plural (singular $tableName))}}(ctx context.Context, exec sqlgen.Executor, mods ...sqlgen.QueryMod) (int64, error) {
+	q := sqlgen.NewQuery(dialect, {{$tableConst}}, mods...)
 	query, args := q.BuildDeleteAll()
 	result, err := exec.ExecContext(ctx, query, args...)
 	if err != nil {
@@ -313,23 +313,23 @@ func DeleteAll{{safePascal (plural (singular $tableName))}}(ctx context.Context,
 
 // Each{{$structName}} executes a query and calls fn for each row. Iteration stops
 // early if fn returns an error. Rows are not accumulated in memory.
-func Each{{$structName}}(ctx context.Context, exec runtime.Executor, fn func(*{{$structName}}) error, mods ...runtime.QueryMod) error {
-	return runtime.Each(ctx, exec, runtime.NewQuery(dialect, {{$tableConst}}, mods...), func() *{{$structName}} { return &{{$structName}}{} }, fn)
+func Each{{$structName}}(ctx context.Context, exec sqlgen.Executor, fn func(*{{$structName}}) error, mods ...sqlgen.QueryMod) error {
+	return sqlgen.Each(ctx, exec, sqlgen.NewQuery(dialect, {{$tableConst}}, mods...), func() *{{$structName}} { return &{{$structName}}{} }, fn)
 }
 
 // {{$structName}}Cursor returns a cursor for iterating over {{$tableName}} rows one at a time.
-func {{$structName}}Cursor(ctx context.Context, exec runtime.Executor, mods ...runtime.QueryMod) (*runtime.Cursor[*{{$structName}}], error) {
-	return runtime.NewCursor(ctx, exec, runtime.NewQuery(dialect, {{$tableConst}}, mods...), func() *{{$structName}} { return &{{$structName}}{} })
+func {{$structName}}Cursor(ctx context.Context, exec sqlgen.Executor, mods ...sqlgen.QueryMod) (*sqlgen.Cursor[*{{$structName}}], error) {
+	return sqlgen.NewCursor(ctx, exec, sqlgen.NewQuery(dialect, {{$tableConst}}, mods...), func() *{{$structName}} { return &{{$structName}}{} })
 }
 
 {{- if .Table.PrimaryKey}}
 // Reload refreshes the {{$structName}} from the database using its primary key.
-func (o *{{$structName}}) Reload(ctx context.Context, exec runtime.Executor) error {
-	q := runtime.NewQuery(dialect, {{$tableConst}},
+func (o *{{$structName}}) Reload(ctx context.Context, exec sqlgen.Executor) error {
+	q := sqlgen.NewQuery(dialect, {{$tableConst}},
 {{- range .Table.PrimaryKey.Columns}}
-		runtime.Where("\"{{.}}\" = ?", o.{{pascal .}}),
+		sqlgen.Where("\"{{.}}\" = ?", o.{{pascal .}}),
 {{- end}}
-		runtime.Limit(1),
+		sqlgen.Limit(1),
 	)
 	query, args := q.BuildSelect()
 	return o.ScanRow(exec.QueryRowContext(ctx, query, args...))
@@ -339,7 +339,7 @@ func (o *{{$structName}}) Reload(ctx context.Context, exec runtime.Executor) err
 {{- $pkCol := index .Table.PrimaryKey.Columns 0}}
 
 // UpdateAll updates all models in the slice with the given column values.
-func (s {{$structName}}Slice) UpdateAll(ctx context.Context, exec runtime.Executor, set map[string]any) (int64, error) {
+func (s {{$structName}}Slice) UpdateAll(ctx context.Context, exec sqlgen.Executor, set map[string]any) (int64, error) {
 	if len(s) == 0 {
 		return 0, nil
 	}
@@ -347,11 +347,11 @@ func (s {{$structName}}Slice) UpdateAll(ctx context.Context, exec runtime.Execut
 	for i, o := range s {
 		ids[i] = o.{{pascal $pkCol}}
 	}
-	return UpdateAll{{safePascal (plural (singular $tableName))}}(ctx, exec, set, runtime.WhereIn("\"{{$pkCol}}\"", ids...))
+	return UpdateAll{{safePascal (plural (singular $tableName))}}(ctx, exec, set, sqlgen.WhereIn("\"{{$pkCol}}\"", ids...))
 }
 
 // DeleteAll deletes all models in the slice.
-func (s {{$structName}}Slice) DeleteAll(ctx context.Context, exec runtime.Executor) (int64, error) {
+func (s {{$structName}}Slice) DeleteAll(ctx context.Context, exec sqlgen.Executor) (int64, error) {
 	if len(s) == 0 {
 		return 0, nil
 	}
@@ -359,13 +359,13 @@ func (s {{$structName}}Slice) DeleteAll(ctx context.Context, exec runtime.Execut
 	for i, o := range s {
 		ids[i] = o.{{pascal $pkCol}}
 	}
-	return DeleteAll{{safePascal (plural (singular $tableName))}}(ctx, exec, runtime.WhereIn("\"{{$pkCol}}\"", ids...))
+	return DeleteAll{{safePascal (plural (singular $tableName))}}(ctx, exec, sqlgen.WhereIn("\"{{$pkCol}}\"", ids...))
 }
 
 // InsertAll batch-inserts all models in the slice. Each model's columns are
 // scanned back via RETURNING, picking up defaults and generated values.
 // Hooks are not fired (consistent with UpdateAll/DeleteAll).
-func (s {{$structName}}Slice) InsertAll(ctx context.Context, exec runtime.Executor) error {
+func (s {{$structName}}Slice) InsertAll(ctx context.Context, exec sqlgen.Executor) error {
 	if len(s) == 0 {
 		return nil
 	}
@@ -396,7 +396,7 @@ func (s {{$structName}}Slice) InsertAll(ctx context.Context, exec runtime.Execut
 	}
 {{- end}}
 
-	query, args := runtime.BuildBatchInsert(dialect, {{$tableConst}}, cols, rows, returning)
+	query, args := sqlgen.BuildBatchInsert(dialect, {{$tableConst}}, cols, rows, returning)
 	result, err := exec.QueryContext(ctx, query, args...)
 	if err != nil {
 		return err

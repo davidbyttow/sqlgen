@@ -1,4 +1,4 @@
-package runtime
+package sqlgen
 
 // PreloadDef describes how to LEFT JOIN a related table for preloading.
 // Generated code creates these per-relationship.

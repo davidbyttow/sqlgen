@@ -6,18 +6,18 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/davidbyttow/sqlgen/runtime"
+	"github.com/davidbyttow/sqlgen"
 )
 
 // userLoaders maps relationship names to their loader functions.
-var userLoaders = map[string]runtime.LoadFunc{}
+var userLoaders = map[string]sqlgen.LoadFunc{}
 
 func init() {
 	userLoaders["Posts"] = loadUserPosts
 }
 
 // LoadRelations eagerly loads the specified relationships for a slice of User.
-func (s UserSlice) LoadRelations(ctx context.Context, exec runtime.Executor, loads ...*runtime.EagerLoadRequest) error {
+func (s UserSlice) LoadRelations(ctx context.Context, exec sqlgen.Executor, loads ...*sqlgen.EagerLoadRequest) error {
 	for _, load := range loads {
 		fn, ok := userLoaders[load.Name]
 		if !ok {
@@ -31,7 +31,7 @@ func (s UserSlice) LoadRelations(ctx context.Context, exec runtime.Executor, loa
 }
 
 // userLoadMods extracts query mods for the named relationship from the load requests.
-func userLoadMods(loads []*runtime.EagerLoadRequest, name string) []runtime.QueryMod {
+func userLoadMods(loads []*sqlgen.EagerLoadRequest, name string) []sqlgen.QueryMod {
 	for _, l := range loads {
 		if l.Name == name {
 			return l.Mods
@@ -40,7 +40,7 @@ func userLoadMods(loads []*runtime.EagerLoadRequest, name string) []runtime.Quer
 	return nil
 }
 
-func loadUserPosts(ctx context.Context, exec runtime.Executor, d runtime.Dialect, parentModels any, loads []*runtime.EagerLoadRequest) error {
+func loadUserPosts(ctx context.Context, exec sqlgen.Executor, d sqlgen.Dialect, parentModels any, loads []*sqlgen.EagerLoadRequest) error {
 	models := parentModels.(UserSlice)
 	if len(models) == 0 {
 		return nil
@@ -56,7 +56,7 @@ func loadUserPosts(ctx context.Context, exec runtime.Executor, d runtime.Dialect
 	}
 
 	mods := userLoadMods(loads, "Posts")
-	rows, err := runtime.LoadMany(ctx, exec, d, PostTableName, "author_id", ids, mods...)
+	rows, err := sqlgen.LoadMany(ctx, exec, d, PostTableName, "author_id", ids, mods...)
 	if err != nil {
 		return err
 	}

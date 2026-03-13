@@ -5,19 +5,19 @@ package models
 import (
 	"context"
 
-	"github.com/davidbyttow/sqlgen/runtime"
+	"github.com/davidbyttow/sqlgen"
 )
 
 // Tags returns a query builder for the tags table.
-func Tags(mods ...runtime.QueryMod) *runtime.Query {
-	return runtime.NewQuery(dialect, TagTableName, mods...)
+func Tags(mods ...sqlgen.QueryMod) *sqlgen.Query {
+	return sqlgen.NewQuery(dialect, TagTableName, mods...)
 }
 
 // FindTagByPK finds a Tag by primary key.
-func FindTagByPK(ctx context.Context, exec runtime.Executor, id int32) (*Tag, error) {
-	q := runtime.NewQuery(dialect, TagTableName,
-		runtime.Where("\"id\" = ?", id),
-		runtime.Limit(1),
+func FindTagByPK(ctx context.Context, exec sqlgen.Executor, id int32) (*Tag, error) {
+	q := sqlgen.NewQuery(dialect, TagTableName,
+		sqlgen.Where("\"id\" = ?", id),
+		sqlgen.Limit(1),
 	)
 
 	query, args := q.BuildSelect()
@@ -32,8 +32,8 @@ func FindTagByPK(ctx context.Context, exec runtime.Executor, id int32) (*Tag, er
 
 // AllTags retrieves all rows from the tags table with the given query mods.
 // Supports Preload() for LEFT JOIN eager loading of to-one relationships.
-func AllTags(ctx context.Context, exec runtime.Executor, mods ...runtime.QueryMod) (TagSlice, error) {
-	q := runtime.NewQuery(dialect, TagTableName, mods...)
+func AllTags(ctx context.Context, exec sqlgen.Executor, mods ...sqlgen.QueryMod) (TagSlice, error) {
+	q := sqlgen.NewQuery(dialect, TagTableName, mods...)
 	query, args := q.BuildSelect()
 	rows, err := exec.QueryContext(ctx, query, args...)
 	if err != nil {
@@ -54,16 +54,16 @@ func AllTags(ctx context.Context, exec runtime.Executor, mods ...runtime.QueryMo
 
 // Insert inserts the Tag into the database.
 // Optional Columns parameter controls which columns are included (Whitelist/Blacklist).
-func (o *Tag) Insert(ctx context.Context, exec runtime.Executor, cols ...runtime.Columns) error {
-	ctx, err := tagHooks.RunIfEnabled(ctx, exec, runtime.BeforeInsert, o)
+func (o *Tag) Insert(ctx context.Context, exec sqlgen.Executor, cols ...sqlgen.Columns) error {
+	ctx, err := tagHooks.RunIfEnabled(ctx, exec, sqlgen.BeforeInsert, o)
 	if err != nil {
 		return err
 	}
 	insertCols := []string{"name"}
 	insertVals := []any{o.Name}
-	insertCols, insertVals = runtime.FilterColumns(insertCols, insertVals, cols...)
+	insertCols, insertVals = sqlgen.FilterColumns(insertCols, insertVals, cols...)
 
-	query, args := runtime.BuildInsert(dialect, TagTableName,
+	query, args := sqlgen.BuildInsert(dialect, TagTableName,
 		insertCols, insertVals,
 		[]string{"id"},
 	)
@@ -73,36 +73,36 @@ func (o *Tag) Insert(ctx context.Context, exec runtime.Executor, cols ...runtime
 	if err != nil {
 		return err
 	}
-	_, err = tagHooks.RunIfEnabled(ctx, exec, runtime.AfterInsert, o)
+	_, err = tagHooks.RunIfEnabled(ctx, exec, sqlgen.AfterInsert, o)
 	return err
 }
 
 // Update updates the Tag in the database. Only non-PK columns are updated.
 // Optional Columns parameter controls which columns are included (Whitelist/Blacklist).
-func (o *Tag) Update(ctx context.Context, exec runtime.Executor, cols ...runtime.Columns) error {
-	ctx, err := tagHooks.RunIfEnabled(ctx, exec, runtime.BeforeUpdate, o)
+func (o *Tag) Update(ctx context.Context, exec sqlgen.Executor, cols ...sqlgen.Columns) error {
+	ctx, err := tagHooks.RunIfEnabled(ctx, exec, sqlgen.BeforeUpdate, o)
 	if err != nil {
 		return err
 	}
 	setCols := []string{"name"}
 	setVals := []any{o.Name}
-	setCols, setVals = runtime.FilterColumns(setCols, setVals, cols...)
+	setCols, setVals = sqlgen.FilterColumns(setCols, setVals, cols...)
 
 	whereClauses := []string{"\"id\" = ?"}
 	whereArgs := []any{o.ID}
 
-	query, args := runtime.BuildUpdate(dialect, TagTableName, setCols, setVals, whereClauses, whereArgs)
+	query, args := sqlgen.BuildUpdate(dialect, TagTableName, setCols, setVals, whereClauses, whereArgs)
 	_, err = exec.ExecContext(ctx, query, args...)
 	if err != nil {
 		return err
 	}
-	_, err = tagHooks.RunIfEnabled(ctx, exec, runtime.AfterUpdate, o)
+	_, err = tagHooks.RunIfEnabled(ctx, exec, sqlgen.AfterUpdate, o)
 	return err
 }
 
 // Delete deletes the Tag from the database.
-func (o *Tag) Delete(ctx context.Context, exec runtime.Executor) error {
-	ctx, err := tagHooks.RunIfEnabled(ctx, exec, runtime.BeforeDelete, o)
+func (o *Tag) Delete(ctx context.Context, exec sqlgen.Executor) error {
+	ctx, err := tagHooks.RunIfEnabled(ctx, exec, sqlgen.BeforeDelete, o)
 	if err != nil {
 		return err
 	}
@@ -110,31 +110,31 @@ func (o *Tag) Delete(ctx context.Context, exec runtime.Executor) error {
 	whereClauses := []string{"\"id\" = ?"}
 	whereArgs := []any{o.ID}
 
-	query, args := runtime.BuildDelete(dialect, TagTableName, whereClauses, whereArgs)
+	query, args := sqlgen.BuildDelete(dialect, TagTableName, whereClauses, whereArgs)
 	_, err = exec.ExecContext(ctx, query, args...)
 	if err != nil {
 		return err
 	}
-	_, err = tagHooks.RunIfEnabled(ctx, exec, runtime.AfterDelete, o)
+	_, err = tagHooks.RunIfEnabled(ctx, exec, sqlgen.AfterDelete, o)
 	return err
 }
 
 // Upsert inserts or updates the Tag based on the primary key.
 // Optional Columns parameter controls which non-PK columns are included (Whitelist/Blacklist).
-func (o *Tag) Upsert(ctx context.Context, exec runtime.Executor, cols ...runtime.Columns) error {
-	ctx, err := tagHooks.RunIfEnabled(ctx, exec, runtime.BeforeUpsert, o)
+func (o *Tag) Upsert(ctx context.Context, exec sqlgen.Executor, cols ...sqlgen.Columns) error {
+	ctx, err := tagHooks.RunIfEnabled(ctx, exec, sqlgen.BeforeUpsert, o)
 	if err != nil {
 		return err
 	}
 	allCols := []string{"id", "name"}
 	allVals := []any{o.ID, o.Name}
-	allCols, allVals = runtime.FilterColumns(allCols, allVals, cols...)
+	allCols, allVals = sqlgen.FilterColumns(allCols, allVals, cols...)
 	conflictCols := []string{"id"}
 	updateCols := []string{"name"}
-	updateCols, _ = runtime.FilterColumns(updateCols, make([]any, len(updateCols)), cols...)
+	updateCols, _ = sqlgen.FilterColumns(updateCols, make([]any, len(updateCols)), cols...)
 	returning := []string{"id", "name"}
 
-	query, args := runtime.BuildUpsert(dialect, TagTableName, allCols, allVals, conflictCols, updateCols, returning)
+	query, args := sqlgen.BuildUpsert(dialect, TagTableName, allCols, allVals, conflictCols, updateCols, returning)
 	err = exec.QueryRowContext(ctx, query, args...).Scan(
 		&o.ID,
 		&o.Name,
@@ -142,26 +142,26 @@ func (o *Tag) Upsert(ctx context.Context, exec runtime.Executor, cols ...runtime
 	if err != nil {
 		return err
 	}
-	_, err = tagHooks.RunIfEnabled(ctx, exec, runtime.AfterUpsert, o)
+	_, err = tagHooks.RunIfEnabled(ctx, exec, sqlgen.AfterUpsert, o)
 	return err
 }
 
 // Exists checks if a row with the given primary key exists.
-func TagExists(ctx context.Context, exec runtime.Executor, id int32) (bool, error) {
-	return runtime.Exists(ctx, exec, dialect, TagTableName,
-		runtime.Where("\"id\" = ?", id),
+func TagExists(ctx context.Context, exec sqlgen.Executor, id int32) (bool, error) {
+	return sqlgen.Exists(ctx, exec, dialect, TagTableName,
+		sqlgen.Where("\"id\" = ?", id),
 	)
 }
 
 // CountTags returns the count of rows matching the query mods.
-func CountTags(ctx context.Context, exec runtime.Executor, mods ...runtime.QueryMod) (int64, error) {
-	return runtime.Count(ctx, exec, dialect, TagTableName, mods...)
+func CountTags(ctx context.Context, exec sqlgen.Executor, mods ...sqlgen.QueryMod) (int64, error) {
+	return sqlgen.Count(ctx, exec, dialect, TagTableName, mods...)
 }
 
 // UpdateAllTags updates all rows matching the given mods.
 // set is a map of column name -> new value.
-func UpdateAllTags(ctx context.Context, exec runtime.Executor, set map[string]any, mods ...runtime.QueryMod) (int64, error) {
-	q := runtime.NewQuery(dialect, TagTableName, mods...)
+func UpdateAllTags(ctx context.Context, exec sqlgen.Executor, set map[string]any, mods ...sqlgen.QueryMod) (int64, error) {
+	q := sqlgen.NewQuery(dialect, TagTableName, mods...)
 	query, args := q.BuildUpdateAll(set)
 	result, err := exec.ExecContext(ctx, query, args...)
 	if err != nil {
@@ -171,8 +171,8 @@ func UpdateAllTags(ctx context.Context, exec runtime.Executor, set map[string]an
 }
 
 // DeleteAllTags deletes all rows matching the given mods.
-func DeleteAllTags(ctx context.Context, exec runtime.Executor, mods ...runtime.QueryMod) (int64, error) {
-	q := runtime.NewQuery(dialect, TagTableName, mods...)
+func DeleteAllTags(ctx context.Context, exec sqlgen.Executor, mods ...sqlgen.QueryMod) (int64, error) {
+	q := sqlgen.NewQuery(dialect, TagTableName, mods...)
 	query, args := q.BuildDeleteAll()
 	result, err := exec.ExecContext(ctx, query, args...)
 	if err != nil {
@@ -183,27 +183,27 @@ func DeleteAllTags(ctx context.Context, exec runtime.Executor, mods ...runtime.Q
 
 // EachTag executes a query and calls fn for each row. Iteration stops
 // early if fn returns an error. Rows are not accumulated in memory.
-func EachTag(ctx context.Context, exec runtime.Executor, fn func(*Tag) error, mods ...runtime.QueryMod) error {
-	return runtime.Each(ctx, exec, runtime.NewQuery(dialect, TagTableName, mods...), func() *Tag { return &Tag{} }, fn)
+func EachTag(ctx context.Context, exec sqlgen.Executor, fn func(*Tag) error, mods ...sqlgen.QueryMod) error {
+	return sqlgen.Each(ctx, exec, sqlgen.NewQuery(dialect, TagTableName, mods...), func() *Tag { return &Tag{} }, fn)
 }
 
 // TagCursor returns a cursor for iterating over tags rows one at a time.
-func TagCursor(ctx context.Context, exec runtime.Executor, mods ...runtime.QueryMod) (*runtime.Cursor[*Tag], error) {
-	return runtime.NewCursor(ctx, exec, runtime.NewQuery(dialect, TagTableName, mods...), func() *Tag { return &Tag{} })
+func TagCursor(ctx context.Context, exec sqlgen.Executor, mods ...sqlgen.QueryMod) (*sqlgen.Cursor[*Tag], error) {
+	return sqlgen.NewCursor(ctx, exec, sqlgen.NewQuery(dialect, TagTableName, mods...), func() *Tag { return &Tag{} })
 }
 
 // Reload refreshes the Tag from the database using its primary key.
-func (o *Tag) Reload(ctx context.Context, exec runtime.Executor) error {
-	q := runtime.NewQuery(dialect, TagTableName,
-		runtime.Where("\"id\" = ?", o.ID),
-		runtime.Limit(1),
+func (o *Tag) Reload(ctx context.Context, exec sqlgen.Executor) error {
+	q := sqlgen.NewQuery(dialect, TagTableName,
+		sqlgen.Where("\"id\" = ?", o.ID),
+		sqlgen.Limit(1),
 	)
 	query, args := q.BuildSelect()
 	return o.ScanRow(exec.QueryRowContext(ctx, query, args...))
 }
 
 // UpdateAll updates all models in the slice with the given column values.
-func (s TagSlice) UpdateAll(ctx context.Context, exec runtime.Executor, set map[string]any) (int64, error) {
+func (s TagSlice) UpdateAll(ctx context.Context, exec sqlgen.Executor, set map[string]any) (int64, error) {
 	if len(s) == 0 {
 		return 0, nil
 	}
@@ -211,11 +211,11 @@ func (s TagSlice) UpdateAll(ctx context.Context, exec runtime.Executor, set map[
 	for i, o := range s {
 		ids[i] = o.ID
 	}
-	return UpdateAllTags(ctx, exec, set, runtime.WhereIn("\"id\"", ids...))
+	return UpdateAllTags(ctx, exec, set, sqlgen.WhereIn("\"id\"", ids...))
 }
 
 // DeleteAll deletes all models in the slice.
-func (s TagSlice) DeleteAll(ctx context.Context, exec runtime.Executor) (int64, error) {
+func (s TagSlice) DeleteAll(ctx context.Context, exec sqlgen.Executor) (int64, error) {
 	if len(s) == 0 {
 		return 0, nil
 	}
@@ -223,13 +223,13 @@ func (s TagSlice) DeleteAll(ctx context.Context, exec runtime.Executor) (int64, 
 	for i, o := range s {
 		ids[i] = o.ID
 	}
-	return DeleteAllTags(ctx, exec, runtime.WhereIn("\"id\"", ids...))
+	return DeleteAllTags(ctx, exec, sqlgen.WhereIn("\"id\"", ids...))
 }
 
 // InsertAll batch-inserts all models in the slice. Each model's columns are
 // scanned back via RETURNING, picking up defaults and generated values.
 // Hooks are not fired (consistent with UpdateAll/DeleteAll).
-func (s TagSlice) InsertAll(ctx context.Context, exec runtime.Executor) error {
+func (s TagSlice) InsertAll(ctx context.Context, exec sqlgen.Executor) error {
 	if len(s) == 0 {
 		return nil
 	}
@@ -241,7 +241,7 @@ func (s TagSlice) InsertAll(ctx context.Context, exec runtime.Executor) error {
 		rows[i] = []any{o.Name}
 	}
 
-	query, args := runtime.BuildBatchInsert(dialect, TagTableName, cols, rows, returning)
+	query, args := sqlgen.BuildBatchInsert(dialect, TagTableName, cols, rows, returning)
 	result, err := exec.QueryContext(ctx, query, args...)
 	if err != nil {
 		return err

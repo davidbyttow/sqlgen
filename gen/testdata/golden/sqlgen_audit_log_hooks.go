@@ -5,19 +5,19 @@ package models
 import (
 	"context"
 
-	"github.com/davidbyttow/sqlgen/runtime"
+	"github.com/davidbyttow/sqlgen"
 )
 
 // auditlogHooks stores the hooks for AuditLog.
-var auditlogHooks = runtime.NewHooks()
+var auditlogHooks = sqlgen.NewHooks()
 
 // AuditLogHook is a typed hook function for AuditLog lifecycle events.
-type AuditLogHook func(ctx context.Context, exec runtime.Executor, model *AuditLog) (context.Context, error)
+type AuditLogHook func(ctx context.Context, exec sqlgen.Executor, model *AuditLog) (context.Context, error)
 
 // AddAuditLogHook registers a typed hook for the given hook point.
 // The hook receives the model pointer and can inspect or modify it.
-func AddAuditLogHook(point runtime.HookPoint, fn AuditLogHook) {
-	auditlogHooks.Add(point, func(ctx context.Context, exec runtime.Executor, model any) (context.Context, error) {
+func AddAuditLogHook(point sqlgen.HookPoint, fn AuditLogHook) {
+	auditlogHooks.Add(point, func(ctx context.Context, exec sqlgen.Executor, model any) (context.Context, error) {
 		return fn(ctx, exec, model.(*AuditLog))
 	})
 }

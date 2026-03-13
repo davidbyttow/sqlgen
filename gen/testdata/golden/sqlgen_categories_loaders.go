@@ -6,11 +6,11 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/davidbyttow/sqlgen/runtime"
+	"github.com/davidbyttow/sqlgen"
 )
 
 // categoryLoaders maps relationship names to their loader functions.
-var categoryLoaders = map[string]runtime.LoadFunc{}
+var categoryLoaders = map[string]sqlgen.LoadFunc{}
 
 func init() {
 	categoryLoaders["Parent"] = loadCategoryParent
@@ -18,7 +18,7 @@ func init() {
 }
 
 // LoadRelations eagerly loads the specified relationships for a slice of Category.
-func (s CategorySlice) LoadRelations(ctx context.Context, exec runtime.Executor, loads ...*runtime.EagerLoadRequest) error {
+func (s CategorySlice) LoadRelations(ctx context.Context, exec sqlgen.Executor, loads ...*sqlgen.EagerLoadRequest) error {
 	for _, load := range loads {
 		fn, ok := categoryLoaders[load.Name]
 		if !ok {
@@ -32,7 +32,7 @@ func (s CategorySlice) LoadRelations(ctx context.Context, exec runtime.Executor,
 }
 
 // categoryLoadMods extracts query mods for the named relationship from the load requests.
-func categoryLoadMods(loads []*runtime.EagerLoadRequest, name string) []runtime.QueryMod {
+func categoryLoadMods(loads []*sqlgen.EagerLoadRequest, name string) []sqlgen.QueryMod {
 	for _, l := range loads {
 		if l.Name == name {
 			return l.Mods
@@ -41,7 +41,7 @@ func categoryLoadMods(loads []*runtime.EagerLoadRequest, name string) []runtime.
 	return nil
 }
 
-func loadCategoryParent(ctx context.Context, exec runtime.Executor, d runtime.Dialect, parentModels any, loads []*runtime.EagerLoadRequest) error {
+func loadCategoryParent(ctx context.Context, exec sqlgen.Executor, d sqlgen.Dialect, parentModels any, loads []*sqlgen.EagerLoadRequest) error {
 	models := parentModels.(CategorySlice)
 	if len(models) == 0 {
 		return nil
@@ -59,7 +59,7 @@ func loadCategoryParent(ctx context.Context, exec runtime.Executor, d runtime.Di
 	}
 
 	mods := categoryLoadMods(loads, "Parent")
-	rows, err := runtime.LoadMany(ctx, exec, d, CategoryTableName, "id", ids, mods...)
+	rows, err := sqlgen.LoadMany(ctx, exec, d, CategoryTableName, "id", ids, mods...)
 	if err != nil {
 		return err
 	}
@@ -92,7 +92,7 @@ func loadCategoryParent(ctx context.Context, exec runtime.Executor, d runtime.Di
 	return nil
 }
 
-func loadCategoryParentsInverse(ctx context.Context, exec runtime.Executor, d runtime.Dialect, parentModels any, loads []*runtime.EagerLoadRequest) error {
+func loadCategoryParentsInverse(ctx context.Context, exec sqlgen.Executor, d sqlgen.Dialect, parentModels any, loads []*sqlgen.EagerLoadRequest) error {
 	models := parentModels.(CategorySlice)
 	if len(models) == 0 {
 		return nil
@@ -108,7 +108,7 @@ func loadCategoryParentsInverse(ctx context.Context, exec runtime.Executor, d ru
 	}
 
 	mods := categoryLoadMods(loads, "ParentsInverse")
-	rows, err := runtime.LoadMany(ctx, exec, d, CategoryTableName, "parent_id", ids, mods...)
+	rows, err := sqlgen.LoadMany(ctx, exec, d, CategoryTableName, "parent_id", ids, mods...)
 	if err != nil {
 		return err
 	}

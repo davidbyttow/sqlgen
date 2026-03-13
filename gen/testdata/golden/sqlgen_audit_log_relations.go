@@ -5,11 +5,11 @@ package models
 import (
 	"context"
 
-	"github.com/davidbyttow/sqlgen/runtime"
+	"github.com/davidbyttow/sqlgen"
 )
 
 // SetUser sets the User relationship by updating the FK column.
-func (o *AuditLog) SetUser(ctx context.Context, exec runtime.Executor, related *User) error {
+func (o *AuditLog) SetUser(ctx context.Context, exec sqlgen.Executor, related *User) error {
 	o.UserID = related.ID
 	query := "UPDATE " + dialect.QuoteIdent(AuditLogTableName) +
 		" SET " + dialect.QuoteIdent("user_id") + " = " + dialect.Placeholder(1) +

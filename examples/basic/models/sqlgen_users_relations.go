@@ -5,11 +5,11 @@ package models
 import (
 	"context"
 
-	"github.com/davidbyttow/sqlgen/runtime"
+	"github.com/davidbyttow/sqlgen"
 )
 
 // AddPosts adds models to the Posts relationship by setting their FK.
-func (o *User) AddPosts(ctx context.Context, exec runtime.Executor, related ...*Post) error {
+func (o *User) AddPosts(ctx context.Context, exec sqlgen.Executor, related ...*Post) error {
 	for _, r := range related {
 		r.AuthorID = o.ID
 		query := "UPDATE " + dialect.QuoteIdent(PostTableName) +
