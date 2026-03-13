@@ -6,11 +6,11 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/davidbyttow/sqlgen/runtime"
+	"github.com/davidbyttow/sqlgen"
 )
 
 // userCountLoaders maps relationship names to their count loader functions.
-var userCountLoaders = map[string]runtime.CountLoadFunc{}
+var userCountLoaders = map[string]sqlgen.CountLoadFunc{}
 
 func init() {
 	userCountLoaders["Posts"] = loadCountUserPosts
@@ -19,7 +19,7 @@ func init() {
 
 // LoadCountRelations loads counts for the specified relationships.
 // Pass relationship names (e.g., "Posts", "Tags") to load their counts.
-func (s UserSlice) LoadCountRelations(ctx context.Context, exec runtime.Executor, names ...string) error {
+func (s UserSlice) LoadCountRelations(ctx context.Context, exec sqlgen.Executor, names ...string) error {
 	for _, name := range names {
 		fn, ok := userCountLoaders[name]
 		if !ok {
@@ -32,7 +32,7 @@ func (s UserSlice) LoadCountRelations(ctx context.Context, exec runtime.Executor
 	return nil
 }
 
-func loadCountUserPosts(ctx context.Context, exec runtime.Executor, d runtime.Dialect, parentModels any) error {
+func loadCountUserPosts(ctx context.Context, exec sqlgen.Executor, d sqlgen.Dialect, parentModels any) error {
 	models := parentModels.(UserSlice)
 	if len(models) == 0 {
 		return nil
@@ -43,7 +43,7 @@ func loadCountUserPosts(ctx context.Context, exec runtime.Executor, d runtime.Di
 		ids[i] = m.ID
 	}
 
-	counts, err := runtime.LoadCount(ctx, exec, d, "posts", "author_id", ids)
+	counts, err := sqlgen.LoadCount(ctx, exec, d, "posts", "author_id", ids)
 	if err != nil {
 		return err
 	}
@@ -58,7 +58,7 @@ func loadCountUserPosts(ctx context.Context, exec runtime.Executor, d runtime.Di
 	}
 	return nil
 }
-func loadCountUserAuditLog(ctx context.Context, exec runtime.Executor, d runtime.Dialect, parentModels any) error {
+func loadCountUserAuditLog(ctx context.Context, exec sqlgen.Executor, d sqlgen.Dialect, parentModels any) error {
 	models := parentModels.(UserSlice)
 	if len(models) == 0 {
 		return nil
@@ -69,7 +69,7 @@ func loadCountUserAuditLog(ctx context.Context, exec runtime.Executor, d runtime
 		ids[i] = m.ID
 	}
 
-	counts, err := runtime.LoadCount(ctx, exec, d, "audit_log", "user_id", ids)
+	counts, err := sqlgen.LoadCount(ctx, exec, d, "audit_log", "user_id", ids)
 	if err != nil {
 		return err
 	}

@@ -5,19 +5,19 @@ package models
 import (
 	"context"
 
-	"github.com/davidbyttow/sqlgen/runtime"
+	"github.com/davidbyttow/sqlgen"
 )
 
 // userHooks stores the hooks for User.
-var userHooks = runtime.NewHooks()
+var userHooks = sqlgen.NewHooks()
 
 // UserHook is a typed hook function for User lifecycle events.
-type UserHook func(ctx context.Context, exec runtime.Executor, model *User) (context.Context, error)
+type UserHook func(ctx context.Context, exec sqlgen.Executor, model *User) (context.Context, error)
 
 // AddUserHook registers a typed hook for the given hook point.
 // The hook receives the model pointer and can inspect or modify it.
-func AddUserHook(point runtime.HookPoint, fn UserHook) {
-	userHooks.Add(point, func(ctx context.Context, exec runtime.Executor, model any) (context.Context, error) {
+func AddUserHook(point sqlgen.HookPoint, fn UserHook) {
+	userHooks.Add(point, func(ctx context.Context, exec sqlgen.Executor, model any) (context.Context, error) {
 		return fn(ctx, exec, model.(*User))
 	})
 }

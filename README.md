@@ -132,14 +132,14 @@ All 3 dialects produce the same schema IR, so the generated Go code is structura
 
 ### Models
 
-Each table becomes a Go struct. Column types map to their Go equivalents. Nullable columns use `runtime.Null[T]` by default.
+Each table becomes a Go struct. Column types map to their Go equivalents. Nullable columns use `sqlgen.Null[T]` by default.
 
 ```go
 type User struct {
     ID        string          `json:"id" db:"id"`
     Email     string          `json:"email" db:"email"`
     Name      string          `json:"name" db:"name"`
-    Bio       runtime.Null[string] `json:"bio" db:"bio"`
+    Bio       sqlgen.Null[string] `json:"bio" db:"bio"`
     CreatedAt time.Time       `json:"created_at" db:"created_at"`
 
     R *UserRels `json:"-" db:"-"`
@@ -164,12 +164,12 @@ models.UserColumns.CreatedAt // "created_at"
 
 ### Type-Safe Where Clauses
 
-Each table gets a `<Model>Where` variable with per-column filter builders. These return `runtime.QueryMod` values you can compose freely.
+Each table gets a `<Model>Where` variable with per-column filter builders. These return `sqlgen.QueryMod` values you can compose freely.
 
 ```go
 q := models.Users(
     models.UserWhere.Email.EQ("alice@example.com"),
-    runtime.Limit(1),
+    sqlgen.Limit(1),
 )
 
 sql, args := q.BuildSelect()
@@ -191,9 +191,9 @@ Stack multiple mods. WHERE clauses are ANDed together.
 q := models.Posts(
     models.PostWhere.Status.EQ(models.PostStatusPublished),
     models.PostWhere.AuthorID.EQ("some-uuid"),
-    runtime.OrderBy("published_at DESC"),
-    runtime.Limit(10),
-    runtime.Offset(20),
+    sqlgen.OrderBy("published_at DESC"),
+    sqlgen.Limit(10),
+    sqlgen.Offset(20),
 )
 ```
 
@@ -206,13 +206,13 @@ Common Table Expressions for complex queries, including recursive CTEs for hiera
 ```go
 // Simple CTE
 q := models.Users(
-    runtime.WithCTE("active", "SELECT * FROM users WHERE active = ?", true),
-    runtime.Where(`"id" IN (SELECT id FROM active)`),
+    sqlgen.WithCTE("active", "SELECT * FROM users WHERE active = ?", true),
+    sqlgen.Where(`"id" IN (SELECT id FROM active)`),
 )
 
 // Recursive CTE (e.g., category tree)
-q := runtime.NewQuery(dialect, "tree",
-    runtime.WithRecursiveCTE("tree",
+q := sqlgen.NewQuery(dialect, "tree",
+    sqlgen.WithRecursiveCTE("tree",
         "SELECT id, parent_id, name FROM categories WHERE parent_id IS NULL "+
         "UNION ALL "+
         "SELECT c.id, c.parent_id, c.name FROM categories c JOIN tree t ON c.parent_id = t.id"),
@@ -227,21 +227,21 @@ Pessimistic locking for transactional workflows:
 // FOR UPDATE (exclusive lock)
 q := models.Users(
     models.UserWhere.ID.EQ("some-uuid"),
-    runtime.ForUpdate(),
+    sqlgen.ForUpdate(),
 )
 
 // FOR UPDATE NOWAIT (fail immediately if locked)
 q := models.Users(
     models.UserWhere.ID.EQ("some-uuid"),
-    runtime.ForUpdate(),
-    runtime.Nowait(),
+    sqlgen.ForUpdate(),
+    sqlgen.Nowait(),
 )
 
 // FOR UPDATE SKIP LOCKED (skip locked rows, useful for job queues)
 q := models.Users(
-    runtime.ForUpdate(),
-    runtime.SkipLocked(),
-    runtime.Limit(1),
+    sqlgen.ForUpdate(),
+    sqlgen.SkipLocked(),
+    sqlgen.Limit(1),
 )
 ```
 
@@ -266,7 +266,7 @@ user.Delete(ctx, db)   // DELETE by PK
 user.Upsert(ctx, db)   // INSERT ON CONFLICT DO UPDATE
 ```
 
-All mutations accept a `context.Context` and a `runtime.Executor` (which `*sql.DB` and `*sql.Tx` both satisfy).
+All mutations accept a `context.Context` and a `sqlgen.Executor` (which `*sql.DB` and `*sql.Tx` both satisfy).
 
 #### Partial Mutations (Whitelist/Blacklist)
 
@@ -274,13 +274,13 @@ Control which columns are included in Insert, Update, or Upsert:
 
 ```go
 // Only update these columns:
-user.Update(ctx, db, runtime.Whitelist("email", "name"))
+user.Update(ctx, db, sqlgen.Whitelist("email", "name"))
 
 // Update everything except these:
-user.Update(ctx, db, runtime.Blacklist("created_at"))
+user.Update(ctx, db, sqlgen.Blacklist("created_at"))
 
 // Partial insert:
-user.Insert(ctx, db, runtime.Whitelist("email", "name"))
+user.Insert(ctx, db, sqlgen.Whitelist("email", "name"))
 ```
 
 ### Streaming Iteration
@@ -292,10 +292,10 @@ For large result sets where you don't want to load everything into memory:
 err := models.EachUser(ctx, db, func(u *models.User) error {
     fmt.Println(u.Email)
     return nil
-}, runtime.Where(`"active" = ?`, true))
+}, sqlgen.Where(`"active" = ?`, true))
 
 // Cursor style: manual iteration with explicit close
-cursor, err := models.UserCursor(ctx, db, runtime.OrderBy(`"created_at" DESC`))
+cursor, err := models.UserCursor(ctx, db, sqlgen.OrderBy(`"created_at" DESC`))
 if err != nil { ... }
 defer cursor.Close()
 
@@ -323,7 +323,7 @@ models.AllPostStatusValues()         // []PostStatus{"draft", "published", "arch
 Register typed lifecycle hooks per model. Hooks receive the model pointer, so you can inspect or modify the row before it hits the database.
 
 ```go
-models.AddUserHook(runtime.BeforeInsert, func(ctx context.Context, exec runtime.Executor, user *models.User) (context.Context, error) {
+models.AddUserHook(sqlgen.BeforeInsert, func(ctx context.Context, exec sqlgen.Executor, user *models.User) (context.Context, error) {
     log.Printf("inserting user: %s", user.Email)
     return ctx, nil
 })
@@ -334,7 +334,7 @@ models.AddUserHook(runtime.BeforeInsert, func(ctx context.Context, exec runtime.
 Skip hooks on a per-call basis via context:
 
 ```go
-ctx := runtime.SkipHooks(context.Background())
+ctx := sqlgen.SkipHooks(context.Background())
 user.Insert(ctx, db) // hooks won't fire
 ```
 
@@ -382,7 +382,7 @@ Two strategies for loading relationships:
 
 ```go
 // Loads posts with their author in a single query via LEFT JOIN.
-posts, _ := models.AllPosts(ctx, db, runtime.Preload(models.PostPreloadUser))
+posts, _ := models.AllPosts(ctx, db, sqlgen.Preload(models.PostPreloadUser))
 posts[0].R.User.Email // already populated, no extra query
 ```
 
@@ -390,25 +390,25 @@ posts[0].R.User.Email // already populated, no extra query
 
 ```go
 posts, _ := models.AllPosts(ctx, db)
-posts.LoadRelations(ctx, db, runtime.Load("User"), runtime.Load("Tags"))
+posts.LoadRelations(ctx, db, sqlgen.Load("User"), sqlgen.Load("Tags"))
 ```
 
 Supports dot-notation nesting and filtered loading:
 
 ```go
 users.LoadRelations(ctx, db,
-    runtime.Load("Posts.Tags"),
-    runtime.Load("Posts", runtime.Where(`"status" = ?`, "published")),
+    sqlgen.Load("Posts.Tags"),
+    sqlgen.Load("Posts", sqlgen.Where(`"status" = ?`, "published")),
 )
 ```
 
 ### Null Types
 
-The `runtime.Null[T]` generic type wraps nullable columns:
+The `sqlgen.Null[T]` generic type wraps nullable columns:
 
 ```go
 user := models.User{
-    Bio: runtime.NewNull("Writes Go."),
+    Bio: sqlgen.NewNull("Writes Go."),
 }
 
 user.Bio.Valid    // true
@@ -439,18 +439,18 @@ user, err := models.InsertUser(ctx, db, func(u *models.User) {
 })
 ```
 
-Random values come from `runtime/fake` (pure Go, no external deps).
+Random values come from `fake/` (pure Go, no external deps).
 
 ### DB Error Matching
 
 Generated constraint constants and runtime matchers for Postgres errors:
 
 ```go
-if runtime.IsUniqueViolation(err) {
+if sqlgen.IsUniqueViolation(err) {
     // handle duplicate
 }
 
-if runtime.IsConstraintViolation(err, models.UsersEmailKey) {
+if sqlgen.IsConstraintViolation(err, models.UsersEmailKey) {
     // handle specific constraint
 }
 ```
@@ -462,7 +462,7 @@ Works with both `pgx` and `lib/pq` without importing either (reflection-based).
 Wrap your executor to automatically prepare and cache statements:
 
 ```go
-cached := runtime.NewCachedExecutor(db)
+cached := sqlgen.NewCachedExecutor(db)
 defer cached.Close()
 
 // First call prepares; subsequent calls reuse the prepared statement.
@@ -480,7 +480,7 @@ type UserSummary struct {
 }
 
 var summaries []UserSummary
-err := runtime.Bind(ctx, db, "SELECT name, COUNT(*) as post_count FROM users JOIN posts ...", &summaries)
+err := sqlgen.Bind(ctx, db, "SELECT name, COUNT(*) as post_count FROM users JOIN posts ...", &summaries)
 ```
 
 ## Configuration
@@ -545,7 +545,7 @@ Three options for how nullable columns are represented:
 
 | Strategy | Null column | Example |
 |----------|-------------|---------|
-| `generic` (default) | `runtime.Null[T]` | `Bio runtime.Null[string]` |
+| `generic` (default) | `sqlgen.Null[T]` | `Bio sqlgen.Null[string]` |
 | `pointer` | `*T` | `Bio *string` |
 | `database` | `sql.NullXxx` | `Bio sql.NullString` |
 
@@ -579,8 +579,8 @@ sqlgen/
     mysql/          MySQL parser (hand-written)
     sqlite/         SQLite parser (hand-written)
   gen/              Code generation engine and templates
-  runtime/          Minimal runtime library imported by generated code
-    fake/           Random value generators for factories
+  *.go              Runtime library imported by generated code (package sqlgen)
+  fake/             Random value generators for factories
   config/           YAML config parsing
   internal/         Naming utilities (case conversion, pluralization)
 ```

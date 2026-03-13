@@ -19,7 +19,7 @@ import (
 //go:embed templates/*.tmpl
 var templateFS embed.FS
 
-const runtimePkg = "github.com/davidbyttow/sqlgen/runtime"
+const runtimePkg = "github.com/davidbyttow/sqlgen"
 
 // Generator produces Go source files from a schema.
 type Generator struct {
@@ -364,7 +364,7 @@ func (g *Generator) collectCRUDImports(table *schema.Table) *ImportSet {
 	return imports
 }
 
-const fakePkg = "github.com/davidbyttow/sqlgen/runtime/fake"
+const fakePkg = "github.com/davidbyttow/sqlgen/fake"
 
 func (g *Generator) collectFactoryImports(table *schema.Table) *ImportSet {
 	imports := NewImportSet()

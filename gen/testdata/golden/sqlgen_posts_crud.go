@@ -5,19 +5,19 @@ package models
 import (
 	"context"
 
-	"github.com/davidbyttow/sqlgen/runtime"
+	"github.com/davidbyttow/sqlgen"
 )
 
 // Posts returns a query builder for the posts table.
-func Posts(mods ...runtime.QueryMod) *runtime.Query {
-	return runtime.NewQuery(dialect, PostTableName, mods...)
+func Posts(mods ...sqlgen.QueryMod) *sqlgen.Query {
+	return sqlgen.NewQuery(dialect, PostTableName, mods...)
 }
 
 // FindPostByPK finds a Post by primary key.
-func FindPostByPK(ctx context.Context, exec runtime.Executor, id string) (*Post, error) {
-	q := runtime.NewQuery(dialect, PostTableName,
-		runtime.Where("\"id\" = ?", id),
-		runtime.Limit(1),
+func FindPostByPK(ctx context.Context, exec sqlgen.Executor, id string) (*Post, error) {
+	q := sqlgen.NewQuery(dialect, PostTableName,
+		sqlgen.Where("\"id\" = ?", id),
+		sqlgen.Limit(1),
 	)
 
 	query, args := q.BuildSelect()
@@ -32,8 +32,8 @@ func FindPostByPK(ctx context.Context, exec runtime.Executor, id string) (*Post,
 
 // AllPosts retrieves all rows from the posts table with the given query mods.
 // Supports Preload() for LEFT JOIN eager loading of to-one relationships.
-func AllPosts(ctx context.Context, exec runtime.Executor, mods ...runtime.QueryMod) (PostSlice, error) {
-	q := runtime.NewQuery(dialect, PostTableName, mods...)
+func AllPosts(ctx context.Context, exec sqlgen.Executor, mods ...sqlgen.QueryMod) (PostSlice, error) {
+	q := sqlgen.NewQuery(dialect, PostTableName, mods...)
 	query, args := q.BuildSelect()
 	rows, err := exec.QueryContext(ctx, query, args...)
 	if err != nil {
@@ -73,18 +73,18 @@ func AllPosts(ctx context.Context, exec runtime.Executor, mods ...runtime.QueryM
 
 // Insert inserts the Post into the database.
 // Optional Columns parameter controls which columns are included (Whitelist/Blacklist).
-func (o *Post) Insert(ctx context.Context, exec runtime.Executor, cols ...runtime.Columns) error {
-	ctx, err := postHooks.RunIfEnabled(ctx, exec, runtime.BeforeInsert, o)
+func (o *Post) Insert(ctx context.Context, exec sqlgen.Executor, cols ...sqlgen.Columns) error {
+	ctx, err := postHooks.RunIfEnabled(ctx, exec, sqlgen.BeforeInsert, o)
 	if err != nil {
 		return err
 	}
 	allCols := []string{"id", "author_id", "title", "body", "published", "created_at"}
 	allVals := []any{o.ID, o.AuthorID, o.Title, o.Body, o.Published, o.CreatedAt}
-	allCols, allVals = runtime.FilterColumns(allCols, allVals, cols...)
+	allCols, allVals = sqlgen.FilterColumns(allCols, allVals, cols...)
 
 	returning := []string{"id", "author_id", "title", "body", "published", "created_at"}
 
-	query, args := runtime.BuildInsert(dialect, PostTableName, allCols, allVals, returning)
+	query, args := sqlgen.BuildInsert(dialect, PostTableName, allCols, allVals, returning)
 	err = exec.QueryRowContext(ctx, query, args...).Scan(
 		&o.ID,
 		&o.AuthorID,
@@ -96,36 +96,36 @@ func (o *Post) Insert(ctx context.Context, exec runtime.Executor, cols ...runtim
 	if err != nil {
 		return err
 	}
-	_, err = postHooks.RunIfEnabled(ctx, exec, runtime.AfterInsert, o)
+	_, err = postHooks.RunIfEnabled(ctx, exec, sqlgen.AfterInsert, o)
 	return err
 }
 
 // Update updates the Post in the database. Only non-PK columns are updated.
 // Optional Columns parameter controls which columns are included (Whitelist/Blacklist).
-func (o *Post) Update(ctx context.Context, exec runtime.Executor, cols ...runtime.Columns) error {
-	ctx, err := postHooks.RunIfEnabled(ctx, exec, runtime.BeforeUpdate, o)
+func (o *Post) Update(ctx context.Context, exec sqlgen.Executor, cols ...sqlgen.Columns) error {
+	ctx, err := postHooks.RunIfEnabled(ctx, exec, sqlgen.BeforeUpdate, o)
 	if err != nil {
 		return err
 	}
 	setCols := []string{"author_id", "title", "body", "published", "created_at"}
 	setVals := []any{o.AuthorID, o.Title, o.Body, o.Published, o.CreatedAt}
-	setCols, setVals = runtime.FilterColumns(setCols, setVals, cols...)
+	setCols, setVals = sqlgen.FilterColumns(setCols, setVals, cols...)
 
 	whereClauses := []string{"\"id\" = ?"}
 	whereArgs := []any{o.ID}
 
-	query, args := runtime.BuildUpdate(dialect, PostTableName, setCols, setVals, whereClauses, whereArgs)
+	query, args := sqlgen.BuildUpdate(dialect, PostTableName, setCols, setVals, whereClauses, whereArgs)
 	_, err = exec.ExecContext(ctx, query, args...)
 	if err != nil {
 		return err
 	}
-	_, err = postHooks.RunIfEnabled(ctx, exec, runtime.AfterUpdate, o)
+	_, err = postHooks.RunIfEnabled(ctx, exec, sqlgen.AfterUpdate, o)
 	return err
 }
 
 // Delete deletes the Post from the database.
-func (o *Post) Delete(ctx context.Context, exec runtime.Executor) error {
-	ctx, err := postHooks.RunIfEnabled(ctx, exec, runtime.BeforeDelete, o)
+func (o *Post) Delete(ctx context.Context, exec sqlgen.Executor) error {
+	ctx, err := postHooks.RunIfEnabled(ctx, exec, sqlgen.BeforeDelete, o)
 	if err != nil {
 		return err
 	}
@@ -133,31 +133,31 @@ func (o *Post) Delete(ctx context.Context, exec runtime.Executor) error {
 	whereClauses := []string{"\"id\" = ?"}
 	whereArgs := []any{o.ID}
 
-	query, args := runtime.BuildDelete(dialect, PostTableName, whereClauses, whereArgs)
+	query, args := sqlgen.BuildDelete(dialect, PostTableName, whereClauses, whereArgs)
 	_, err = exec.ExecContext(ctx, query, args...)
 	if err != nil {
 		return err
 	}
-	_, err = postHooks.RunIfEnabled(ctx, exec, runtime.AfterDelete, o)
+	_, err = postHooks.RunIfEnabled(ctx, exec, sqlgen.AfterDelete, o)
 	return err
 }
 
 // Upsert inserts or updates the Post based on the primary key.
 // Optional Columns parameter controls which non-PK columns are included (Whitelist/Blacklist).
-func (o *Post) Upsert(ctx context.Context, exec runtime.Executor, cols ...runtime.Columns) error {
-	ctx, err := postHooks.RunIfEnabled(ctx, exec, runtime.BeforeUpsert, o)
+func (o *Post) Upsert(ctx context.Context, exec sqlgen.Executor, cols ...sqlgen.Columns) error {
+	ctx, err := postHooks.RunIfEnabled(ctx, exec, sqlgen.BeforeUpsert, o)
 	if err != nil {
 		return err
 	}
 	allCols := []string{"id", "author_id", "title", "body", "published", "created_at"}
 	allVals := []any{o.ID, o.AuthorID, o.Title, o.Body, o.Published, o.CreatedAt}
-	allCols, allVals = runtime.FilterColumns(allCols, allVals, cols...)
+	allCols, allVals = sqlgen.FilterColumns(allCols, allVals, cols...)
 	conflictCols := []string{"id"}
 	updateCols := []string{"author_id", "title", "body", "published", "created_at"}
-	updateCols, _ = runtime.FilterColumns(updateCols, make([]any, len(updateCols)), cols...)
+	updateCols, _ = sqlgen.FilterColumns(updateCols, make([]any, len(updateCols)), cols...)
 	returning := []string{"id", "author_id", "title", "body", "published", "created_at"}
 
-	query, args := runtime.BuildUpsert(dialect, PostTableName, allCols, allVals, conflictCols, updateCols, returning)
+	query, args := sqlgen.BuildUpsert(dialect, PostTableName, allCols, allVals, conflictCols, updateCols, returning)
 	err = exec.QueryRowContext(ctx, query, args...).Scan(
 		&o.ID,
 		&o.AuthorID,
@@ -169,26 +169,26 @@ func (o *Post) Upsert(ctx context.Context, exec runtime.Executor, cols ...runtim
 	if err != nil {
 		return err
 	}
-	_, err = postHooks.RunIfEnabled(ctx, exec, runtime.AfterUpsert, o)
+	_, err = postHooks.RunIfEnabled(ctx, exec, sqlgen.AfterUpsert, o)
 	return err
 }
 
 // Exists checks if a row with the given primary key exists.
-func PostExists(ctx context.Context, exec runtime.Executor, id string) (bool, error) {
-	return runtime.Exists(ctx, exec, dialect, PostTableName,
-		runtime.Where("\"id\" = ?", id),
+func PostExists(ctx context.Context, exec sqlgen.Executor, id string) (bool, error) {
+	return sqlgen.Exists(ctx, exec, dialect, PostTableName,
+		sqlgen.Where("\"id\" = ?", id),
 	)
 }
 
 // CountPosts returns the count of rows matching the query mods.
-func CountPosts(ctx context.Context, exec runtime.Executor, mods ...runtime.QueryMod) (int64, error) {
-	return runtime.Count(ctx, exec, dialect, PostTableName, mods...)
+func CountPosts(ctx context.Context, exec sqlgen.Executor, mods ...sqlgen.QueryMod) (int64, error) {
+	return sqlgen.Count(ctx, exec, dialect, PostTableName, mods...)
 }
 
 // UpdateAllPosts updates all rows matching the given mods.
 // set is a map of column name -> new value.
-func UpdateAllPosts(ctx context.Context, exec runtime.Executor, set map[string]any, mods ...runtime.QueryMod) (int64, error) {
-	q := runtime.NewQuery(dialect, PostTableName, mods...)
+func UpdateAllPosts(ctx context.Context, exec sqlgen.Executor, set map[string]any, mods ...sqlgen.QueryMod) (int64, error) {
+	q := sqlgen.NewQuery(dialect, PostTableName, mods...)
 	query, args := q.BuildUpdateAll(set)
 	result, err := exec.ExecContext(ctx, query, args...)
 	if err != nil {
@@ -198,8 +198,8 @@ func UpdateAllPosts(ctx context.Context, exec runtime.Executor, set map[string]a
 }
 
 // DeleteAllPosts deletes all rows matching the given mods.
-func DeleteAllPosts(ctx context.Context, exec runtime.Executor, mods ...runtime.QueryMod) (int64, error) {
-	q := runtime.NewQuery(dialect, PostTableName, mods...)
+func DeleteAllPosts(ctx context.Context, exec sqlgen.Executor, mods ...sqlgen.QueryMod) (int64, error) {
+	q := sqlgen.NewQuery(dialect, PostTableName, mods...)
 	query, args := q.BuildDeleteAll()
 	result, err := exec.ExecContext(ctx, query, args...)
 	if err != nil {
@@ -210,27 +210,27 @@ func DeleteAllPosts(ctx context.Context, exec runtime.Executor, mods ...runtime.
 
 // EachPost executes a query and calls fn for each row. Iteration stops
 // early if fn returns an error. Rows are not accumulated in memory.
-func EachPost(ctx context.Context, exec runtime.Executor, fn func(*Post) error, mods ...runtime.QueryMod) error {
-	return runtime.Each(ctx, exec, runtime.NewQuery(dialect, PostTableName, mods...), func() *Post { return &Post{} }, fn)
+func EachPost(ctx context.Context, exec sqlgen.Executor, fn func(*Post) error, mods ...sqlgen.QueryMod) error {
+	return sqlgen.Each(ctx, exec, sqlgen.NewQuery(dialect, PostTableName, mods...), func() *Post { return &Post{} }, fn)
 }
 
 // PostCursor returns a cursor for iterating over posts rows one at a time.
-func PostCursor(ctx context.Context, exec runtime.Executor, mods ...runtime.QueryMod) (*runtime.Cursor[*Post], error) {
-	return runtime.NewCursor(ctx, exec, runtime.NewQuery(dialect, PostTableName, mods...), func() *Post { return &Post{} })
+func PostCursor(ctx context.Context, exec sqlgen.Executor, mods ...sqlgen.QueryMod) (*sqlgen.Cursor[*Post], error) {
+	return sqlgen.NewCursor(ctx, exec, sqlgen.NewQuery(dialect, PostTableName, mods...), func() *Post { return &Post{} })
 }
 
 // Reload refreshes the Post from the database using its primary key.
-func (o *Post) Reload(ctx context.Context, exec runtime.Executor) error {
-	q := runtime.NewQuery(dialect, PostTableName,
-		runtime.Where("\"id\" = ?", o.ID),
-		runtime.Limit(1),
+func (o *Post) Reload(ctx context.Context, exec sqlgen.Executor) error {
+	q := sqlgen.NewQuery(dialect, PostTableName,
+		sqlgen.Where("\"id\" = ?", o.ID),
+		sqlgen.Limit(1),
 	)
 	query, args := q.BuildSelect()
 	return o.ScanRow(exec.QueryRowContext(ctx, query, args...))
 }
 
 // UpdateAll updates all models in the slice with the given column values.
-func (s PostSlice) UpdateAll(ctx context.Context, exec runtime.Executor, set map[string]any) (int64, error) {
+func (s PostSlice) UpdateAll(ctx context.Context, exec sqlgen.Executor, set map[string]any) (int64, error) {
 	if len(s) == 0 {
 		return 0, nil
 	}
@@ -238,11 +238,11 @@ func (s PostSlice) UpdateAll(ctx context.Context, exec runtime.Executor, set map
 	for i, o := range s {
 		ids[i] = o.ID
 	}
-	return UpdateAllPosts(ctx, exec, set, runtime.WhereIn("\"id\"", ids...))
+	return UpdateAllPosts(ctx, exec, set, sqlgen.WhereIn("\"id\"", ids...))
 }
 
 // DeleteAll deletes all models in the slice.
-func (s PostSlice) DeleteAll(ctx context.Context, exec runtime.Executor) (int64, error) {
+func (s PostSlice) DeleteAll(ctx context.Context, exec sqlgen.Executor) (int64, error) {
 	if len(s) == 0 {
 		return 0, nil
 	}
@@ -250,13 +250,13 @@ func (s PostSlice) DeleteAll(ctx context.Context, exec runtime.Executor) (int64,
 	for i, o := range s {
 		ids[i] = o.ID
 	}
-	return DeleteAllPosts(ctx, exec, runtime.WhereIn("\"id\"", ids...))
+	return DeleteAllPosts(ctx, exec, sqlgen.WhereIn("\"id\"", ids...))
 }
 
 // InsertAll batch-inserts all models in the slice. Each model's columns are
 // scanned back via RETURNING, picking up defaults and generated values.
 // Hooks are not fired (consistent with UpdateAll/DeleteAll).
-func (s PostSlice) InsertAll(ctx context.Context, exec runtime.Executor) error {
+func (s PostSlice) InsertAll(ctx context.Context, exec sqlgen.Executor) error {
 	if len(s) == 0 {
 		return nil
 	}
@@ -268,7 +268,7 @@ func (s PostSlice) InsertAll(ctx context.Context, exec runtime.Executor) error {
 		rows[i] = []any{o.ID, o.AuthorID, o.Title, o.Body, o.Published, o.CreatedAt}
 	}
 
-	query, args := runtime.BuildBatchInsert(dialect, PostTableName, cols, rows, returning)
+	query, args := sqlgen.BuildBatchInsert(dialect, PostTableName, cols, rows, returning)
 	result, err := exec.QueryContext(ctx, query, args...)
 	if err != nil {
 		return err

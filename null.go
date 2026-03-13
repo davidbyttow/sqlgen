@@ -1,6 +1,6 @@
-// Package runtime provides the minimal runtime library that generated code imports.
+// Package sqlgen provides the runtime library that generated code imports.
 // Keep this package small and stable; it's a public API.
-package runtime
+package sqlgen
 
 import (
 	"database/sql"

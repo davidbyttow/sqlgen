@@ -19,7 +19,7 @@ import (
 	"fmt"
 
 	"github.com/davidbyttow/sqlgen/examples/introspect/models"
-	"github.com/davidbyttow/sqlgen/runtime"
+	"github.com/davidbyttow/sqlgen"
 )
 
 func main() {
@@ -29,14 +29,14 @@ func main() {
 	user := models.User{
 		Email: "alice@example.com",
 		Name:  "Alice",
-		Bio:   runtime.NewNull("Writes Go."),
+		Bio:   sqlgen.NewNull("Writes Go."),
 	}
 	fmt.Printf("User: %s <%s>\n", user.Name, user.Email)
 
 	// Type-safe queries work the same way.
 	q := models.Users(
 		models.UserWhere.Email.EQ("alice@example.com"),
-		runtime.Limit(1),
+		sqlgen.Limit(1),
 	)
 	sql, args := q.BuildSelect()
 	fmt.Printf("SQL:  %s\nArgs: %v\n", sql, args)

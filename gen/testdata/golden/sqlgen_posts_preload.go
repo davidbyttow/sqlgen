@@ -5,18 +5,18 @@ package models
 import (
 	"time"
 
-	"github.com/davidbyttow/sqlgen/runtime"
+	"github.com/davidbyttow/sqlgen"
 )
 
 // postUserPreload holds nullable scan targets for LEFT JOINed User columns.
 type postUserPreload struct {
-	id        runtime.Null[string]
-	orgID     runtime.Null[string]
-	email     runtime.Null[string]
-	role      runtime.Null[UserRole]
-	name      runtime.Null[string]
-	createdAt runtime.Null[time.Time]
-	updatedAt runtime.Null[time.Time]
+	id        sqlgen.Null[string]
+	orgID     sqlgen.Null[string]
+	email     sqlgen.Null[string]
+	role      sqlgen.Null[UserRole]
+	name      sqlgen.Null[string]
+	createdAt sqlgen.Null[time.Time]
+	updatedAt sqlgen.Null[time.Time]
 }
 
 func (p *postUserPreload) scanDests() []any {
@@ -50,7 +50,7 @@ func (p *postUserPreload) assign(o *Post) {
 }
 
 // PostPreloadUser is the PreloadDef for the User relationship.
-var PostPreloadUser = runtime.PreloadDef{
+var PostPreloadUser = sqlgen.PreloadDef{
 	Name:     "User",
 	Table:    UserTableName,
 	JoinCond: "\"users\".\"id\" = \"posts\".\"author_id\"",

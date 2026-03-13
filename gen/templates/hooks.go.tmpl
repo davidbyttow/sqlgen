@@ -8,19 +8,19 @@ package {{.Package}}
 import (
 	"context"
 
-	"github.com/davidbyttow/sqlgen/runtime"
+	"github.com/davidbyttow/sqlgen"
 )
 
 // {{safeName ($structName | lower)}}Hooks stores the hooks for {{$structName}}.
-var {{safeName ($structName | lower)}}Hooks = runtime.NewHooks()
+var {{safeName ($structName | lower)}}Hooks = sqlgen.NewHooks()
 
 // {{$structName}}Hook is a typed hook function for {{$structName}} lifecycle events.
-type {{$structName}}Hook func(ctx context.Context, exec runtime.Executor, model *{{$structName}}) (context.Context, error)
+type {{$structName}}Hook func(ctx context.Context, exec sqlgen.Executor, model *{{$structName}}) (context.Context, error)
 
 // Add{{$structName}}Hook registers a typed hook for the given hook point.
 // The hook receives the model pointer and can inspect or modify it.
-func Add{{$structName}}Hook(point runtime.HookPoint, fn {{$structName}}Hook) {
-	{{safeName ($structName | lower)}}Hooks.Add(point, func(ctx context.Context, exec runtime.Executor, model any) (context.Context, error) {
+func Add{{$structName}}Hook(point sqlgen.HookPoint, fn {{$structName}}Hook) {
+	{{safeName ($structName | lower)}}Hooks.Add(point, func(ctx context.Context, exec sqlgen.Executor, model any) (context.Context, error) {
 		return fn(ctx, exec, model.(*{{$structName}}))
 	})
 }

@@ -5,15 +5,15 @@ package models
 import (
 	"time"
 
-	"github.com/davidbyttow/sqlgen/runtime"
+	"github.com/davidbyttow/sqlgen"
 )
 
 // userOrganizationPreload holds nullable scan targets for LEFT JOINed Organization columns.
 type userOrganizationPreload struct {
-	id        runtime.Null[string]
-	name      runtime.Null[string]
-	slug      runtime.Null[string]
-	createdAt runtime.Null[time.Time]
+	id        sqlgen.Null[string]
+	name      sqlgen.Null[string]
+	slug      sqlgen.Null[string]
+	createdAt sqlgen.Null[time.Time]
 }
 
 func (p *userOrganizationPreload) scanDests() []any {
@@ -41,7 +41,7 @@ func (p *userOrganizationPreload) assign(o *User) {
 }
 
 // UserPreloadOrganization is the PreloadDef for the Organization relationship.
-var UserPreloadOrganization = runtime.PreloadDef{
+var UserPreloadOrganization = sqlgen.PreloadDef{
 	Name:     "Organization",
 	Table:    OrganizationTableName,
 	JoinCond: "\"organizations\".\"id\" = \"users\".\"org_id\"",

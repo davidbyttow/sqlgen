@@ -6,11 +6,11 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/davidbyttow/sqlgen/runtime"
+	"github.com/davidbyttow/sqlgen"
 )
 
 // SetUser sets the User relationship by updating the FK column.
-func (o *Post) SetUser(ctx context.Context, exec runtime.Executor, related *User) error {
+func (o *Post) SetUser(ctx context.Context, exec sqlgen.Executor, related *User) error {
 	o.AuthorID = related.ID
 	query := "UPDATE " + dialect.QuoteIdent(PostTableName) +
 		" SET " + dialect.QuoteIdent("author_id") + " = " + dialect.Placeholder(1) +
@@ -27,7 +27,7 @@ func (o *Post) SetUser(ctx context.Context, exec runtime.Executor, related *User
 }
 
 // AddTags adds to the Tags relationship by inserting join table rows.
-func (o *Post) AddTags(ctx context.Context, exec runtime.Executor, related ...*Tag) error {
+func (o *Post) AddTags(ctx context.Context, exec sqlgen.Executor, related ...*Tag) error {
 	for _, r := range related {
 		query := "INSERT INTO " + dialect.QuoteIdent("post_tags") +
 			" (" + dialect.QuoteIdent("post_id") + ", " + dialect.QuoteIdent("tag_id") + ")" +
@@ -45,7 +45,7 @@ func (o *Post) AddTags(ctx context.Context, exec runtime.Executor, related ...*T
 }
 
 // RemoveTags removes from the Tags relationship by deleting join table rows.
-func (o *Post) RemoveTags(ctx context.Context, exec runtime.Executor, related ...*Tag) error {
+func (o *Post) RemoveTags(ctx context.Context, exec sqlgen.Executor, related ...*Tag) error {
 	toRemove := make(map[string]bool)
 	for _, r := range related {
 		query := "DELETE FROM " + dialect.QuoteIdent("post_tags") +
@@ -71,7 +71,7 @@ func (o *Post) RemoveTags(ctx context.Context, exec runtime.Executor, related ..
 
 // SetTags replaces the Tags relationship entirely.
 // Deletes all existing join rows, then inserts new ones.
-func (o *Post) SetTags(ctx context.Context, exec runtime.Executor, related ...*Tag) error {
+func (o *Post) SetTags(ctx context.Context, exec sqlgen.Executor, related ...*Tag) error {
 	// Delete all existing associations.
 	query := "DELETE FROM " + dialect.QuoteIdent("post_tags") +
 		" WHERE " + dialect.QuoteIdent("post_id") + " = " + dialect.Placeholder(1)

@@ -130,7 +130,7 @@ There's a gap for a tool that combines the best ideas from all of these, built f
 
 2. **Dialect-specific query builders with shared ergonomics.** Bob got this right. Each dialect gets its own hand-crafted builder. Invalid queries don't compile. But the API patterns should feel consistent across dialects.
 
-3. **Minimal runtime.** Generated code should depend on as little as possible. The less runtime surface area, the easier it is to understand, debug, and extend.
+3. **Minimal sqlgen.** Generated code should depend on as little as possible. The less runtime surface area, the easier it is to understand, debug, and extend.
 
 4. **Progressive adoption.** Use the query builder without codegen. Use codegen without the query builder. Use both. Each layer stands alone.
 
@@ -227,7 +227,7 @@ sqlgen/
     postgres/
     mysql/
     sqlite/
-  runtime/             # Minimal runtime library (imported by generated code)
+  *.go                 # Runtime library (package sqlgen, imported by generated code)
     hooks.go
     query.go
     scan.go

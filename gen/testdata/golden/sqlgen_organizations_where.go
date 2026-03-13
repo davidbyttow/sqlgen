@@ -5,7 +5,7 @@ package models
 import (
 	"time"
 
-	"github.com/davidbyttow/sqlgen/runtime"
+	"github.com/davidbyttow/sqlgen"
 )
 
 // OrganizationWhere provides type-safe where clause builders for each column.
@@ -26,31 +26,31 @@ type OrganizationIDFilter struct {
 	col string
 }
 
-func (f OrganizationIDFilter) EQ(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" = ?", val)
+func (f OrganizationIDFilter) EQ(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" = ?", val)
 }
 
-func (f OrganizationIDFilter) NEQ(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" != ?", val)
+func (f OrganizationIDFilter) NEQ(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" != ?", val)
 }
 
-func (f OrganizationIDFilter) LT(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" < ?", val)
+func (f OrganizationIDFilter) LT(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" < ?", val)
 }
 
-func (f OrganizationIDFilter) LTE(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" <= ?", val)
+func (f OrganizationIDFilter) LTE(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" <= ?", val)
 }
 
-func (f OrganizationIDFilter) GT(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" > ?", val)
+func (f OrganizationIDFilter) GT(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" > ?", val)
 }
 
-func (f OrganizationIDFilter) GTE(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" >= ?", val)
+func (f OrganizationIDFilter) GTE(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" >= ?", val)
 }
 
-func (f OrganizationIDFilter) IN(vals ...string) runtime.QueryMod {
+func (f OrganizationIDFilter) IN(vals ...string) sqlgen.QueryMod {
 	args := make([]any, len(vals))
 	for i, v := range vals {
 		args[i] = v
@@ -62,7 +62,7 @@ func (f OrganizationIDFilter) IN(vals ...string) runtime.QueryMod {
 		}
 		placeholders = append(placeholders, '?')
 	}
-	return runtime.Where("\""+f.col+"\" IN ("+string(placeholders)+")", args...)
+	return sqlgen.Where("\""+f.col+"\" IN ("+string(placeholders)+")", args...)
 }
 
 // OrganizationNameFilter provides where clauses for the name column.
@@ -70,31 +70,31 @@ type OrganizationNameFilter struct {
 	col string
 }
 
-func (f OrganizationNameFilter) EQ(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" = ?", val)
+func (f OrganizationNameFilter) EQ(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" = ?", val)
 }
 
-func (f OrganizationNameFilter) NEQ(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" != ?", val)
+func (f OrganizationNameFilter) NEQ(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" != ?", val)
 }
 
-func (f OrganizationNameFilter) LT(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" < ?", val)
+func (f OrganizationNameFilter) LT(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" < ?", val)
 }
 
-func (f OrganizationNameFilter) LTE(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" <= ?", val)
+func (f OrganizationNameFilter) LTE(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" <= ?", val)
 }
 
-func (f OrganizationNameFilter) GT(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" > ?", val)
+func (f OrganizationNameFilter) GT(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" > ?", val)
 }
 
-func (f OrganizationNameFilter) GTE(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" >= ?", val)
+func (f OrganizationNameFilter) GTE(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" >= ?", val)
 }
 
-func (f OrganizationNameFilter) IN(vals ...string) runtime.QueryMod {
+func (f OrganizationNameFilter) IN(vals ...string) sqlgen.QueryMod {
 	args := make([]any, len(vals))
 	for i, v := range vals {
 		args[i] = v
@@ -106,7 +106,7 @@ func (f OrganizationNameFilter) IN(vals ...string) runtime.QueryMod {
 		}
 		placeholders = append(placeholders, '?')
 	}
-	return runtime.Where("\""+f.col+"\" IN ("+string(placeholders)+")", args...)
+	return sqlgen.Where("\""+f.col+"\" IN ("+string(placeholders)+")", args...)
 }
 
 // OrganizationSlugFilter provides where clauses for the slug column.
@@ -114,31 +114,31 @@ type OrganizationSlugFilter struct {
 	col string
 }
 
-func (f OrganizationSlugFilter) EQ(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" = ?", val)
+func (f OrganizationSlugFilter) EQ(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" = ?", val)
 }
 
-func (f OrganizationSlugFilter) NEQ(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" != ?", val)
+func (f OrganizationSlugFilter) NEQ(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" != ?", val)
 }
 
-func (f OrganizationSlugFilter) LT(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" < ?", val)
+func (f OrganizationSlugFilter) LT(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" < ?", val)
 }
 
-func (f OrganizationSlugFilter) LTE(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" <= ?", val)
+func (f OrganizationSlugFilter) LTE(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" <= ?", val)
 }
 
-func (f OrganizationSlugFilter) GT(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" > ?", val)
+func (f OrganizationSlugFilter) GT(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" > ?", val)
 }
 
-func (f OrganizationSlugFilter) GTE(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" >= ?", val)
+func (f OrganizationSlugFilter) GTE(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" >= ?", val)
 }
 
-func (f OrganizationSlugFilter) IN(vals ...string) runtime.QueryMod {
+func (f OrganizationSlugFilter) IN(vals ...string) sqlgen.QueryMod {
 	args := make([]any, len(vals))
 	for i, v := range vals {
 		args[i] = v
@@ -150,7 +150,7 @@ func (f OrganizationSlugFilter) IN(vals ...string) runtime.QueryMod {
 		}
 		placeholders = append(placeholders, '?')
 	}
-	return runtime.Where("\""+f.col+"\" IN ("+string(placeholders)+")", args...)
+	return sqlgen.Where("\""+f.col+"\" IN ("+string(placeholders)+")", args...)
 }
 
 // OrganizationCreatedAtFilter provides where clauses for the created_at column.
@@ -158,31 +158,31 @@ type OrganizationCreatedAtFilter struct {
 	col string
 }
 
-func (f OrganizationCreatedAtFilter) EQ(val time.Time) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" = ?", val)
+func (f OrganizationCreatedAtFilter) EQ(val time.Time) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" = ?", val)
 }
 
-func (f OrganizationCreatedAtFilter) NEQ(val time.Time) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" != ?", val)
+func (f OrganizationCreatedAtFilter) NEQ(val time.Time) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" != ?", val)
 }
 
-func (f OrganizationCreatedAtFilter) LT(val time.Time) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" < ?", val)
+func (f OrganizationCreatedAtFilter) LT(val time.Time) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" < ?", val)
 }
 
-func (f OrganizationCreatedAtFilter) LTE(val time.Time) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" <= ?", val)
+func (f OrganizationCreatedAtFilter) LTE(val time.Time) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" <= ?", val)
 }
 
-func (f OrganizationCreatedAtFilter) GT(val time.Time) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" > ?", val)
+func (f OrganizationCreatedAtFilter) GT(val time.Time) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" > ?", val)
 }
 
-func (f OrganizationCreatedAtFilter) GTE(val time.Time) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" >= ?", val)
+func (f OrganizationCreatedAtFilter) GTE(val time.Time) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" >= ?", val)
 }
 
-func (f OrganizationCreatedAtFilter) IN(vals ...time.Time) runtime.QueryMod {
+func (f OrganizationCreatedAtFilter) IN(vals ...time.Time) sqlgen.QueryMod {
 	args := make([]any, len(vals))
 	for i, v := range vals {
 		args[i] = v
@@ -194,5 +194,5 @@ func (f OrganizationCreatedAtFilter) IN(vals ...time.Time) runtime.QueryMod {
 		}
 		placeholders = append(placeholders, '?')
 	}
-	return runtime.Where("\""+f.col+"\" IN ("+string(placeholders)+")", args...)
+	return sqlgen.Where("\""+f.col+"\" IN ("+string(placeholders)+")", args...)
 }

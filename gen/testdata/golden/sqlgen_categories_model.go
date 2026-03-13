@@ -3,7 +3,7 @@
 package models
 
 import (
-	"github.com/davidbyttow/sqlgen/runtime"
+	"github.com/davidbyttow/sqlgen"
 )
 
 // CategoryTableName is the database table name.
@@ -22,9 +22,9 @@ var CategoryColumns = struct {
 
 // Category represents a row from the 'categories' table.
 type Category struct {
-	ID       int32               `db:"id" json:"id"`
-	Name     string              `db:"name" json:"name"`
-	ParentID runtime.Null[int32] `db:"parent_id" json:"parent_id"`
+	ID       int32              `db:"id" json:"id"`
+	Name     string             `db:"name" json:"name"`
+	ParentID sqlgen.Null[int32] `db:"parent_id" json:"parent_id"`
 
 	R *CategoryRels `db:"-" json:"-"`
 }

@@ -5,7 +5,7 @@ package models
 import (
 	"time"
 
-	"github.com/davidbyttow/sqlgen/runtime"
+	"github.com/davidbyttow/sqlgen"
 )
 
 // PostWhere provides type-safe where clause builders for each column.
@@ -30,31 +30,31 @@ type PostIDFilter struct {
 	col string
 }
 
-func (f PostIDFilter) EQ(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" = ?", val)
+func (f PostIDFilter) EQ(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" = ?", val)
 }
 
-func (f PostIDFilter) NEQ(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" != ?", val)
+func (f PostIDFilter) NEQ(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" != ?", val)
 }
 
-func (f PostIDFilter) LT(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" < ?", val)
+func (f PostIDFilter) LT(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" < ?", val)
 }
 
-func (f PostIDFilter) LTE(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" <= ?", val)
+func (f PostIDFilter) LTE(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" <= ?", val)
 }
 
-func (f PostIDFilter) GT(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" > ?", val)
+func (f PostIDFilter) GT(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" > ?", val)
 }
 
-func (f PostIDFilter) GTE(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" >= ?", val)
+func (f PostIDFilter) GTE(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" >= ?", val)
 }
 
-func (f PostIDFilter) IN(vals ...string) runtime.QueryMod {
+func (f PostIDFilter) IN(vals ...string) sqlgen.QueryMod {
 	args := make([]any, len(vals))
 	for i, v := range vals {
 		args[i] = v
@@ -66,7 +66,7 @@ func (f PostIDFilter) IN(vals ...string) runtime.QueryMod {
 		}
 		placeholders = append(placeholders, '?')
 	}
-	return runtime.Where("\""+f.col+"\" IN ("+string(placeholders)+")", args...)
+	return sqlgen.Where("\""+f.col+"\" IN ("+string(placeholders)+")", args...)
 }
 
 // PostAuthorIDFilter provides where clauses for the author_id column.
@@ -74,31 +74,31 @@ type PostAuthorIDFilter struct {
 	col string
 }
 
-func (f PostAuthorIDFilter) EQ(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" = ?", val)
+func (f PostAuthorIDFilter) EQ(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" = ?", val)
 }
 
-func (f PostAuthorIDFilter) NEQ(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" != ?", val)
+func (f PostAuthorIDFilter) NEQ(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" != ?", val)
 }
 
-func (f PostAuthorIDFilter) LT(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" < ?", val)
+func (f PostAuthorIDFilter) LT(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" < ?", val)
 }
 
-func (f PostAuthorIDFilter) LTE(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" <= ?", val)
+func (f PostAuthorIDFilter) LTE(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" <= ?", val)
 }
 
-func (f PostAuthorIDFilter) GT(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" > ?", val)
+func (f PostAuthorIDFilter) GT(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" > ?", val)
 }
 
-func (f PostAuthorIDFilter) GTE(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" >= ?", val)
+func (f PostAuthorIDFilter) GTE(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" >= ?", val)
 }
 
-func (f PostAuthorIDFilter) IN(vals ...string) runtime.QueryMod {
+func (f PostAuthorIDFilter) IN(vals ...string) sqlgen.QueryMod {
 	args := make([]any, len(vals))
 	for i, v := range vals {
 		args[i] = v
@@ -110,7 +110,7 @@ func (f PostAuthorIDFilter) IN(vals ...string) runtime.QueryMod {
 		}
 		placeholders = append(placeholders, '?')
 	}
-	return runtime.Where("\""+f.col+"\" IN ("+string(placeholders)+")", args...)
+	return sqlgen.Where("\""+f.col+"\" IN ("+string(placeholders)+")", args...)
 }
 
 // PostTitleFilter provides where clauses for the title column.
@@ -118,31 +118,31 @@ type PostTitleFilter struct {
 	col string
 }
 
-func (f PostTitleFilter) EQ(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" = ?", val)
+func (f PostTitleFilter) EQ(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" = ?", val)
 }
 
-func (f PostTitleFilter) NEQ(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" != ?", val)
+func (f PostTitleFilter) NEQ(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" != ?", val)
 }
 
-func (f PostTitleFilter) LT(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" < ?", val)
+func (f PostTitleFilter) LT(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" < ?", val)
 }
 
-func (f PostTitleFilter) LTE(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" <= ?", val)
+func (f PostTitleFilter) LTE(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" <= ?", val)
 }
 
-func (f PostTitleFilter) GT(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" > ?", val)
+func (f PostTitleFilter) GT(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" > ?", val)
 }
 
-func (f PostTitleFilter) GTE(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" >= ?", val)
+func (f PostTitleFilter) GTE(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" >= ?", val)
 }
 
-func (f PostTitleFilter) IN(vals ...string) runtime.QueryMod {
+func (f PostTitleFilter) IN(vals ...string) sqlgen.QueryMod {
 	args := make([]any, len(vals))
 	for i, v := range vals {
 		args[i] = v
@@ -154,7 +154,7 @@ func (f PostTitleFilter) IN(vals ...string) runtime.QueryMod {
 		}
 		placeholders = append(placeholders, '?')
 	}
-	return runtime.Where("\""+f.col+"\" IN ("+string(placeholders)+")", args...)
+	return sqlgen.Where("\""+f.col+"\" IN ("+string(placeholders)+")", args...)
 }
 
 // PostBodyFilter provides where clauses for the body column.
@@ -162,31 +162,31 @@ type PostBodyFilter struct {
 	col string
 }
 
-func (f PostBodyFilter) EQ(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" = ?", val)
+func (f PostBodyFilter) EQ(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" = ?", val)
 }
 
-func (f PostBodyFilter) NEQ(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" != ?", val)
+func (f PostBodyFilter) NEQ(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" != ?", val)
 }
 
-func (f PostBodyFilter) LT(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" < ?", val)
+func (f PostBodyFilter) LT(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" < ?", val)
 }
 
-func (f PostBodyFilter) LTE(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" <= ?", val)
+func (f PostBodyFilter) LTE(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" <= ?", val)
 }
 
-func (f PostBodyFilter) GT(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" > ?", val)
+func (f PostBodyFilter) GT(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" > ?", val)
 }
 
-func (f PostBodyFilter) GTE(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" >= ?", val)
+func (f PostBodyFilter) GTE(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" >= ?", val)
 }
 
-func (f PostBodyFilter) IN(vals ...string) runtime.QueryMod {
+func (f PostBodyFilter) IN(vals ...string) sqlgen.QueryMod {
 	args := make([]any, len(vals))
 	for i, v := range vals {
 		args[i] = v
@@ -198,7 +198,7 @@ func (f PostBodyFilter) IN(vals ...string) runtime.QueryMod {
 		}
 		placeholders = append(placeholders, '?')
 	}
-	return runtime.Where("\""+f.col+"\" IN ("+string(placeholders)+")", args...)
+	return sqlgen.Where("\""+f.col+"\" IN ("+string(placeholders)+")", args...)
 }
 
 // PostPublishedFilter provides where clauses for the published column.
@@ -206,31 +206,31 @@ type PostPublishedFilter struct {
 	col string
 }
 
-func (f PostPublishedFilter) EQ(val bool) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" = ?", val)
+func (f PostPublishedFilter) EQ(val bool) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" = ?", val)
 }
 
-func (f PostPublishedFilter) NEQ(val bool) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" != ?", val)
+func (f PostPublishedFilter) NEQ(val bool) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" != ?", val)
 }
 
-func (f PostPublishedFilter) LT(val bool) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" < ?", val)
+func (f PostPublishedFilter) LT(val bool) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" < ?", val)
 }
 
-func (f PostPublishedFilter) LTE(val bool) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" <= ?", val)
+func (f PostPublishedFilter) LTE(val bool) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" <= ?", val)
 }
 
-func (f PostPublishedFilter) GT(val bool) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" > ?", val)
+func (f PostPublishedFilter) GT(val bool) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" > ?", val)
 }
 
-func (f PostPublishedFilter) GTE(val bool) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" >= ?", val)
+func (f PostPublishedFilter) GTE(val bool) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" >= ?", val)
 }
 
-func (f PostPublishedFilter) IN(vals ...bool) runtime.QueryMod {
+func (f PostPublishedFilter) IN(vals ...bool) sqlgen.QueryMod {
 	args := make([]any, len(vals))
 	for i, v := range vals {
 		args[i] = v
@@ -242,7 +242,7 @@ func (f PostPublishedFilter) IN(vals ...bool) runtime.QueryMod {
 		}
 		placeholders = append(placeholders, '?')
 	}
-	return runtime.Where("\""+f.col+"\" IN ("+string(placeholders)+")", args...)
+	return sqlgen.Where("\""+f.col+"\" IN ("+string(placeholders)+")", args...)
 }
 
 // PostCreatedAtFilter provides where clauses for the created_at column.
@@ -250,31 +250,31 @@ type PostCreatedAtFilter struct {
 	col string
 }
 
-func (f PostCreatedAtFilter) EQ(val time.Time) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" = ?", val)
+func (f PostCreatedAtFilter) EQ(val time.Time) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" = ?", val)
 }
 
-func (f PostCreatedAtFilter) NEQ(val time.Time) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" != ?", val)
+func (f PostCreatedAtFilter) NEQ(val time.Time) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" != ?", val)
 }
 
-func (f PostCreatedAtFilter) LT(val time.Time) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" < ?", val)
+func (f PostCreatedAtFilter) LT(val time.Time) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" < ?", val)
 }
 
-func (f PostCreatedAtFilter) LTE(val time.Time) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" <= ?", val)
+func (f PostCreatedAtFilter) LTE(val time.Time) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" <= ?", val)
 }
 
-func (f PostCreatedAtFilter) GT(val time.Time) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" > ?", val)
+func (f PostCreatedAtFilter) GT(val time.Time) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" > ?", val)
 }
 
-func (f PostCreatedAtFilter) GTE(val time.Time) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" >= ?", val)
+func (f PostCreatedAtFilter) GTE(val time.Time) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" >= ?", val)
 }
 
-func (f PostCreatedAtFilter) IN(vals ...time.Time) runtime.QueryMod {
+func (f PostCreatedAtFilter) IN(vals ...time.Time) sqlgen.QueryMod {
 	args := make([]any, len(vals))
 	for i, v := range vals {
 		args[i] = v
@@ -286,5 +286,5 @@ func (f PostCreatedAtFilter) IN(vals ...time.Time) runtime.QueryMod {
 		}
 		placeholders = append(placeholders, '?')
 	}
-	return runtime.Where("\""+f.col+"\" IN ("+string(placeholders)+")", args...)
+	return sqlgen.Where("\""+f.col+"\" IN ("+string(placeholders)+")", args...)
 }

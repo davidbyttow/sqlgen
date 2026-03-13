@@ -53,7 +53,7 @@ func (p *{{lower $structName}}{{$fieldName}}Preload) assign(o *{{$structName}}) 
 
 // {{$structName}}Preload{{$fieldName}} is the PreloadDef for the {{$fieldName}} relationship.
 {{- if eq $rel.Type (relBelongsTo)}}
-var {{$structName}}Preload{{$fieldName}} = runtime.PreloadDef{
+var {{$structName}}Preload{{$fieldName}} = sqlgen.PreloadDef{
 	Name:     "{{$fieldName}}",
 	Table:    {{$foreignStructName}}TableName,
 	JoinCond: "\"{{$rel.ForeignTable}}\".\"{{$foreignCol}}\" = \"{{$tableName}}\".\"{{$localCol}}\"",
@@ -65,7 +65,7 @@ var {{$structName}}Preload{{$fieldName}} = runtime.PreloadDef{
 }
 {{- else}}
 {{- /* HasOne: foreign table has FK pointing to this table's PK */}}
-var {{$structName}}Preload{{$fieldName}} = runtime.PreloadDef{
+var {{$structName}}Preload{{$fieldName}} = sqlgen.PreloadDef{
 	Name:     "{{$fieldName}}",
 	Table:    {{$foreignStructName}}TableName,
 	JoinCond: "\"{{$rel.ForeignTable}}\".\"{{$foreignCol}}\" = \"{{$tableName}}\".\"{{$localCol}}\"",

@@ -2,7 +2,7 @@
 
 package models
 
-import "github.com/davidbyttow/sqlgen/runtime"
+import "github.com/davidbyttow/sqlgen"
 
 // CategoryWhere provides type-safe where clause builders for each column.
 var CategoryWhere = struct {
@@ -20,31 +20,31 @@ type CategoryIDFilter struct {
 	col string
 }
 
-func (f CategoryIDFilter) EQ(val int32) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" = ?", val)
+func (f CategoryIDFilter) EQ(val int32) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" = ?", val)
 }
 
-func (f CategoryIDFilter) NEQ(val int32) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" != ?", val)
+func (f CategoryIDFilter) NEQ(val int32) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" != ?", val)
 }
 
-func (f CategoryIDFilter) LT(val int32) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" < ?", val)
+func (f CategoryIDFilter) LT(val int32) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" < ?", val)
 }
 
-func (f CategoryIDFilter) LTE(val int32) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" <= ?", val)
+func (f CategoryIDFilter) LTE(val int32) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" <= ?", val)
 }
 
-func (f CategoryIDFilter) GT(val int32) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" > ?", val)
+func (f CategoryIDFilter) GT(val int32) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" > ?", val)
 }
 
-func (f CategoryIDFilter) GTE(val int32) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" >= ?", val)
+func (f CategoryIDFilter) GTE(val int32) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" >= ?", val)
 }
 
-func (f CategoryIDFilter) IN(vals ...int32) runtime.QueryMod {
+func (f CategoryIDFilter) IN(vals ...int32) sqlgen.QueryMod {
 	args := make([]any, len(vals))
 	for i, v := range vals {
 		args[i] = v
@@ -56,7 +56,7 @@ func (f CategoryIDFilter) IN(vals ...int32) runtime.QueryMod {
 		}
 		placeholders = append(placeholders, '?')
 	}
-	return runtime.Where("\""+f.col+"\" IN ("+string(placeholders)+")", args...)
+	return sqlgen.Where("\""+f.col+"\" IN ("+string(placeholders)+")", args...)
 }
 
 // CategoryNameFilter provides where clauses for the name column.
@@ -64,31 +64,31 @@ type CategoryNameFilter struct {
 	col string
 }
 
-func (f CategoryNameFilter) EQ(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" = ?", val)
+func (f CategoryNameFilter) EQ(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" = ?", val)
 }
 
-func (f CategoryNameFilter) NEQ(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" != ?", val)
+func (f CategoryNameFilter) NEQ(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" != ?", val)
 }
 
-func (f CategoryNameFilter) LT(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" < ?", val)
+func (f CategoryNameFilter) LT(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" < ?", val)
 }
 
-func (f CategoryNameFilter) LTE(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" <= ?", val)
+func (f CategoryNameFilter) LTE(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" <= ?", val)
 }
 
-func (f CategoryNameFilter) GT(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" > ?", val)
+func (f CategoryNameFilter) GT(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" > ?", val)
 }
 
-func (f CategoryNameFilter) GTE(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" >= ?", val)
+func (f CategoryNameFilter) GTE(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" >= ?", val)
 }
 
-func (f CategoryNameFilter) IN(vals ...string) runtime.QueryMod {
+func (f CategoryNameFilter) IN(vals ...string) sqlgen.QueryMod {
 	args := make([]any, len(vals))
 	for i, v := range vals {
 		args[i] = v
@@ -100,7 +100,7 @@ func (f CategoryNameFilter) IN(vals ...string) runtime.QueryMod {
 		}
 		placeholders = append(placeholders, '?')
 	}
-	return runtime.Where("\""+f.col+"\" IN ("+string(placeholders)+")", args...)
+	return sqlgen.Where("\""+f.col+"\" IN ("+string(placeholders)+")", args...)
 }
 
 // CategoryParentIDFilter provides where clauses for the parent_id column.
@@ -108,31 +108,31 @@ type CategoryParentIDFilter struct {
 	col string
 }
 
-func (f CategoryParentIDFilter) EQ(val runtime.Null[int32]) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" = ?", val)
+func (f CategoryParentIDFilter) EQ(val sqlgen.Null[int32]) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" = ?", val)
 }
 
-func (f CategoryParentIDFilter) NEQ(val runtime.Null[int32]) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" != ?", val)
+func (f CategoryParentIDFilter) NEQ(val sqlgen.Null[int32]) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" != ?", val)
 }
 
-func (f CategoryParentIDFilter) LT(val runtime.Null[int32]) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" < ?", val)
+func (f CategoryParentIDFilter) LT(val sqlgen.Null[int32]) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" < ?", val)
 }
 
-func (f CategoryParentIDFilter) LTE(val runtime.Null[int32]) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" <= ?", val)
+func (f CategoryParentIDFilter) LTE(val sqlgen.Null[int32]) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" <= ?", val)
 }
 
-func (f CategoryParentIDFilter) GT(val runtime.Null[int32]) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" > ?", val)
+func (f CategoryParentIDFilter) GT(val sqlgen.Null[int32]) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" > ?", val)
 }
 
-func (f CategoryParentIDFilter) GTE(val runtime.Null[int32]) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" >= ?", val)
+func (f CategoryParentIDFilter) GTE(val sqlgen.Null[int32]) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" >= ?", val)
 }
 
-func (f CategoryParentIDFilter) IN(vals ...runtime.Null[int32]) runtime.QueryMod {
+func (f CategoryParentIDFilter) IN(vals ...sqlgen.Null[int32]) sqlgen.QueryMod {
 	args := make([]any, len(vals))
 	for i, v := range vals {
 		args[i] = v
@@ -144,13 +144,13 @@ func (f CategoryParentIDFilter) IN(vals ...runtime.Null[int32]) runtime.QueryMod
 		}
 		placeholders = append(placeholders, '?')
 	}
-	return runtime.Where("\""+f.col+"\" IN ("+string(placeholders)+")", args...)
+	return sqlgen.Where("\""+f.col+"\" IN ("+string(placeholders)+")", args...)
 }
 
-func (f CategoryParentIDFilter) IsNull() runtime.QueryMod {
-	return runtime.Where("\"" + f.col + "\" IS NULL")
+func (f CategoryParentIDFilter) IsNull() sqlgen.QueryMod {
+	return sqlgen.Where("\"" + f.col + "\" IS NULL")
 }
 
-func (f CategoryParentIDFilter) IsNotNull() runtime.QueryMod {
-	return runtime.Where("\"" + f.col + "\" IS NOT NULL")
+func (f CategoryParentIDFilter) IsNotNull() sqlgen.QueryMod {
+	return sqlgen.Where("\"" + f.col + "\" IS NOT NULL")
 }

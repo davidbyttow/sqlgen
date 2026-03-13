@@ -5,20 +5,20 @@ package models
 import (
 	"context"
 
-	"github.com/davidbyttow/sqlgen/runtime"
+	"github.com/davidbyttow/sqlgen"
 )
 
 // PostTags returns a query builder for the post_tags table.
-func PostTags(mods ...runtime.QueryMod) *runtime.Query {
-	return runtime.NewQuery(dialect, PostTagTableName, mods...)
+func PostTags(mods ...sqlgen.QueryMod) *sqlgen.Query {
+	return sqlgen.NewQuery(dialect, PostTagTableName, mods...)
 }
 
 // FindPostTagByPK finds a PostTag by primary key.
-func FindPostTagByPK(ctx context.Context, exec runtime.Executor, postID string, tagID int32) (*PostTag, error) {
-	q := runtime.NewQuery(dialect, PostTagTableName,
-		runtime.Where("\"post_id\" = ?", postID),
-		runtime.Where("\"tag_id\" = ?", tagID),
-		runtime.Limit(1),
+func FindPostTagByPK(ctx context.Context, exec sqlgen.Executor, postID string, tagID int32) (*PostTag, error) {
+	q := sqlgen.NewQuery(dialect, PostTagTableName,
+		sqlgen.Where("\"post_id\" = ?", postID),
+		sqlgen.Where("\"tag_id\" = ?", tagID),
+		sqlgen.Limit(1),
 	)
 
 	query, args := q.BuildSelect()
@@ -33,8 +33,8 @@ func FindPostTagByPK(ctx context.Context, exec runtime.Executor, postID string, 
 
 // AllPostTags retrieves all rows from the post_tags table with the given query mods.
 // Supports Preload() for LEFT JOIN eager loading of to-one relationships.
-func AllPostTags(ctx context.Context, exec runtime.Executor, mods ...runtime.QueryMod) (PostTagSlice, error) {
-	q := runtime.NewQuery(dialect, PostTagTableName, mods...)
+func AllPostTags(ctx context.Context, exec sqlgen.Executor, mods ...sqlgen.QueryMod) (PostTagSlice, error) {
+	q := sqlgen.NewQuery(dialect, PostTagTableName, mods...)
 	query, args := q.BuildSelect()
 	rows, err := exec.QueryContext(ctx, query, args...)
 	if err != nil {
@@ -55,18 +55,18 @@ func AllPostTags(ctx context.Context, exec runtime.Executor, mods ...runtime.Que
 
 // Insert inserts the PostTag into the database.
 // Optional Columns parameter controls which columns are included (Whitelist/Blacklist).
-func (o *PostTag) Insert(ctx context.Context, exec runtime.Executor, cols ...runtime.Columns) error {
-	ctx, err := posttagHooks.RunIfEnabled(ctx, exec, runtime.BeforeInsert, o)
+func (o *PostTag) Insert(ctx context.Context, exec sqlgen.Executor, cols ...sqlgen.Columns) error {
+	ctx, err := posttagHooks.RunIfEnabled(ctx, exec, sqlgen.BeforeInsert, o)
 	if err != nil {
 		return err
 	}
 	allCols := []string{"post_id", "tag_id"}
 	allVals := []any{o.PostID, o.TagID}
-	allCols, allVals = runtime.FilterColumns(allCols, allVals, cols...)
+	allCols, allVals = sqlgen.FilterColumns(allCols, allVals, cols...)
 
 	returning := []string{"post_id", "tag_id"}
 
-	query, args := runtime.BuildInsert(dialect, PostTagTableName, allCols, allVals, returning)
+	query, args := sqlgen.BuildInsert(dialect, PostTagTableName, allCols, allVals, returning)
 	err = exec.QueryRowContext(ctx, query, args...).Scan(
 		&o.PostID,
 		&o.TagID,
@@ -74,36 +74,36 @@ func (o *PostTag) Insert(ctx context.Context, exec runtime.Executor, cols ...run
 	if err != nil {
 		return err
 	}
-	_, err = posttagHooks.RunIfEnabled(ctx, exec, runtime.AfterInsert, o)
+	_, err = posttagHooks.RunIfEnabled(ctx, exec, sqlgen.AfterInsert, o)
 	return err
 }
 
 // Update updates the PostTag in the database. Only non-PK columns are updated.
 // Optional Columns parameter controls which columns are included (Whitelist/Blacklist).
-func (o *PostTag) Update(ctx context.Context, exec runtime.Executor, cols ...runtime.Columns) error {
-	ctx, err := posttagHooks.RunIfEnabled(ctx, exec, runtime.BeforeUpdate, o)
+func (o *PostTag) Update(ctx context.Context, exec sqlgen.Executor, cols ...sqlgen.Columns) error {
+	ctx, err := posttagHooks.RunIfEnabled(ctx, exec, sqlgen.BeforeUpdate, o)
 	if err != nil {
 		return err
 	}
 	setCols := []string{}
 	setVals := []any{}
-	setCols, setVals = runtime.FilterColumns(setCols, setVals, cols...)
+	setCols, setVals = sqlgen.FilterColumns(setCols, setVals, cols...)
 
 	whereClauses := []string{"\"post_id\" = ?", "\"tag_id\" = ?"}
 	whereArgs := []any{o.PostID, o.TagID}
 
-	query, args := runtime.BuildUpdate(dialect, PostTagTableName, setCols, setVals, whereClauses, whereArgs)
+	query, args := sqlgen.BuildUpdate(dialect, PostTagTableName, setCols, setVals, whereClauses, whereArgs)
 	_, err = exec.ExecContext(ctx, query, args...)
 	if err != nil {
 		return err
 	}
-	_, err = posttagHooks.RunIfEnabled(ctx, exec, runtime.AfterUpdate, o)
+	_, err = posttagHooks.RunIfEnabled(ctx, exec, sqlgen.AfterUpdate, o)
 	return err
 }
 
 // Delete deletes the PostTag from the database.
-func (o *PostTag) Delete(ctx context.Context, exec runtime.Executor) error {
-	ctx, err := posttagHooks.RunIfEnabled(ctx, exec, runtime.BeforeDelete, o)
+func (o *PostTag) Delete(ctx context.Context, exec sqlgen.Executor) error {
+	ctx, err := posttagHooks.RunIfEnabled(ctx, exec, sqlgen.BeforeDelete, o)
 	if err != nil {
 		return err
 	}
@@ -111,31 +111,31 @@ func (o *PostTag) Delete(ctx context.Context, exec runtime.Executor) error {
 	whereClauses := []string{"\"post_id\" = ?", "\"tag_id\" = ?"}
 	whereArgs := []any{o.PostID, o.TagID}
 
-	query, args := runtime.BuildDelete(dialect, PostTagTableName, whereClauses, whereArgs)
+	query, args := sqlgen.BuildDelete(dialect, PostTagTableName, whereClauses, whereArgs)
 	_, err = exec.ExecContext(ctx, query, args...)
 	if err != nil {
 		return err
 	}
-	_, err = posttagHooks.RunIfEnabled(ctx, exec, runtime.AfterDelete, o)
+	_, err = posttagHooks.RunIfEnabled(ctx, exec, sqlgen.AfterDelete, o)
 	return err
 }
 
 // Upsert inserts or updates the PostTag based on the primary key.
 // Optional Columns parameter controls which non-PK columns are included (Whitelist/Blacklist).
-func (o *PostTag) Upsert(ctx context.Context, exec runtime.Executor, cols ...runtime.Columns) error {
-	ctx, err := posttagHooks.RunIfEnabled(ctx, exec, runtime.BeforeUpsert, o)
+func (o *PostTag) Upsert(ctx context.Context, exec sqlgen.Executor, cols ...sqlgen.Columns) error {
+	ctx, err := posttagHooks.RunIfEnabled(ctx, exec, sqlgen.BeforeUpsert, o)
 	if err != nil {
 		return err
 	}
 	allCols := []string{"post_id", "tag_id"}
 	allVals := []any{o.PostID, o.TagID}
-	allCols, allVals = runtime.FilterColumns(allCols, allVals, cols...)
+	allCols, allVals = sqlgen.FilterColumns(allCols, allVals, cols...)
 	conflictCols := []string{"post_id", "tag_id"}
 	updateCols := []string{}
-	updateCols, _ = runtime.FilterColumns(updateCols, make([]any, len(updateCols)), cols...)
+	updateCols, _ = sqlgen.FilterColumns(updateCols, make([]any, len(updateCols)), cols...)
 	returning := []string{"post_id", "tag_id"}
 
-	query, args := runtime.BuildUpsert(dialect, PostTagTableName, allCols, allVals, conflictCols, updateCols, returning)
+	query, args := sqlgen.BuildUpsert(dialect, PostTagTableName, allCols, allVals, conflictCols, updateCols, returning)
 	err = exec.QueryRowContext(ctx, query, args...).Scan(
 		&o.PostID,
 		&o.TagID,
@@ -143,27 +143,27 @@ func (o *PostTag) Upsert(ctx context.Context, exec runtime.Executor, cols ...run
 	if err != nil {
 		return err
 	}
-	_, err = posttagHooks.RunIfEnabled(ctx, exec, runtime.AfterUpsert, o)
+	_, err = posttagHooks.RunIfEnabled(ctx, exec, sqlgen.AfterUpsert, o)
 	return err
 }
 
 // Exists checks if a row with the given primary key exists.
-func PostTagExists(ctx context.Context, exec runtime.Executor, postID string, tagID int32) (bool, error) {
-	return runtime.Exists(ctx, exec, dialect, PostTagTableName,
-		runtime.Where("\"post_id\" = ?", postID),
-		runtime.Where("\"tag_id\" = ?", tagID),
+func PostTagExists(ctx context.Context, exec sqlgen.Executor, postID string, tagID int32) (bool, error) {
+	return sqlgen.Exists(ctx, exec, dialect, PostTagTableName,
+		sqlgen.Where("\"post_id\" = ?", postID),
+		sqlgen.Where("\"tag_id\" = ?", tagID),
 	)
 }
 
 // CountPostTags returns the count of rows matching the query mods.
-func CountPostTags(ctx context.Context, exec runtime.Executor, mods ...runtime.QueryMod) (int64, error) {
-	return runtime.Count(ctx, exec, dialect, PostTagTableName, mods...)
+func CountPostTags(ctx context.Context, exec sqlgen.Executor, mods ...sqlgen.QueryMod) (int64, error) {
+	return sqlgen.Count(ctx, exec, dialect, PostTagTableName, mods...)
 }
 
 // UpdateAllPostTags updates all rows matching the given mods.
 // set is a map of column name -> new value.
-func UpdateAllPostTags(ctx context.Context, exec runtime.Executor, set map[string]any, mods ...runtime.QueryMod) (int64, error) {
-	q := runtime.NewQuery(dialect, PostTagTableName, mods...)
+func UpdateAllPostTags(ctx context.Context, exec sqlgen.Executor, set map[string]any, mods ...sqlgen.QueryMod) (int64, error) {
+	q := sqlgen.NewQuery(dialect, PostTagTableName, mods...)
 	query, args := q.BuildUpdateAll(set)
 	result, err := exec.ExecContext(ctx, query, args...)
 	if err != nil {
@@ -173,8 +173,8 @@ func UpdateAllPostTags(ctx context.Context, exec runtime.Executor, set map[strin
 }
 
 // DeleteAllPostTags deletes all rows matching the given mods.
-func DeleteAllPostTags(ctx context.Context, exec runtime.Executor, mods ...runtime.QueryMod) (int64, error) {
-	q := runtime.NewQuery(dialect, PostTagTableName, mods...)
+func DeleteAllPostTags(ctx context.Context, exec sqlgen.Executor, mods ...sqlgen.QueryMod) (int64, error) {
+	q := sqlgen.NewQuery(dialect, PostTagTableName, mods...)
 	query, args := q.BuildDeleteAll()
 	result, err := exec.ExecContext(ctx, query, args...)
 	if err != nil {
@@ -184,11 +184,11 @@ func DeleteAllPostTags(ctx context.Context, exec runtime.Executor, mods ...runti
 }
 
 // Reload refreshes the PostTag from the database using its primary key.
-func (o *PostTag) Reload(ctx context.Context, exec runtime.Executor) error {
-	q := runtime.NewQuery(dialect, PostTagTableName,
-		runtime.Where("\"post_id\" = ?", o.PostID),
-		runtime.Where("\"tag_id\" = ?", o.TagID),
-		runtime.Limit(1),
+func (o *PostTag) Reload(ctx context.Context, exec sqlgen.Executor) error {
+	q := sqlgen.NewQuery(dialect, PostTagTableName,
+		sqlgen.Where("\"post_id\" = ?", o.PostID),
+		sqlgen.Where("\"tag_id\" = ?", o.TagID),
+		sqlgen.Limit(1),
 	)
 	query, args := q.BuildSelect()
 	return o.ScanRow(exec.QueryRowContext(ctx, query, args...))

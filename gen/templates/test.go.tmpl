@@ -9,7 +9,7 @@ package {{.Package}}
 import (
 	"testing"
 
-	"github.com/davidbyttow/sqlgen/runtime"
+	"github.com/davidbyttow/sqlgen"
 )
 
 func Test{{$structName}}TableName(t *testing.T) {
@@ -55,8 +55,8 @@ func Test{{$structName}}QueryBuilder(t *testing.T) {
 
 	// With a where clause and limit.
 	q = {{safePascal (plural (singular $tableName))}}(
-		runtime.Where("1 = ?", 1),
-		runtime.Limit(10),
+		sqlgen.Where("1 = ?", 1),
+		sqlgen.Limit(10),
 	)
 	sql, args = q.BuildSelect()
 	if sql == "" {
@@ -112,7 +112,7 @@ func Test{{$structName}}Where{{pascal .Name}}(t *testing.T) {
 
 func Test{{$structName}}BuildUpdateAll(t *testing.T) {
 	q := {{safePascal (plural (singular $tableName))}}(
-		runtime.Where("1 = ?", 1),
+		sqlgen.Where("1 = ?", 1),
 	)
 	sql, args := q.BuildUpdateAll(map[string]any{"{{(index .Table.Columns 0).Name}}": nil})
 	if sql == "" {
@@ -125,7 +125,7 @@ func Test{{$structName}}BuildUpdateAll(t *testing.T) {
 
 func Test{{$structName}}BuildDeleteAll(t *testing.T) {
 	q := {{safePascal (plural (singular $tableName))}}(
-		runtime.Where("1 = ?", 1),
+		sqlgen.Where("1 = ?", 1),
 	)
 	sql, args := q.BuildDeleteAll()
 	if sql == "" {

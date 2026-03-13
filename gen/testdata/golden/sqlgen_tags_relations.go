@@ -6,11 +6,11 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/davidbyttow/sqlgen/runtime"
+	"github.com/davidbyttow/sqlgen"
 )
 
 // AddPosts adds to the Posts relationship by inserting join table rows.
-func (o *Tag) AddPosts(ctx context.Context, exec runtime.Executor, related ...*Post) error {
+func (o *Tag) AddPosts(ctx context.Context, exec sqlgen.Executor, related ...*Post) error {
 	for _, r := range related {
 		query := "INSERT INTO " + dialect.QuoteIdent("post_tags") +
 			" (" + dialect.QuoteIdent("tag_id") + ", " + dialect.QuoteIdent("post_id") + ")" +
@@ -28,7 +28,7 @@ func (o *Tag) AddPosts(ctx context.Context, exec runtime.Executor, related ...*P
 }
 
 // RemovePosts removes from the Posts relationship by deleting join table rows.
-func (o *Tag) RemovePosts(ctx context.Context, exec runtime.Executor, related ...*Post) error {
+func (o *Tag) RemovePosts(ctx context.Context, exec sqlgen.Executor, related ...*Post) error {
 	toRemove := make(map[string]bool)
 	for _, r := range related {
 		query := "DELETE FROM " + dialect.QuoteIdent("post_tags") +
@@ -54,7 +54,7 @@ func (o *Tag) RemovePosts(ctx context.Context, exec runtime.Executor, related ..
 
 // SetPosts replaces the Posts relationship entirely.
 // Deletes all existing join rows, then inserts new ones.
-func (o *Tag) SetPosts(ctx context.Context, exec runtime.Executor, related ...*Post) error {
+func (o *Tag) SetPosts(ctx context.Context, exec sqlgen.Executor, related ...*Post) error {
 	// Delete all existing associations.
 	query := "DELETE FROM " + dialect.QuoteIdent("post_tags") +
 		" WHERE " + dialect.QuoteIdent("tag_id") + " = " + dialect.Placeholder(1)

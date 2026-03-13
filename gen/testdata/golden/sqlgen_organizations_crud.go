@@ -5,19 +5,19 @@ package models
 import (
 	"context"
 
-	"github.com/davidbyttow/sqlgen/runtime"
+	"github.com/davidbyttow/sqlgen"
 )
 
 // Organizations returns a query builder for the organizations table.
-func Organizations(mods ...runtime.QueryMod) *runtime.Query {
-	return runtime.NewQuery(dialect, OrganizationTableName, mods...)
+func Organizations(mods ...sqlgen.QueryMod) *sqlgen.Query {
+	return sqlgen.NewQuery(dialect, OrganizationTableName, mods...)
 }
 
 // FindOrganizationByPK finds a Organization by primary key.
-func FindOrganizationByPK(ctx context.Context, exec runtime.Executor, id string) (*Organization, error) {
-	q := runtime.NewQuery(dialect, OrganizationTableName,
-		runtime.Where("\"id\" = ?", id),
-		runtime.Limit(1),
+func FindOrganizationByPK(ctx context.Context, exec sqlgen.Executor, id string) (*Organization, error) {
+	q := sqlgen.NewQuery(dialect, OrganizationTableName,
+		sqlgen.Where("\"id\" = ?", id),
+		sqlgen.Limit(1),
 	)
 
 	query, args := q.BuildSelect()
@@ -32,8 +32,8 @@ func FindOrganizationByPK(ctx context.Context, exec runtime.Executor, id string)
 
 // AllOrganizations retrieves all rows from the organizations table with the given query mods.
 // Supports Preload() for LEFT JOIN eager loading of to-one relationships.
-func AllOrganizations(ctx context.Context, exec runtime.Executor, mods ...runtime.QueryMod) (OrganizationSlice, error) {
-	q := runtime.NewQuery(dialect, OrganizationTableName, mods...)
+func AllOrganizations(ctx context.Context, exec sqlgen.Executor, mods ...sqlgen.QueryMod) (OrganizationSlice, error) {
+	q := sqlgen.NewQuery(dialect, OrganizationTableName, mods...)
 	query, args := q.BuildSelect()
 	rows, err := exec.QueryContext(ctx, query, args...)
 	if err != nil {
@@ -54,18 +54,18 @@ func AllOrganizations(ctx context.Context, exec runtime.Executor, mods ...runtim
 
 // Insert inserts the Organization into the database.
 // Optional Columns parameter controls which columns are included (Whitelist/Blacklist).
-func (o *Organization) Insert(ctx context.Context, exec runtime.Executor, cols ...runtime.Columns) error {
-	ctx, err := organizationHooks.RunIfEnabled(ctx, exec, runtime.BeforeInsert, o)
+func (o *Organization) Insert(ctx context.Context, exec sqlgen.Executor, cols ...sqlgen.Columns) error {
+	ctx, err := organizationHooks.RunIfEnabled(ctx, exec, sqlgen.BeforeInsert, o)
 	if err != nil {
 		return err
 	}
 	allCols := []string{"id", "name", "slug", "created_at"}
 	allVals := []any{o.ID, o.Name, o.Slug, o.CreatedAt}
-	allCols, allVals = runtime.FilterColumns(allCols, allVals, cols...)
+	allCols, allVals = sqlgen.FilterColumns(allCols, allVals, cols...)
 
 	returning := []string{"id", "name", "slug", "created_at"}
 
-	query, args := runtime.BuildInsert(dialect, OrganizationTableName, allCols, allVals, returning)
+	query, args := sqlgen.BuildInsert(dialect, OrganizationTableName, allCols, allVals, returning)
 	err = exec.QueryRowContext(ctx, query, args...).Scan(
 		&o.ID,
 		&o.Name,
@@ -75,36 +75,36 @@ func (o *Organization) Insert(ctx context.Context, exec runtime.Executor, cols .
 	if err != nil {
 		return err
 	}
-	_, err = organizationHooks.RunIfEnabled(ctx, exec, runtime.AfterInsert, o)
+	_, err = organizationHooks.RunIfEnabled(ctx, exec, sqlgen.AfterInsert, o)
 	return err
 }
 
 // Update updates the Organization in the database. Only non-PK columns are updated.
 // Optional Columns parameter controls which columns are included (Whitelist/Blacklist).
-func (o *Organization) Update(ctx context.Context, exec runtime.Executor, cols ...runtime.Columns) error {
-	ctx, err := organizationHooks.RunIfEnabled(ctx, exec, runtime.BeforeUpdate, o)
+func (o *Organization) Update(ctx context.Context, exec sqlgen.Executor, cols ...sqlgen.Columns) error {
+	ctx, err := organizationHooks.RunIfEnabled(ctx, exec, sqlgen.BeforeUpdate, o)
 	if err != nil {
 		return err
 	}
 	setCols := []string{"name", "slug", "created_at"}
 	setVals := []any{o.Name, o.Slug, o.CreatedAt}
-	setCols, setVals = runtime.FilterColumns(setCols, setVals, cols...)
+	setCols, setVals = sqlgen.FilterColumns(setCols, setVals, cols...)
 
 	whereClauses := []string{"\"id\" = ?"}
 	whereArgs := []any{o.ID}
 
-	query, args := runtime.BuildUpdate(dialect, OrganizationTableName, setCols, setVals, whereClauses, whereArgs)
+	query, args := sqlgen.BuildUpdate(dialect, OrganizationTableName, setCols, setVals, whereClauses, whereArgs)
 	_, err = exec.ExecContext(ctx, query, args...)
 	if err != nil {
 		return err
 	}
-	_, err = organizationHooks.RunIfEnabled(ctx, exec, runtime.AfterUpdate, o)
+	_, err = organizationHooks.RunIfEnabled(ctx, exec, sqlgen.AfterUpdate, o)
 	return err
 }
 
 // Delete deletes the Organization from the database.
-func (o *Organization) Delete(ctx context.Context, exec runtime.Executor) error {
-	ctx, err := organizationHooks.RunIfEnabled(ctx, exec, runtime.BeforeDelete, o)
+func (o *Organization) Delete(ctx context.Context, exec sqlgen.Executor) error {
+	ctx, err := organizationHooks.RunIfEnabled(ctx, exec, sqlgen.BeforeDelete, o)
 	if err != nil {
 		return err
 	}
@@ -112,31 +112,31 @@ func (o *Organization) Delete(ctx context.Context, exec runtime.Executor) error 
 	whereClauses := []string{"\"id\" = ?"}
 	whereArgs := []any{o.ID}
 
-	query, args := runtime.BuildDelete(dialect, OrganizationTableName, whereClauses, whereArgs)
+	query, args := sqlgen.BuildDelete(dialect, OrganizationTableName, whereClauses, whereArgs)
 	_, err = exec.ExecContext(ctx, query, args...)
 	if err != nil {
 		return err
 	}
-	_, err = organizationHooks.RunIfEnabled(ctx, exec, runtime.AfterDelete, o)
+	_, err = organizationHooks.RunIfEnabled(ctx, exec, sqlgen.AfterDelete, o)
 	return err
 }
 
 // Upsert inserts or updates the Organization based on the primary key.
 // Optional Columns parameter controls which non-PK columns are included (Whitelist/Blacklist).
-func (o *Organization) Upsert(ctx context.Context, exec runtime.Executor, cols ...runtime.Columns) error {
-	ctx, err := organizationHooks.RunIfEnabled(ctx, exec, runtime.BeforeUpsert, o)
+func (o *Organization) Upsert(ctx context.Context, exec sqlgen.Executor, cols ...sqlgen.Columns) error {
+	ctx, err := organizationHooks.RunIfEnabled(ctx, exec, sqlgen.BeforeUpsert, o)
 	if err != nil {
 		return err
 	}
 	allCols := []string{"id", "name", "slug", "created_at"}
 	allVals := []any{o.ID, o.Name, o.Slug, o.CreatedAt}
-	allCols, allVals = runtime.FilterColumns(allCols, allVals, cols...)
+	allCols, allVals = sqlgen.FilterColumns(allCols, allVals, cols...)
 	conflictCols := []string{"id"}
 	updateCols := []string{"name", "slug", "created_at"}
-	updateCols, _ = runtime.FilterColumns(updateCols, make([]any, len(updateCols)), cols...)
+	updateCols, _ = sqlgen.FilterColumns(updateCols, make([]any, len(updateCols)), cols...)
 	returning := []string{"id", "name", "slug", "created_at"}
 
-	query, args := runtime.BuildUpsert(dialect, OrganizationTableName, allCols, allVals, conflictCols, updateCols, returning)
+	query, args := sqlgen.BuildUpsert(dialect, OrganizationTableName, allCols, allVals, conflictCols, updateCols, returning)
 	err = exec.QueryRowContext(ctx, query, args...).Scan(
 		&o.ID,
 		&o.Name,
@@ -146,26 +146,26 @@ func (o *Organization) Upsert(ctx context.Context, exec runtime.Executor, cols .
 	if err != nil {
 		return err
 	}
-	_, err = organizationHooks.RunIfEnabled(ctx, exec, runtime.AfterUpsert, o)
+	_, err = organizationHooks.RunIfEnabled(ctx, exec, sqlgen.AfterUpsert, o)
 	return err
 }
 
 // Exists checks if a row with the given primary key exists.
-func OrganizationExists(ctx context.Context, exec runtime.Executor, id string) (bool, error) {
-	return runtime.Exists(ctx, exec, dialect, OrganizationTableName,
-		runtime.Where("\"id\" = ?", id),
+func OrganizationExists(ctx context.Context, exec sqlgen.Executor, id string) (bool, error) {
+	return sqlgen.Exists(ctx, exec, dialect, OrganizationTableName,
+		sqlgen.Where("\"id\" = ?", id),
 	)
 }
 
 // CountOrganizations returns the count of rows matching the query mods.
-func CountOrganizations(ctx context.Context, exec runtime.Executor, mods ...runtime.QueryMod) (int64, error) {
-	return runtime.Count(ctx, exec, dialect, OrganizationTableName, mods...)
+func CountOrganizations(ctx context.Context, exec sqlgen.Executor, mods ...sqlgen.QueryMod) (int64, error) {
+	return sqlgen.Count(ctx, exec, dialect, OrganizationTableName, mods...)
 }
 
 // UpdateAllOrganizations updates all rows matching the given mods.
 // set is a map of column name -> new value.
-func UpdateAllOrganizations(ctx context.Context, exec runtime.Executor, set map[string]any, mods ...runtime.QueryMod) (int64, error) {
-	q := runtime.NewQuery(dialect, OrganizationTableName, mods...)
+func UpdateAllOrganizations(ctx context.Context, exec sqlgen.Executor, set map[string]any, mods ...sqlgen.QueryMod) (int64, error) {
+	q := sqlgen.NewQuery(dialect, OrganizationTableName, mods...)
 	query, args := q.BuildUpdateAll(set)
 	result, err := exec.ExecContext(ctx, query, args...)
 	if err != nil {
@@ -175,8 +175,8 @@ func UpdateAllOrganizations(ctx context.Context, exec runtime.Executor, set map[
 }
 
 // DeleteAllOrganizations deletes all rows matching the given mods.
-func DeleteAllOrganizations(ctx context.Context, exec runtime.Executor, mods ...runtime.QueryMod) (int64, error) {
-	q := runtime.NewQuery(dialect, OrganizationTableName, mods...)
+func DeleteAllOrganizations(ctx context.Context, exec sqlgen.Executor, mods ...sqlgen.QueryMod) (int64, error) {
+	q := sqlgen.NewQuery(dialect, OrganizationTableName, mods...)
 	query, args := q.BuildDeleteAll()
 	result, err := exec.ExecContext(ctx, query, args...)
 	if err != nil {
@@ -187,27 +187,27 @@ func DeleteAllOrganizations(ctx context.Context, exec runtime.Executor, mods ...
 
 // EachOrganization executes a query and calls fn for each row. Iteration stops
 // early if fn returns an error. Rows are not accumulated in memory.
-func EachOrganization(ctx context.Context, exec runtime.Executor, fn func(*Organization) error, mods ...runtime.QueryMod) error {
-	return runtime.Each(ctx, exec, runtime.NewQuery(dialect, OrganizationTableName, mods...), func() *Organization { return &Organization{} }, fn)
+func EachOrganization(ctx context.Context, exec sqlgen.Executor, fn func(*Organization) error, mods ...sqlgen.QueryMod) error {
+	return sqlgen.Each(ctx, exec, sqlgen.NewQuery(dialect, OrganizationTableName, mods...), func() *Organization { return &Organization{} }, fn)
 }
 
 // OrganizationCursor returns a cursor for iterating over organizations rows one at a time.
-func OrganizationCursor(ctx context.Context, exec runtime.Executor, mods ...runtime.QueryMod) (*runtime.Cursor[*Organization], error) {
-	return runtime.NewCursor(ctx, exec, runtime.NewQuery(dialect, OrganizationTableName, mods...), func() *Organization { return &Organization{} })
+func OrganizationCursor(ctx context.Context, exec sqlgen.Executor, mods ...sqlgen.QueryMod) (*sqlgen.Cursor[*Organization], error) {
+	return sqlgen.NewCursor(ctx, exec, sqlgen.NewQuery(dialect, OrganizationTableName, mods...), func() *Organization { return &Organization{} })
 }
 
 // Reload refreshes the Organization from the database using its primary key.
-func (o *Organization) Reload(ctx context.Context, exec runtime.Executor) error {
-	q := runtime.NewQuery(dialect, OrganizationTableName,
-		runtime.Where("\"id\" = ?", o.ID),
-		runtime.Limit(1),
+func (o *Organization) Reload(ctx context.Context, exec sqlgen.Executor) error {
+	q := sqlgen.NewQuery(dialect, OrganizationTableName,
+		sqlgen.Where("\"id\" = ?", o.ID),
+		sqlgen.Limit(1),
 	)
 	query, args := q.BuildSelect()
 	return o.ScanRow(exec.QueryRowContext(ctx, query, args...))
 }
 
 // UpdateAll updates all models in the slice with the given column values.
-func (s OrganizationSlice) UpdateAll(ctx context.Context, exec runtime.Executor, set map[string]any) (int64, error) {
+func (s OrganizationSlice) UpdateAll(ctx context.Context, exec sqlgen.Executor, set map[string]any) (int64, error) {
 	if len(s) == 0 {
 		return 0, nil
 	}
@@ -215,11 +215,11 @@ func (s OrganizationSlice) UpdateAll(ctx context.Context, exec runtime.Executor,
 	for i, o := range s {
 		ids[i] = o.ID
 	}
-	return UpdateAllOrganizations(ctx, exec, set, runtime.WhereIn("\"id\"", ids...))
+	return UpdateAllOrganizations(ctx, exec, set, sqlgen.WhereIn("\"id\"", ids...))
 }
 
 // DeleteAll deletes all models in the slice.
-func (s OrganizationSlice) DeleteAll(ctx context.Context, exec runtime.Executor) (int64, error) {
+func (s OrganizationSlice) DeleteAll(ctx context.Context, exec sqlgen.Executor) (int64, error) {
 	if len(s) == 0 {
 		return 0, nil
 	}
@@ -227,13 +227,13 @@ func (s OrganizationSlice) DeleteAll(ctx context.Context, exec runtime.Executor)
 	for i, o := range s {
 		ids[i] = o.ID
 	}
-	return DeleteAllOrganizations(ctx, exec, runtime.WhereIn("\"id\"", ids...))
+	return DeleteAllOrganizations(ctx, exec, sqlgen.WhereIn("\"id\"", ids...))
 }
 
 // InsertAll batch-inserts all models in the slice. Each model's columns are
 // scanned back via RETURNING, picking up defaults and generated values.
 // Hooks are not fired (consistent with UpdateAll/DeleteAll).
-func (s OrganizationSlice) InsertAll(ctx context.Context, exec runtime.Executor) error {
+func (s OrganizationSlice) InsertAll(ctx context.Context, exec sqlgen.Executor) error {
 	if len(s) == 0 {
 		return nil
 	}
@@ -245,7 +245,7 @@ func (s OrganizationSlice) InsertAll(ctx context.Context, exec runtime.Executor)
 		rows[i] = []any{o.ID, o.Name, o.Slug, o.CreatedAt}
 	}
 
-	query, args := runtime.BuildBatchInsert(dialect, OrganizationTableName, cols, rows, returning)
+	query, args := sqlgen.BuildBatchInsert(dialect, OrganizationTableName, cols, rows, returning)
 	result, err := exec.QueryContext(ctx, query, args...)
 	if err != nil {
 		return err

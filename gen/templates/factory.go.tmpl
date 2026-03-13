@@ -28,7 +28,7 @@ func New{{$structName}}(mods ...{{$structName}}Mod) *{{$structName}} {
 }
 
 // Insert{{$structName}} creates a {{$structName}} with random values, applies mods, and inserts it.
-func Insert{{$structName}}(ctx context.Context, exec runtime.Executor, mods ...{{$structName}}Mod) (*{{$structName}}, error) {
+func Insert{{$structName}}(ctx context.Context, exec sqlgen.Executor, mods ...{{$structName}}Mod) (*{{$structName}}, error) {
 	o := New{{$structName}}(mods...)
 	if err := o.Insert(ctx, exec); err != nil {
 		return nil, err

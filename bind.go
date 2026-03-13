@@ -1,4 +1,4 @@
-package runtime
+package sqlgen
 
 import (
 	"context"
@@ -16,10 +16,10 @@ import (
 // Examples:
 //
 //	var users []User
-//	err := runtime.Bind(ctx, db, q, &users)
+//	err := sqlgen.Bind(ctx, db, q, &users)
 //
 //	var user User
-//	err := runtime.Bind(ctx, db, q, &user) // returns sql.ErrNoRows if none
+//	err := sqlgen.Bind(ctx, db, q, &user) // returns sql.ErrNoRows if none
 func Bind(ctx context.Context, exec Executor, q *Query, dest any) error {
 	rv := reflect.ValueOf(dest)
 	if rv.Kind() != reflect.Pointer || rv.IsNil() {

@@ -2,7 +2,7 @@
 
 package models
 
-import "github.com/davidbyttow/sqlgen/runtime"
+import "github.com/davidbyttow/sqlgen"
 
 // PostTagWhere provides type-safe where clause builders for each column.
 var PostTagWhere = struct {
@@ -18,31 +18,31 @@ type PostTagPostIDFilter struct {
 	col string
 }
 
-func (f PostTagPostIDFilter) EQ(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" = ?", val)
+func (f PostTagPostIDFilter) EQ(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" = ?", val)
 }
 
-func (f PostTagPostIDFilter) NEQ(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" != ?", val)
+func (f PostTagPostIDFilter) NEQ(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" != ?", val)
 }
 
-func (f PostTagPostIDFilter) LT(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" < ?", val)
+func (f PostTagPostIDFilter) LT(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" < ?", val)
 }
 
-func (f PostTagPostIDFilter) LTE(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" <= ?", val)
+func (f PostTagPostIDFilter) LTE(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" <= ?", val)
 }
 
-func (f PostTagPostIDFilter) GT(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" > ?", val)
+func (f PostTagPostIDFilter) GT(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" > ?", val)
 }
 
-func (f PostTagPostIDFilter) GTE(val string) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" >= ?", val)
+func (f PostTagPostIDFilter) GTE(val string) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" >= ?", val)
 }
 
-func (f PostTagPostIDFilter) IN(vals ...string) runtime.QueryMod {
+func (f PostTagPostIDFilter) IN(vals ...string) sqlgen.QueryMod {
 	args := make([]any, len(vals))
 	for i, v := range vals {
 		args[i] = v
@@ -54,7 +54,7 @@ func (f PostTagPostIDFilter) IN(vals ...string) runtime.QueryMod {
 		}
 		placeholders = append(placeholders, '?')
 	}
-	return runtime.Where("\""+f.col+"\" IN ("+string(placeholders)+")", args...)
+	return sqlgen.Where("\""+f.col+"\" IN ("+string(placeholders)+")", args...)
 }
 
 // PostTagTagIDFilter provides where clauses for the tag_id column.
@@ -62,31 +62,31 @@ type PostTagTagIDFilter struct {
 	col string
 }
 
-func (f PostTagTagIDFilter) EQ(val int32) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" = ?", val)
+func (f PostTagTagIDFilter) EQ(val int32) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" = ?", val)
 }
 
-func (f PostTagTagIDFilter) NEQ(val int32) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" != ?", val)
+func (f PostTagTagIDFilter) NEQ(val int32) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" != ?", val)
 }
 
-func (f PostTagTagIDFilter) LT(val int32) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" < ?", val)
+func (f PostTagTagIDFilter) LT(val int32) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" < ?", val)
 }
 
-func (f PostTagTagIDFilter) LTE(val int32) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" <= ?", val)
+func (f PostTagTagIDFilter) LTE(val int32) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" <= ?", val)
 }
 
-func (f PostTagTagIDFilter) GT(val int32) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" > ?", val)
+func (f PostTagTagIDFilter) GT(val int32) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" > ?", val)
 }
 
-func (f PostTagTagIDFilter) GTE(val int32) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" >= ?", val)
+func (f PostTagTagIDFilter) GTE(val int32) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" >= ?", val)
 }
 
-func (f PostTagTagIDFilter) IN(vals ...int32) runtime.QueryMod {
+func (f PostTagTagIDFilter) IN(vals ...int32) sqlgen.QueryMod {
 	args := make([]any, len(vals))
 	for i, v := range vals {
 		args[i] = v
@@ -98,5 +98,5 @@ func (f PostTagTagIDFilter) IN(vals ...int32) runtime.QueryMod {
 		}
 		placeholders = append(placeholders, '?')
 	}
-	return runtime.Where("\""+f.col+"\" IN ("+string(placeholders)+")", args...)
+	return sqlgen.Where("\""+f.col+"\" IN ("+string(placeholders)+")", args...)
 }

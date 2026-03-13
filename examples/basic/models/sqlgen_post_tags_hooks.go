@@ -5,19 +5,19 @@ package models
 import (
 	"context"
 
-	"github.com/davidbyttow/sqlgen/runtime"
+	"github.com/davidbyttow/sqlgen"
 )
 
 // posttagHooks stores the hooks for PostTag.
-var posttagHooks = runtime.NewHooks()
+var posttagHooks = sqlgen.NewHooks()
 
 // PostTagHook is a typed hook function for PostTag lifecycle events.
-type PostTagHook func(ctx context.Context, exec runtime.Executor, model *PostTag) (context.Context, error)
+type PostTagHook func(ctx context.Context, exec sqlgen.Executor, model *PostTag) (context.Context, error)
 
 // AddPostTagHook registers a typed hook for the given hook point.
 // The hook receives the model pointer and can inspect or modify it.
-func AddPostTagHook(point runtime.HookPoint, fn PostTagHook) {
-	posttagHooks.Add(point, func(ctx context.Context, exec runtime.Executor, model any) (context.Context, error) {
+func AddPostTagHook(point sqlgen.HookPoint, fn PostTagHook) {
+	posttagHooks.Add(point, func(ctx context.Context, exec sqlgen.Executor, model any) (context.Context, error) {
 		return fn(ctx, exec, model.(*PostTag))
 	})
 }

@@ -39,7 +39,7 @@ replace github.com/davidbyttow/sqlgen => ` + getModuleRoot() + `
 	os.MkdirAll(pkgDir, 0o755)
 	os.WriteFile(filepath.Join(pkgDir, "stub.go"), []byte(`package stub
 
-import _ "github.com/davidbyttow/sqlgen/runtime"
+import _ "github.com/davidbyttow/sqlgen"
 `), 0o644)
 
 	tidyCmd := exec.Command("go", "mod", "tidy")

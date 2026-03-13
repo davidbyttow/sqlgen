@@ -5,7 +5,7 @@
 
 package {{.Package}}
 
-import "github.com/davidbyttow/sqlgen/runtime"
+import "github.com/davidbyttow/sqlgen"
 
 // {{$structName}}Where provides type-safe where clause builders for each column.
 var {{$structName}}Where = struct {
@@ -26,31 +26,31 @@ type {{$structName}}{{$colName}}Filter struct {
 	col string
 }
 
-func (f {{$structName}}{{$colName}}Filter) EQ(val {{$colType}}) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" = ?", val)
+func (f {{$structName}}{{$colName}}Filter) EQ(val {{$colType}}) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" = ?", val)
 }
 
-func (f {{$structName}}{{$colName}}Filter) NEQ(val {{$colType}}) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" != ?", val)
+func (f {{$structName}}{{$colName}}Filter) NEQ(val {{$colType}}) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" != ?", val)
 }
 
-func (f {{$structName}}{{$colName}}Filter) LT(val {{$colType}}) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" < ?", val)
+func (f {{$structName}}{{$colName}}Filter) LT(val {{$colType}}) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" < ?", val)
 }
 
-func (f {{$structName}}{{$colName}}Filter) LTE(val {{$colType}}) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" <= ?", val)
+func (f {{$structName}}{{$colName}}Filter) LTE(val {{$colType}}) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" <= ?", val)
 }
 
-func (f {{$structName}}{{$colName}}Filter) GT(val {{$colType}}) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" > ?", val)
+func (f {{$structName}}{{$colName}}Filter) GT(val {{$colType}}) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" > ?", val)
 }
 
-func (f {{$structName}}{{$colName}}Filter) GTE(val {{$colType}}) runtime.QueryMod {
-	return runtime.Where("\""+f.col+"\" >= ?", val)
+func (f {{$structName}}{{$colName}}Filter) GTE(val {{$colType}}) sqlgen.QueryMod {
+	return sqlgen.Where("\""+f.col+"\" >= ?", val)
 }
 
-func (f {{$structName}}{{$colName}}Filter) IN(vals ...{{$colType}}) runtime.QueryMod {
+func (f {{$structName}}{{$colName}}Filter) IN(vals ...{{$colType}}) sqlgen.QueryMod {
 	args := make([]any, len(vals))
 	for i, v := range vals {
 		args[i] = v
@@ -62,17 +62,17 @@ func (f {{$structName}}{{$colName}}Filter) IN(vals ...{{$colType}}) runtime.Quer
 		}
 		placeholders = append(placeholders, '?')
 	}
-	return runtime.Where("\""+f.col+"\" IN ("+string(placeholders)+")", args...)
+	return sqlgen.Where("\""+f.col+"\" IN ("+string(placeholders)+")", args...)
 }
 
 {{- if isNullable .}}
 
-func (f {{$structName}}{{$colName}}Filter) IsNull() runtime.QueryMod {
-	return runtime.Where("\"" + f.col + "\" IS NULL")
+func (f {{$structName}}{{$colName}}Filter) IsNull() sqlgen.QueryMod {
+	return sqlgen.Where("\"" + f.col + "\" IS NULL")
 }
 
-func (f {{$structName}}{{$colName}}Filter) IsNotNull() runtime.QueryMod {
-	return runtime.Where("\"" + f.col + "\" IS NOT NULL")
+func (f {{$structName}}{{$colName}}Filter) IsNotNull() sqlgen.QueryMod {
+	return sqlgen.Where("\"" + f.col + "\" IS NOT NULL")
 }
 {{- end}}
 

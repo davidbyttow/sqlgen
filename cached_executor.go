@@ -1,4 +1,4 @@
-package runtime
+package sqlgen
 
 import (
 	"context"
@@ -19,7 +19,7 @@ type Preparer interface {
 //
 // Usage:
 //
-//	cached := runtime.NewCachedExecutor(db)
+//	cached := sqlgen.NewCachedExecutor(db)
 //	defer cached.Close()
 //	user, err := models.FindUserByPK(ctx, cached, 1)
 type CachedExecutor struct {

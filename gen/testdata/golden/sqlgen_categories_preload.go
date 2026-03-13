@@ -3,14 +3,14 @@
 package models
 
 import (
-	"github.com/davidbyttow/sqlgen/runtime"
+	"github.com/davidbyttow/sqlgen"
 )
 
 // categoryParentPreload holds nullable scan targets for LEFT JOINed Category columns.
 type categoryParentPreload struct {
-	id       runtime.Null[int32]
-	name     runtime.Null[string]
-	parentID runtime.Null[int32]
+	id       sqlgen.Null[int32]
+	name     sqlgen.Null[string]
+	parentID sqlgen.Null[int32]
 }
 
 func (p *categoryParentPreload) scanDests() []any {
@@ -36,7 +36,7 @@ func (p *categoryParentPreload) assign(o *Category) {
 }
 
 // CategoryPreloadParent is the PreloadDef for the Parent relationship.
-var CategoryPreloadParent = runtime.PreloadDef{
+var CategoryPreloadParent = sqlgen.PreloadDef{
 	Name:     "Parent",
 	Table:    CategoryTableName,
 	JoinCond: "\"categories\".\"id\" = \"categories\".\"parent_id\"",

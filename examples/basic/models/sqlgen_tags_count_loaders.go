@@ -6,11 +6,11 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/davidbyttow/sqlgen/runtime"
+	"github.com/davidbyttow/sqlgen"
 )
 
 // tagCountLoaders maps relationship names to their count loader functions.
-var tagCountLoaders = map[string]runtime.CountLoadFunc{}
+var tagCountLoaders = map[string]sqlgen.CountLoadFunc{}
 
 func init() {
 	tagCountLoaders["Posts"] = loadCountTagPosts
@@ -18,7 +18,7 @@ func init() {
 
 // LoadCountRelations loads counts for the specified relationships.
 // Pass relationship names (e.g., "Posts", "Tags") to load their counts.
-func (s TagSlice) LoadCountRelations(ctx context.Context, exec runtime.Executor, names ...string) error {
+func (s TagSlice) LoadCountRelations(ctx context.Context, exec sqlgen.Executor, names ...string) error {
 	for _, name := range names {
 		fn, ok := tagCountLoaders[name]
 		if !ok {
@@ -31,7 +31,7 @@ func (s TagSlice) LoadCountRelations(ctx context.Context, exec runtime.Executor,
 	return nil
 }
 
-func loadCountTagPosts(ctx context.Context, exec runtime.Executor, d runtime.Dialect, parentModels any) error {
+func loadCountTagPosts(ctx context.Context, exec sqlgen.Executor, d sqlgen.Dialect, parentModels any) error {
 	models := parentModels.(TagSlice)
 	if len(models) == 0 {
 		return nil
@@ -42,7 +42,7 @@ func loadCountTagPosts(ctx context.Context, exec runtime.Executor, d runtime.Dia
 		ids[i] = m.ID
 	}
 
-	counts, err := runtime.LoadManyToManyCount(ctx, exec, d, "post_tags", "tag_id", "post_id", ids)
+	counts, err := sqlgen.LoadManyToManyCount(ctx, exec, d, "post_tags", "tag_id", "post_id", ids)
 	if err != nil {
 		return err
 	}

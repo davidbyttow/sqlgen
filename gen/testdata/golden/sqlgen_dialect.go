@@ -2,6 +2,6 @@
 
 package models
 
-import "github.com/davidbyttow/sqlgen/runtime"
+import "github.com/davidbyttow/sqlgen"
 
-var dialect runtime.Dialect = runtime.PostgresDialect{}
+var dialect sqlgen.Dialect = sqlgen.PostgresDialect{}

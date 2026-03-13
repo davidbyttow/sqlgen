@@ -5,11 +5,11 @@ package models
 import (
 	"context"
 
-	"github.com/davidbyttow/sqlgen/runtime"
+	"github.com/davidbyttow/sqlgen"
 )
 
 // SetOrganization sets the Organization relationship by updating the FK column.
-func (o *User) SetOrganization(ctx context.Context, exec runtime.Executor, related *Organization) error {
+func (o *User) SetOrganization(ctx context.Context, exec sqlgen.Executor, related *Organization) error {
 	o.OrgID = related.ID
 	query := "UPDATE " + dialect.QuoteIdent(UserTableName) +
 		" SET " + dialect.QuoteIdent("org_id") + " = " + dialect.Placeholder(1) +
@@ -26,7 +26,7 @@ func (o *User) SetOrganization(ctx context.Context, exec runtime.Executor, relat
 }
 
 // AddPosts adds models to the Posts relationship by setting their FK.
-func (o *User) AddPosts(ctx context.Context, exec runtime.Executor, related ...*Post) error {
+func (o *User) AddPosts(ctx context.Context, exec sqlgen.Executor, related ...*Post) error {
 	for _, r := range related {
 		r.AuthorID = o.ID
 		query := "UPDATE " + dialect.QuoteIdent(PostTableName) +
@@ -45,7 +45,7 @@ func (o *User) AddPosts(ctx context.Context, exec runtime.Executor, related ...*
 }
 
 // AddAuditLog adds models to the AuditLog relationship by setting their FK.
-func (o *User) AddAuditLog(ctx context.Context, exec runtime.Executor, related ...*AuditLog) error {
+func (o *User) AddAuditLog(ctx context.Context, exec sqlgen.Executor, related ...*AuditLog) error {
 	for _, r := range related {
 		r.UserID = o.ID
 		query := "UPDATE " + dialect.QuoteIdent(AuditLogTableName) +

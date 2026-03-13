@@ -95,7 +95,7 @@ func (m *TypeMapper) wrapNull(base GoType) GoType {
 		return mapToSQLNull(base)
 	default: // NullTypeGeneric
 		return GoType{
-			Name:   fmt.Sprintf("runtime.Null[%s]", base.Name),
+			Name:   fmt.Sprintf("sqlgen.Null[%s]", base.Name),
 			Import: m.runtimePkg,
 		}
 	}

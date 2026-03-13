@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/davidbyttow/sqlgen/runtime"
+	"github.com/davidbyttow/sqlgen"
 )
 
 // TestEnumPostStatus verifies enum type, constants, and validation.
@@ -105,7 +105,7 @@ func TestColumnConstants(t *testing.T) {
 func TestQueryBuilders(t *testing.T) {
 	tests := []struct {
 		name    string
-		query   *runtime.Query
+		query   *sqlgen.Query
 		wantSQL bool
 	}{
 		{"Users()", Users(), true},
@@ -129,12 +129,12 @@ func TestQueryBuilders(t *testing.T) {
 		},
 		{
 			"Users with limit/offset",
-			Users(runtime.Limit(10), runtime.Offset(20)),
+			Users(sqlgen.Limit(10), sqlgen.Offset(20)),
 			true,
 		},
 		{
 			"Posts with order",
-			Posts(runtime.OrderBy("created_at DESC")),
+			Posts(sqlgen.OrderBy("created_at DESC")),
 			true,
 		},
 	}
@@ -207,7 +207,7 @@ func TestWhereClauseBuilders(t *testing.T) {
 // TestNullType verifies the generic Null[T] works correctly.
 func TestNullType(t *testing.T) {
 	u := &User{
-		Bio: runtime.NewNull("hello"),
+		Bio: sqlgen.NewNull("hello"),
 	}
 	if !u.Bio.Valid {
 		t.Error("Bio should be valid")
@@ -216,7 +216,7 @@ func TestNullType(t *testing.T) {
 		t.Errorf("Bio.Val = %q", u.Bio.Val)
 	}
 
-	u.Bio = runtime.Null[string]{}
+	u.Bio = sqlgen.Null[string]{}
 	if u.Bio.Valid {
 		t.Error("Bio should not be valid after zero value")
 	}
@@ -270,7 +270,7 @@ func TestOrAndExpr(t *testing.T) {
 	// Or
 	q := Posts(
 		PostWhere.Status.EQ(PostStatusDraft),
-		runtime.Or("title = ?", "Hello"),
+		sqlgen.Or("title = ?", "Hello"),
 	)
 	sql, args := q.BuildSelect()
 	if sql == "" {
@@ -282,9 +282,9 @@ func TestOrAndExpr(t *testing.T) {
 
 	// Expr (grouped conditions)
 	q = Posts(
-		runtime.Expr(
+		sqlgen.Expr(
 			PostWhere.Status.EQ(PostStatusDraft),
-			runtime.Or("title = ?", "Hello"),
+			sqlgen.Or("title = ?", "Hello"),
 		),
 	)
 	sql, args = q.BuildSelect()
@@ -321,7 +321,7 @@ func TestUpdateAllDeleteAll(t *testing.T) {
 
 // TestEagerLoadRequest verifies Load() helper.
 func TestEagerLoadRequest(t *testing.T) {
-	load := runtime.Load("Posts")
+	load := sqlgen.Load("Posts")
 	if load.Name != "Posts" {
 		t.Errorf("Name = %q", load.Name)
 	}
@@ -330,7 +330,7 @@ func TestEagerLoadRequest(t *testing.T) {
 	}
 
 	// Dot notation
-	load = runtime.Load("Posts.Tags")
+	load = sqlgen.Load("Posts.Tags")
 	if load.Name != "Posts" {
 		t.Errorf("Name = %q", load.Name)
 	}
@@ -344,13 +344,13 @@ func TestEagerLoadRequest(t *testing.T) {
 
 // TestDistinctAndJoins verifies distinct and join query mods.
 func TestDistinctAndJoins(t *testing.T) {
-	q := Posts(runtime.Distinct())
+	q := Posts(sqlgen.Distinct())
 	sql, _ := q.BuildSelect()
 	if sql == "" {
 		t.Error("Distinct query is empty")
 	}
 
-	q = Posts(runtime.LeftJoin("users", "users.id = posts.author_id"))
+	q = Posts(sqlgen.LeftJoin("users", "users.id = posts.author_id"))
 	sql, _ = q.BuildSelect()
 	if sql == "" {
 		t.Error("LeftJoin query is empty")
@@ -360,10 +360,10 @@ func TestDistinctAndJoins(t *testing.T) {
 // TestHookRegistration verifies hooks can be added.
 func TestHookRegistration(t *testing.T) {
 	// Just verify it doesn't panic. Hooks now receive typed model pointers.
-	AddUserHook(runtime.BeforeInsert, func(ctx context.Context, exec runtime.Executor, model *User) (context.Context, error) {
+	AddUserHook(sqlgen.BeforeInsert, func(ctx context.Context, exec sqlgen.Executor, model *User) (context.Context, error) {
 		return ctx, nil
 	})
-	AddPostHook(runtime.AfterInsert, func(ctx context.Context, exec runtime.Executor, model *Post) (context.Context, error) {
+	AddPostHook(sqlgen.AfterInsert, func(ctx context.Context, exec sqlgen.Executor, model *Post) (context.Context, error) {
 		return ctx, nil
 	})
 }
