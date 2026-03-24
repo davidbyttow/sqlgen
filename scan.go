@@ -77,6 +77,10 @@ func ScanOne[T any](rows *sql.Rows, scanFn func(*sql.Rows) (T, error)) (T, error
 		return zero, err
 	}
 
+	if rows.Next() {
+		return zero, fmt.Errorf("sqlgen: ScanOne expected 1 row, got more")
+	}
+
 	return item, nil
 }
 
@@ -97,7 +101,7 @@ func FieldPointers(v any, cols []string) ([]any, error) {
 	tagMap := make(map[string]int, rt.NumField())
 	for i := range rt.NumField() {
 		f := rt.Field(i)
-		if tag, ok := f.Tag.Lookup("db"); ok {
+		if tag, ok := f.Tag.Lookup("db"); ok && tag != "-" {
 			tagMap[tag] = i
 		} else if tag, ok := f.Tag.Lookup("json"); ok {
 			// Strip options like ",omitempty"

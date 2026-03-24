@@ -823,3 +823,189 @@ func TestParseCharacterSetAndCollate(t *testing.T) {
 		t.Error("content should not be nullable")
 	}
 }
+
+func TestTinyintBooleanDetection(t *testing.T) {
+	s := mustParse(t, `
+		CREATE TABLE flags (
+			id INT PRIMARY KEY,
+			is_active TINYINT(1) NOT NULL DEFAULT 0,
+			small_num TINYINT(2) NOT NULL DEFAULT 0,
+			plain_tiny TINYINT NOT NULL DEFAULT 0,
+			bool_col BOOLEAN NOT NULL DEFAULT false
+		);
+	`)
+
+	table := s.Tables[0]
+
+	tests := []struct {
+		name   string
+		dbType string
+	}{
+		{"is_active", "boolean"},
+		{"small_num", "tinyint"},
+		{"plain_tiny", "tinyint"},
+		{"bool_col", "boolean"},
+	}
+
+	for _, tt := range tests {
+		col := table.FindColumn(tt.name)
+		if col == nil {
+			t.Errorf("column %q not found", tt.name)
+			continue
+		}
+		if col.DBType != tt.dbType {
+			t.Errorf("col %q: DBType = %q, want %q", tt.name, col.DBType, tt.dbType)
+		}
+	}
+}
+
+func TestNestedEscapedQuotes(t *testing.T) {
+	s := mustParse(t, `
+		CREATE TABLE configs (
+			id INT PRIMARY KEY,
+			label VARCHAR(255) NOT NULL DEFAULT 'it''s a test',
+			description TEXT NOT NULL DEFAULT 'say "hello"'
+		);
+	`)
+
+	table := s.Tables[0]
+	if table == nil {
+		t.Fatal("configs table not found")
+	}
+
+	label := table.FindColumn("label")
+	if label == nil {
+		t.Fatal("label column not found")
+	}
+	if !label.HasDefault {
+		t.Error("label should have default")
+	}
+
+	desc := table.FindColumn("description")
+	if desc == nil {
+		t.Fatal("description column not found")
+	}
+	if !desc.HasDefault {
+		t.Error("description should have default")
+	}
+}
+
+func TestMultipleCreateTables(t *testing.T) {
+	s := mustParse(t, `
+		CREATE TABLE alpha (
+			id INT AUTO_INCREMENT PRIMARY KEY,
+			name VARCHAR(100) NOT NULL
+		);
+		CREATE TABLE beta (
+			id INT AUTO_INCREMENT PRIMARY KEY,
+			value TEXT
+		);
+		CREATE TABLE gamma (
+			id INT AUTO_INCREMENT PRIMARY KEY,
+			alpha_id INT NOT NULL,
+			beta_id INT NOT NULL,
+			FOREIGN KEY (alpha_id) REFERENCES alpha(id),
+			FOREIGN KEY (beta_id) REFERENCES beta(id)
+		);
+	`)
+
+	if len(s.Tables) != 3 {
+		t.Fatalf("expected 3 tables, got %d", len(s.Tables))
+	}
+	if s.Tables[0].Name != "alpha" {
+		t.Errorf("table[0] name = %q, want alpha", s.Tables[0].Name)
+	}
+	if s.Tables[1].Name != "beta" {
+		t.Errorf("table[1] name = %q, want beta", s.Tables[1].Name)
+	}
+	if s.Tables[2].Name != "gamma" {
+		t.Errorf("table[2] name = %q, want gamma", s.Tables[2].Name)
+	}
+
+	gamma := findTable(s, "gamma")
+	if len(gamma.ForeignKeys) != 2 {
+		t.Fatalf("gamma: expected 2 FKs, got %d", len(gamma.ForeignKeys))
+	}
+}
+
+func TestCommentsInterleavedWithDDL(t *testing.T) {
+	s := mustParse(t, `
+		-- Create the first table
+		CREATE TABLE departments (
+			id INT AUTO_INCREMENT PRIMARY KEY,
+			/* department name */
+			name VARCHAR(100) NOT NULL
+		);
+
+		# Hash-style comment
+		-- Another line comment
+
+		/* Multi-line
+		   block comment */
+		CREATE TABLE employees (
+			id INT AUTO_INCREMENT PRIMARY KEY,
+			dept_id INT NOT NULL, -- department reference
+			name VARCHAR(100) NOT NULL,
+			FOREIGN KEY (dept_id) REFERENCES departments(id)
+		);
+	`)
+
+	if len(s.Tables) != 2 {
+		t.Fatalf("expected 2 tables, got %d", len(s.Tables))
+	}
+	if s.Tables[0].Name != "departments" {
+		t.Errorf("table[0] name = %q, want departments", s.Tables[0].Name)
+	}
+	if s.Tables[1].Name != "employees" {
+		t.Errorf("table[1] name = %q, want employees", s.Tables[1].Name)
+	}
+
+	employees := findTable(s, "employees")
+	if len(employees.ForeignKeys) != 1 {
+		t.Fatalf("employees: expected 1 FK, got %d", len(employees.ForeignKeys))
+	}
+}
+
+func TestAlterTableAddForeignKey(t *testing.T) {
+	s := mustParse(t, `
+		CREATE TABLE teams (id INT PRIMARY KEY);
+		CREATE TABLE players (id INT PRIMARY KEY, team_id INT NOT NULL);
+		CREATE TABLE coaches (id INT PRIMARY KEY, team_id INT NOT NULL);
+
+		ALTER TABLE players ADD CONSTRAINT fk_player_team FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE CASCADE;
+		ALTER TABLE coaches ADD CONSTRAINT fk_coach_team FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE SET NULL;
+	`)
+
+	players := findTable(s, "players")
+	if players == nil {
+		t.Fatal("players table not found")
+	}
+	if len(players.ForeignKeys) != 1 {
+		t.Fatalf("players: expected 1 FK, got %d", len(players.ForeignKeys))
+	}
+	fk := players.ForeignKeys[0]
+	if fk.Name != "fk_player_team" {
+		t.Errorf("players FK name = %q, want fk_player_team", fk.Name)
+	}
+	if fk.RefTable != "teams" {
+		t.Errorf("players FK RefTable = %q, want teams", fk.RefTable)
+	}
+	if fk.OnDelete != schema.ActionCascade {
+		t.Errorf("players FK OnDelete = %q, want CASCADE", fk.OnDelete)
+	}
+
+	coaches := findTable(s, "coaches")
+	if coaches == nil {
+		t.Fatal("coaches table not found")
+	}
+	if len(coaches.ForeignKeys) != 1 {
+		t.Fatalf("coaches: expected 1 FK, got %d", len(coaches.ForeignKeys))
+	}
+	fk2 := coaches.ForeignKeys[0]
+	if fk2.Name != "fk_coach_team" {
+		t.Errorf("coaches FK name = %q, want fk_coach_team", fk2.Name)
+	}
+	if fk2.OnDelete != schema.ActionSetNull {
+		t.Errorf("coaches FK OnDelete = %q, want SET NULL", fk2.OnDelete)
+	}
+}

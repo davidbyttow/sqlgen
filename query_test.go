@@ -394,7 +394,7 @@ func TestWhereInEmpty(t *testing.T) {
 	)
 	sql, args := q.BuildSelect()
 
-	want := `SELECT "users".* FROM "users"`
+	want := `SELECT "users".* FROM "users" WHERE 1=0`
 	if sql != want {
 		t.Errorf("got:\n  %s\nwant:\n  %s", sql, want)
 	}
@@ -1276,5 +1276,343 @@ func TestSubqueryInFromWithSubqueryInWhere(t *testing.T) {
 	}
 	if len(args) != 1 || args[0] != "complete" {
 		t.Errorf("args = %v", args)
+	}
+}
+
+// --- CTE used in main query ---
+
+func TestCTEUsedInMainQuery(t *testing.T) {
+	d := PostgresDialect{}
+	q := NewQuery(d, "active",
+		WithCTE("active", "SELECT id, name FROM users WHERE active = ?", true),
+		Select(`"id"`, `"name"`),
+		Where(`"name" LIKE ?`, "%test%"),
+	)
+	sql, args := q.BuildSelect()
+
+	want := `WITH "active" AS (SELECT id, name FROM users WHERE active = $1) SELECT "id", "name" FROM "active" WHERE "name" LIKE $2`
+	if sql != want {
+		t.Errorf("got:\n  %s\nwant:\n  %s", sql, want)
+	}
+	if len(args) != 2 || args[0] != true || args[1] != "%test%" {
+		t.Errorf("args = %v", args)
+	}
+}
+
+func TestRecursiveCTEWithArgs(t *testing.T) {
+	d := PostgresDialect{}
+	q := NewQuery(d, "tree",
+		WithRecursiveCTE("tree", "SELECT id, parent_id FROM nodes WHERE id = ? UNION ALL SELECT n.id, n.parent_id FROM nodes n JOIN tree t ON n.parent_id = t.id", 1),
+		Select(`"id"`, `"parent_id"`),
+	)
+	sql, args := q.BuildSelect()
+
+	want := `WITH RECURSIVE "tree" AS (SELECT id, parent_id FROM nodes WHERE id = $1 UNION ALL SELECT n.id, n.parent_id FROM nodes n JOIN tree t ON n.parent_id = t.id) SELECT "id", "parent_id" FROM "tree"`
+	if sql != want {
+		t.Errorf("got:\n  %s\nwant:\n  %s", sql, want)
+	}
+	if len(args) != 1 || args[0] != 1 {
+		t.Errorf("args = %v, want [1]", args)
+	}
+}
+
+func TestMultipleCTEsWithArgs(t *testing.T) {
+	d := PostgresDialect{}
+	q := NewQuery(d, "result",
+		WithCTE("a", "SELECT id FROM users WHERE age > ?", 21),
+		WithCTE("b", "SELECT id FROM orders WHERE total > ?", 100),
+		Where(`"id" IN (SELECT id FROM a)`),
+		Where(`"id" IN (SELECT id FROM b)`),
+	)
+	sql, args := q.BuildSelect()
+
+	want := `WITH "a" AS (SELECT id FROM users WHERE age > $1), "b" AS (SELECT id FROM orders WHERE total > $2) SELECT "result".* FROM "result" WHERE "id" IN (SELECT id FROM a) AND "id" IN (SELECT id FROM b)`
+	if sql != want {
+		t.Errorf("got:\n  %s\nwant:\n  %s", sql, want)
+	}
+	if len(args) != 2 || args[0] != 21 || args[1] != 100 {
+		t.Errorf("args = %v", args)
+	}
+}
+
+// --- Compound query edge cases ---
+
+func TestUnionWithLimitOffset(t *testing.T) {
+	d := PostgresDialect{}
+	q2 := NewQuery(d, "archived", Select(`"id"`))
+	q := NewQuery(d, "current",
+		Select(`"id"`),
+		Limit(10),
+		Offset(5),
+		Union(q2),
+	)
+	sql, args := q.BuildSelect()
+
+	want := `SELECT "id" FROM "current" LIMIT $1 OFFSET $2 UNION SELECT "id" FROM "archived"`
+	if sql != want {
+		t.Errorf("got:\n  %s\nwant:\n  %s", sql, want)
+	}
+	if len(args) != 2 || args[0] != 10 || args[1] != 5 {
+		t.Errorf("args = %v", args)
+	}
+}
+
+func TestExceptWithArgs(t *testing.T) {
+	d := PostgresDialect{}
+	q2 := NewQuery(d, "banned", Select(`"id"`), Where(`"reason" = ?`, "spam"))
+	q := NewQuery(d, "users",
+		Select(`"id"`),
+		Where(`"active" = ?`, true),
+		Except(q2),
+	)
+	sql, args := q.BuildSelect()
+
+	want := `SELECT "id" FROM "users" WHERE "active" = $1 EXCEPT SELECT "id" FROM "banned" WHERE "reason" = $2`
+	if sql != want {
+		t.Errorf("got:\n  %s\nwant:\n  %s", sql, want)
+	}
+	if len(args) != 2 || args[0] != true || args[1] != "spam" {
+		t.Errorf("args = %v", args)
+	}
+}
+
+// --- Subquery combined with other WHERE clauses ---
+
+func TestWhereExistsWithOtherConditions(t *testing.T) {
+	d := PostgresDialect{}
+	sub := NewQuery(d, "orders",
+		Select("1"),
+		Where(`"orders"."user_id" = "users"."id"`),
+	)
+	q := NewQuery(d, "users",
+		Where(`"active" = ?`, true),
+		WhereExists(sub),
+		Where(`"role" = ?`, "admin"),
+	)
+	sql, args := q.BuildSelect()
+
+	want := `SELECT "users".* FROM "users" WHERE "active" = $1 AND EXISTS (SELECT 1 FROM "orders" WHERE "orders"."user_id" = "users"."id") AND "role" = $2`
+	if sql != want {
+		t.Errorf("got:\n  %s\nwant:\n  %s", sql, want)
+	}
+	if len(args) != 2 || args[0] != true || args[1] != "admin" {
+		t.Errorf("args = %v", args)
+	}
+}
+
+func TestWhereNotExistsWithArgs(t *testing.T) {
+	d := PostgresDialect{}
+	sub := NewQuery(d, "reviews",
+		Select("1"),
+		Where(`"reviews"."user_id" = "users"."id"`),
+		Where(`"reviews"."rating" < ?`, 3),
+	)
+	q := NewQuery(d, "users",
+		WhereNotExists(sub),
+	)
+	sql, args := q.BuildSelect()
+
+	want := `SELECT "users".* FROM "users" WHERE NOT EXISTS (SELECT 1 FROM "reviews" WHERE "reviews"."user_id" = "users"."id" AND "reviews"."rating" < $1)`
+	if sql != want {
+		t.Errorf("got:\n  %s\nwant:\n  %s", sql, want)
+	}
+	if len(args) != 1 || args[0] != 3 {
+		t.Errorf("args = %v, want [3]", args)
+	}
+}
+
+// --- Row locking: FOR SHARE SKIP LOCKED ---
+
+func TestForShareSkipLocked(t *testing.T) {
+	d := PostgresDialect{}
+	q := NewQuery(d, "tasks",
+		Where(`"status" = ?`, "pending"),
+		ForShare(),
+		SkipLocked(),
+		Limit(5),
+	)
+	sql, args := q.BuildSelect()
+
+	want := `SELECT "tasks".* FROM "tasks" WHERE "status" = $1 LIMIT $2 FOR SHARE SKIP LOCKED`
+	if sql != want {
+		t.Errorf("got:\n  %s\nwant:\n  %s", sql, want)
+	}
+	if len(args) != 2 || args[0] != "pending" || args[1] != 5 {
+		t.Errorf("args = %v", args)
+	}
+}
+
+// --- DistinctOn with ORDER BY ---
+
+func TestDistinctOnWithOrderBy(t *testing.T) {
+	d := PostgresDialect{}
+	q := NewQuery(d, "events",
+		DistinctOn(`"user_id"`),
+		Select(`"user_id"`, `"created_at"`, `"event_type"`),
+		OrderBy(`"user_id"`, `"created_at" DESC`),
+	)
+	sql, args := q.BuildSelect()
+
+	want := `SELECT DISTINCT ON ("user_id") "user_id", "created_at", "event_type" FROM "events" ORDER BY "user_id", "created_at" DESC`
+	if sql != want {
+		t.Errorf("got:\n  %s\nwant:\n  %s", sql, want)
+	}
+	if len(args) != 0 {
+		t.Errorf("args = %v, want empty", args)
+	}
+}
+
+// --- Window function: multiple windows in one query ---
+
+func TestMultipleWindowFunctions(t *testing.T) {
+	d := PostgresDialect{}
+	w1 := NewWindowDef().PartitionBy(`"department"`).OrderBy(`"salary" DESC`)
+	w2 := NewWindowDef().OrderBy(`"salary" DESC`)
+	q := NewQuery(d, "employees",
+		Select(`"name"`, `"department"`, `"salary"`),
+		SelectWithWindow("RANK()", w1, "dept_rank"),
+		SelectWithWindow("ROW_NUMBER()", w2, "global_row"),
+	)
+	sql, args := q.BuildSelect()
+
+	want := `SELECT "name", "department", "salary", RANK() OVER (PARTITION BY "department" ORDER BY "salary" DESC) AS dept_rank, ROW_NUMBER() OVER (ORDER BY "salary" DESC) AS global_row FROM "employees"`
+	if sql != want {
+		t.Errorf("got:\n  %s\nwant:\n  %s", sql, want)
+	}
+	if len(args) != 0 {
+		t.Errorf("args = %v, want empty", args)
+	}
+}
+
+func TestWindowDefEmptyPartitions(t *testing.T) {
+	w := NewWindowDef()
+	got := w.String()
+
+	want := "OVER ()"
+	if got != want {
+		t.Errorf("got: %s, want: %s", got, want)
+	}
+}
+
+// --- BuildBatchInsert: multiple columns single row ---
+
+func TestBuildBatchInsertMultiColsSingleRow(t *testing.T) {
+	d := PostgresDialect{}
+	sql, args := BuildBatchInsert(d, "users",
+		[]string{"name", "email", "age"},
+		[][]any{{"Alice", "alice@test.com", 30}},
+		[]string{"id"},
+	)
+
+	want := `INSERT INTO "users" ("name", "email", "age") VALUES ($1, $2, $3) RETURNING "id"`
+	if sql != want {
+		t.Errorf("got:\n  %s\nwant:\n  %s", sql, want)
+	}
+	if len(args) != 3 || args[0] != "Alice" || args[1] != "alice@test.com" || args[2] != 30 {
+		t.Errorf("args = %v", args)
+	}
+}
+
+func TestBuildBatchInsertEmptyRows(t *testing.T) {
+	d := PostgresDialect{}
+	sql, args := BuildBatchInsert(d, "users",
+		[]string{"name"},
+		[][]any{},
+		[]string{"id"},
+	)
+
+	if sql != "" {
+		t.Errorf("expected empty sql for empty rows slice, got: %s", sql)
+	}
+	if args != nil {
+		t.Errorf("expected nil args, got: %v", args)
+	}
+}
+
+// --- Placeholder rewriting edge cases ---
+
+func TestPlaceholderRewritingMixedNumberedAndQuestion(t *testing.T) {
+	d := PostgresDialect{}
+	q := NewQuery(d, "results",
+		WithCTE("filtered", "SELECT * FROM items WHERE price > ? AND category = ?", 10, "books"),
+		Where(`"in_stock" = ?`, true),
+	)
+	sql, args := q.BuildSelect()
+
+	want := `WITH "filtered" AS (SELECT * FROM items WHERE price > $1 AND category = $2) SELECT "results".* FROM "results" WHERE "in_stock" = $3`
+	if sql != want {
+		t.Errorf("got:\n  %s\nwant:\n  %s", sql, want)
+	}
+	if len(args) != 3 || args[0] != 10 || args[1] != "books" || args[2] != true {
+		t.Errorf("args = %v", args)
+	}
+}
+
+func TestPlaceholderPreNumberedPassthrough(t *testing.T) {
+	d := PostgresDialect{}
+	q := NewQuery(d, "users",
+		Where(`"id" = ?`, 42),
+		Where(`"active" = true`),
+		Where(`"age" > ?`, 18),
+	)
+	sql, args := q.BuildSelect()
+
+	want := `SELECT "users".* FROM "users" WHERE "id" = $1 AND "active" = true AND "age" > $2`
+	if sql != want {
+		t.Errorf("got:\n  %s\nwant:\n  %s", sql, want)
+	}
+	if len(args) != 2 || args[0] != 42 || args[1] != 18 {
+		t.Errorf("args = %v", args)
+	}
+}
+
+func TestPlaceholderRewritingJoinArgs(t *testing.T) {
+	d := PostgresDialect{}
+	q := NewQuery(d, "posts",
+		Join(`"users"`, `"users"."id" = "posts"."author_id" AND "users"."role" = ?`, "editor"),
+		Where(`"posts"."published" = ?`, true),
+	)
+	sql, args := q.BuildSelect()
+
+	want := `SELECT "posts".* FROM "posts" JOIN "users" ON "users"."id" = "posts"."author_id" AND "users"."role" = $1 WHERE "posts"."published" = $2`
+	if sql != want {
+		t.Errorf("got:\n  %s\nwant:\n  %s", sql, want)
+	}
+	if len(args) != 2 || args[0] != "editor" || args[1] != true {
+		t.Errorf("args = %v", args)
+	}
+}
+
+// --- QuoteIdent ---
+
+func TestQuoteIdentEmbeddedQuote(t *testing.T) {
+	d := PostgresDialect{}
+	got := d.QuoteIdent(`col"name`)
+
+	// Embedded double quotes are escaped by doubling them.
+	want := `"col""name"`
+	if got != want {
+		t.Errorf("QuoteIdent(%q) = %q, want %q", `col"name`, got, want)
+	}
+}
+
+func TestQuoteIdentSimple(t *testing.T) {
+	d := PostgresDialect{}
+	got := d.QuoteIdent("users")
+
+	want := `"users"`
+	if got != want {
+		t.Errorf("QuoteIdent(%q) = %q, want %q", "users", got, want)
+	}
+}
+
+func TestQuoteIdentAlreadyQuoted(t *testing.T) {
+	d := PostgresDialect{}
+	got := d.QuoteIdent(`"users"`)
+
+	// Double quotes get escaped, so it becomes """users"""
+	want := `"""users"""`
+	if got != want {
+		t.Errorf("QuoteIdent(%q) = %q, want %q", `"users"`, got, want)
 	}
 }

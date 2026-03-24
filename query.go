@@ -115,9 +115,11 @@ func Or(clause string, args ...any) QueryMod {
 }
 
 // WhereIn adds a WHERE col IN ($1, $2, ...) clause.
+// An empty vals slice produces a WHERE FALSE clause (matching zero rows).
 func WhereIn(col string, vals ...any) QueryMod {
 	return func(q *Query) {
 		if len(vals) == 0 {
+			q.whereParts = append(q.whereParts, wherePart{clause: "1=0", conjunction: "AND"})
 			return
 		}
 		placeholders := make([]string, len(vals))
@@ -929,6 +931,8 @@ func (q *Query) renderWhereParts(b *strings.Builder, parts []wherePart, argIdx *
 func (q *Query) rewritePlaceholders(clause string, clauseArgs []any, argIdx *int) (string, []any) {
 	if !strings.Contains(clause, "?") {
 		// Already using dialect placeholders or no placeholders.
+		// Still advance argIdx for any args so subsequent clauses get correct numbering.
+		*argIdx += len(clauseArgs)
 		return clause, clauseArgs
 	}
 

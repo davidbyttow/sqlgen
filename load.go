@@ -28,8 +28,9 @@ func Load(name string, mods ...QueryMod) *EagerLoadRequest {
 	if len(parts) > 1 {
 		// Nested: "Posts.Tags" -> Load("Posts") with nested Load("Tags")
 		// Mods only apply to the leaf when using dot notation.
+		// Recurse to handle 3+ level nesting like "Author.Posts.Tags".
 		req.Mods = nil
-		req.Nested = []*EagerLoadRequest{{Name: parts[1], Mods: mods}}
+		req.Nested = []*EagerLoadRequest{Load(parts[1], mods...)}
 	}
 	return req
 }

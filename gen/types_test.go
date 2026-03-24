@@ -176,6 +176,172 @@ func TestGoTypeForTableColumnReplacement(t *testing.T) {
 	}
 }
 
+func TestUnknownTypeDefaultsToString(t *testing.T) {
+	m := newMapper(config.NullTypeGeneric, nil)
+
+	tests := []string{"hstore", "custom_thing", "geometry", "sometype"}
+	for _, dbType := range tests {
+		t.Run(dbType, func(t *testing.T) {
+			col := &schema.Column{DBType: dbType}
+			got := m.GoTypeFor(col)
+			if got.Name != "string" {
+				t.Errorf("GoTypeFor(%q) = %q, want string", dbType, got.Name)
+			}
+		})
+	}
+}
+
+func TestArrayNullableCombination(t *testing.T) {
+	m := newMapper(config.NullTypeGeneric, nil)
+
+	col := &schema.Column{DBType: "integer", IsArray: true, ArrayDims: 1, IsNullable: true}
+	got := m.GoTypeFor(col)
+	if got.Name != "[]int32" {
+		t.Errorf("nullable int array = %q, want []int32", got.Name)
+	}
+
+	col2 := &schema.Column{DBType: "text", IsArray: true, ArrayDims: 1}
+	got2 := m.GoTypeFor(col2)
+	if got2.Name != "[]string" {
+		t.Errorf("text array = %q, want []string", got2.Name)
+	}
+
+	col3 := &schema.Column{DBType: "timestamp with time zone", IsArray: true, ArrayDims: 1}
+	got3 := m.GoTypeFor(col3)
+	if got3.Name != "[]time.Time" {
+		t.Errorf("timestamp array = %q, want []time.Time", got3.Name)
+	}
+	if got3.Import != "time" {
+		t.Errorf("timestamp array import = %q, want time", got3.Import)
+	}
+}
+
+func TestEnumNullableAllModes(t *testing.T) {
+	m := newMapper(config.NullTypeGeneric, nil)
+	col := &schema.Column{DBType: "status_type", EnumName: "status_type", IsNullable: true}
+	got := m.GoTypeFor(col)
+	if got.Name != "sqlgen.Null[StatusType]" {
+		t.Errorf("generic nullable enum = %q, want sqlgen.Null[StatusType]", got.Name)
+	}
+
+	mp := newMapper(config.NullTypePointer, nil)
+	got = mp.GoTypeFor(col)
+	if got.Name != "*StatusType" {
+		t.Errorf("pointer nullable enum = %q, want *StatusType", got.Name)
+	}
+
+	md := newMapper(config.NullTypeDatabase, nil)
+	got = md.GoTypeFor(col)
+	if got.Name != "sql.NullString" {
+		t.Errorf("database nullable enum = %q, want sql.NullString", got.Name)
+	}
+}
+
+func TestColumnReplacementOverridesDBType(t *testing.T) {
+	cfg := &config.Config{
+		Input:  config.InputConfig{Dialect: "postgres", Paths: []string{"x"}},
+		Output: config.OutputConfig{Dir: "out"},
+		Types: config.TypesConfig{
+			NullType: config.NullTypeGeneric,
+			Replacements: map[string]string{
+				"jsonb": "map[string]any",
+			},
+			ColumnReplacements: map[string]string{
+				"users.data": "encoding/json.RawMessage",
+			},
+		},
+	}
+	m := NewTypeMapper(cfg, "github.com/davidbyttow/sqlgen")
+
+	col := &schema.Column{Name: "data", DBType: "jsonb"}
+	got := m.GoTypeForTable(col, "users")
+	if got.Name != "json.RawMessage" {
+		t.Errorf("column replacement should override type replacement, got %q", got.Name)
+	}
+	if got.Import != "encoding/json" {
+		t.Errorf("import = %q, want encoding/json", got.Import)
+	}
+
+	got2 := m.GoTypeForTable(col, "posts")
+	if got2.Name != "map[string]any" {
+		t.Errorf("type replacement fallback = %q, want map[string]any", got2.Name)
+	}
+}
+
+func TestMySQLSpecificTypes(t *testing.T) {
+	m := newMapper(config.NullTypeGeneric, nil)
+
+	tests := []struct {
+		dbType string
+		want   string
+	}{
+		{"tinyint", "int8"},
+		{"tinyint unsigned", "uint8"},
+		{"smallint unsigned", "uint16"},
+		{"mediumint", "int32"},
+		{"mediumint unsigned", "uint32"},
+		{"integer unsigned", "uint32"},
+		{"bigint unsigned", "uint64"},
+		{"double", "float64"},
+		{"float", "float32"},
+		{"varchar", "string"},
+		{"char", "string"},
+		{"tinytext", "string"},
+		{"mediumtext", "string"},
+		{"longtext", "string"},
+		{"tinyblob", "[]byte"},
+		{"mediumblob", "[]byte"},
+		{"longblob", "[]byte"},
+		{"binary", "[]byte"},
+		{"varbinary", "[]byte"},
+		{"datetime", "time.Time"},
+		{"timestamp", "time.Time"},
+		{"time", "string"},
+		{"year", "int16"},
+		{"enum", "string"},
+		{"set", "string"},
+		{"decimal", "string"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.dbType, func(t *testing.T) {
+			col := &schema.Column{DBType: tt.dbType}
+			got := m.GoTypeFor(col)
+			if got.Name != tt.want {
+				t.Errorf("GoTypeFor(%q) = %q, want %q", tt.dbType, got.Name, tt.want)
+			}
+		})
+	}
+}
+
+func TestSQLiteAffinityTypes(t *testing.T) {
+	m := newMapper(config.NullTypeGeneric, nil)
+
+	tests := []struct {
+		dbType string
+		want   string
+	}{
+		{"integer", "int32"},
+		{"text", "string"},
+		{"real", "float32"},
+		{"blob", "[]byte"},
+		{"boolean", "bool"},
+		{"numeric", "string"},
+		{"varchar", "string"},
+		{"bigint", "int64"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.dbType, func(t *testing.T) {
+			col := &schema.Column{DBType: tt.dbType}
+			got := m.GoTypeFor(col)
+			if got.Name != tt.want {
+				t.Errorf("GoTypeFor(%q) = %q, want %q", tt.dbType, got.Name, tt.want)
+			}
+		})
+	}
+}
+
 func TestParseTypeString(t *testing.T) {
 	tests := []struct {
 		input      string

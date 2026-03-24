@@ -603,3 +603,183 @@ func TestParseNamedUniqueConstraint(t *testing.T) {
 		t.Errorf("unique constraint columns = %v, want [email, org_id]", uq.Columns)
 	}
 }
+
+func TestAffinityEdgeCases(t *testing.T) {
+	s := mustParse(t, `
+		CREATE TABLE affinity_test (
+			id INTEGER PRIMARY KEY,
+			a CHARINT,
+			b INTCHAR,
+			c REALVALUE,
+			d DOUBLETHING,
+			e FLOATNUM,
+			f CLOBDATA,
+			g TEXTUAL,
+			h BLOBBY,
+			i DECIMAL,
+			j NUMERIC,
+			k MEDIUMINT,
+			l NVARCHAR(100),
+			m VARYING CHARACTER(50)
+		);
+	`)
+
+	table := s.Tables[0]
+	tests := []struct {
+		col    string
+		dbType string
+	}{
+		// CHARINT contains both "CHAR" and "INT". Per SQLite rules, INT wins (rule 1).
+		{"a", "integer"},
+		// INTCHAR contains "INT" -> integer
+		{"b", "integer"},
+		// REALVALUE contains "REAL" -> double precision
+		{"c", "double precision"},
+		// DOUBLETHING contains "DOUB" -> double precision
+		{"d", "double precision"},
+		// FLOATNUM contains "FLOA" -> double precision
+		{"e", "double precision"},
+		// CLOBDATA contains "CLOB" -> text
+		{"f", "text"},
+		// TEXTUAL contains "TEXT" -> text
+		{"g", "text"},
+		// BLOBBY contains "BLOB" -> blob
+		{"h", "blob"},
+		// DECIMAL is in the exact map -> numeric
+		{"i", "numeric"},
+		// NUMERIC is in the exact map -> numeric
+		{"j", "numeric"},
+		// MEDIUMINT is in the exact map -> integer
+		{"k", "integer"},
+		// NVARCHAR is in the exact map -> text
+		{"l", "text"},
+		// VARYING CHARACTER is in the exact map -> text
+		{"m", "text"},
+	}
+
+	for _, tt := range tests {
+		col := table.FindColumn(tt.col)
+		if col == nil {
+			t.Errorf("column %q not found", tt.col)
+			continue
+		}
+		if col.DBType != tt.dbType {
+			t.Errorf("col %q: DBType = %q, want %q", tt.col, col.DBType, tt.dbType)
+		}
+	}
+}
+
+func TestNoTypeColumn(t *testing.T) {
+	s := mustParse(t, `
+		CREATE TABLE flexible (
+			id INTEGER PRIMARY KEY,
+			untyped,
+			also_untyped NOT NULL
+		);
+	`)
+
+	table := s.Tables[0]
+
+	untyped := table.FindColumn("untyped")
+	if untyped == nil {
+		t.Fatal("untyped column not found")
+	}
+	if untyped.DBType != "blob" {
+		t.Errorf("untyped.DBType = %q, want blob", untyped.DBType)
+	}
+	if !untyped.IsNullable {
+		t.Error("untyped should be nullable (no NOT NULL)")
+	}
+
+	alsoUntyped := table.FindColumn("also_untyped")
+	if alsoUntyped == nil {
+		t.Fatal("also_untyped column not found")
+	}
+	if alsoUntyped.DBType != "blob" {
+		t.Errorf("also_untyped.DBType = %q, want blob", alsoUntyped.DBType)
+	}
+	if alsoUntyped.IsNullable {
+		t.Error("also_untyped should not be nullable")
+	}
+}
+
+func TestMultiForeignKeysInOneTable(t *testing.T) {
+	s := mustParse(t, `
+		CREATE TABLE authors (id INTEGER PRIMARY KEY);
+		CREATE TABLE categories (id INTEGER PRIMARY KEY);
+		CREATE TABLE tags (id INTEGER PRIMARY KEY);
+		CREATE TABLE articles (
+			id INTEGER PRIMARY KEY,
+			author_id INTEGER NOT NULL REFERENCES authors(id) ON DELETE CASCADE,
+			category_id INTEGER REFERENCES categories(id) ON DELETE SET NULL,
+			tag_id INTEGER REFERENCES tags(id),
+			FOREIGN KEY (author_id) REFERENCES authors(id)
+		);
+	`)
+
+	articles := findTable(s, "articles")
+	if articles == nil {
+		t.Fatal("articles table not found")
+	}
+	// 3 inline FKs + 1 table-level FK = 4 total
+	if len(articles.ForeignKeys) != 4 {
+		t.Fatalf("expected 4 FKs, got %d", len(articles.ForeignKeys))
+	}
+
+	// Verify the inline FKs have correct ref tables.
+	if articles.ForeignKeys[0].RefTable != "authors" {
+		t.Errorf("FK[0] RefTable = %q, want authors", articles.ForeignKeys[0].RefTable)
+	}
+	if articles.ForeignKeys[0].OnDelete != schema.ActionCascade {
+		t.Errorf("FK[0] OnDelete = %q, want CASCADE", articles.ForeignKeys[0].OnDelete)
+	}
+	if articles.ForeignKeys[1].RefTable != "categories" {
+		t.Errorf("FK[1] RefTable = %q, want categories", articles.ForeignKeys[1].RefTable)
+	}
+	if articles.ForeignKeys[1].OnDelete != schema.ActionSetNull {
+		t.Errorf("FK[1] OnDelete = %q, want SET NULL", articles.ForeignKeys[1].OnDelete)
+	}
+	if articles.ForeignKeys[2].RefTable != "tags" {
+		t.Errorf("FK[2] RefTable = %q, want tags", articles.ForeignKeys[2].RefTable)
+	}
+	// Table-level FK
+	if articles.ForeignKeys[3].RefTable != "authors" {
+		t.Errorf("FK[3] RefTable = %q, want authors", articles.ForeignKeys[3].RefTable)
+	}
+}
+
+func TestGeneratedColumns(t *testing.T) {
+	// GENERATED ALWAYS AS columns should parse without error.
+	// The parser skips the GENERATED clause, so the column should exist
+	// with its base type preserved.
+	s := mustParse(t, `
+		CREATE TABLE products (
+			id INTEGER PRIMARY KEY,
+			price REAL NOT NULL,
+			tax REAL NOT NULL,
+			total REAL GENERATED ALWAYS AS (price + tax) STORED,
+			label TEXT GENERATED ALWAYS AS (CAST(price AS TEXT)) VIRTUAL
+		);
+	`)
+
+	table := s.Tables[0]
+	if len(table.Columns) != 5 {
+		t.Fatalf("expected 5 columns, got %d", len(table.Columns))
+	}
+
+	total := table.FindColumn("total")
+	if total == nil {
+		t.Fatal("total column not found")
+	}
+	if total.DBType != "double precision" {
+		t.Errorf("total.DBType = %q, want double precision", total.DBType)
+	}
+
+	label := table.FindColumn("label")
+	if label == nil {
+		t.Fatal("label column not found")
+	}
+	if label.DBType != "text" {
+		t.Errorf("label.DBType = %q, want text", label.DBType)
+	}
+}

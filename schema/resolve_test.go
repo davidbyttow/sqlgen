@@ -219,6 +219,176 @@ func TestIsJoinTable(t *testing.T) {
 	}
 }
 
+func TestJoinTable3FKNotDetected(t *testing.T) {
+	s := &Schema{
+		Tables: []*Table{
+			{
+				Name:       "a",
+				Columns:    []*Column{{Name: "id", DBType: "integer"}},
+				PrimaryKey: &PrimaryKey{Columns: []string{"id"}},
+			},
+			{
+				Name:       "b",
+				Columns:    []*Column{{Name: "id", DBType: "integer"}},
+				PrimaryKey: &PrimaryKey{Columns: []string{"id"}},
+			},
+			{
+				Name:       "c",
+				Columns:    []*Column{{Name: "id", DBType: "integer"}},
+				PrimaryKey: &PrimaryKey{Columns: []string{"id"}},
+			},
+			{
+				Name:    "a_b_c",
+				Columns: []*Column{{Name: "a_id"}, {Name: "b_id"}, {Name: "c_id"}},
+				PrimaryKey: &PrimaryKey{Columns: []string{"a_id", "b_id", "c_id"}},
+				ForeignKeys: []*ForeignKey{
+					{Columns: []string{"a_id"}, RefTable: "a", RefColumns: []string{"id"}},
+					{Columns: []string{"b_id"}, RefTable: "b", RefColumns: []string{"id"}},
+					{Columns: []string{"c_id"}, RefTable: "c", RefColumns: []string{"id"}},
+				},
+			},
+		},
+	}
+
+	if isJoinTable(s.Tables[3]) {
+		t.Error("table with 3 FKs should NOT be detected as a join table")
+	}
+
+	ResolveRelationships(s)
+
+	abc := s.Tables[3]
+	btCount := 0
+	for _, r := range abc.Relationships {
+		if r.Type == RelBelongsTo {
+			btCount++
+		}
+	}
+	if btCount != 3 {
+		t.Errorf("expected 3 BelongsTo relationships, got %d", btCount)
+	}
+
+	for _, tbl := range s.Tables[:3] {
+		for _, r := range tbl.Relationships {
+			if r.Type == RelManyToMany {
+				t.Errorf("table %q should not have ManyToMany relationship", tbl.Name)
+			}
+		}
+	}
+}
+
+func TestSelfRefJoinTable(t *testing.T) {
+	s := &Schema{
+		Tables: []*Table{
+			{
+				Name:       "users",
+				Columns:    []*Column{{Name: "id", DBType: "integer"}},
+				PrimaryKey: &PrimaryKey{Columns: []string{"id"}},
+			},
+			{
+				Name:    "friendships",
+				Columns: []*Column{{Name: "user_id", DBType: "integer"}, {Name: "friend_id", DBType: "integer"}},
+				PrimaryKey: &PrimaryKey{Columns: []string{"user_id", "friend_id"}},
+				ForeignKeys: []*ForeignKey{
+					{Columns: []string{"user_id"}, RefTable: "users", RefColumns: []string{"id"}},
+					{Columns: []string{"friend_id"}, RefTable: "users", RefColumns: []string{"id"}},
+				},
+			},
+		},
+	}
+
+	if !isJoinTable(s.Tables[1]) {
+		t.Fatal("friendships should be detected as a join table")
+	}
+
+	ResolveRelationships(s)
+
+	users := s.Tables[0]
+	m2mCount := 0
+	for _, r := range users.Relationships {
+		if r.Type == RelManyToMany {
+			m2mCount++
+			if r.ForeignTable != "users" {
+				t.Errorf("ManyToMany foreign table = %q, want users", r.ForeignTable)
+			}
+			if r.JoinTable != "friendships" {
+				t.Errorf("ManyToMany join table = %q, want friendships", r.JoinTable)
+			}
+		}
+	}
+	if m2mCount != 2 {
+		t.Errorf("expected 2 ManyToMany rels on users (self-referencing), got %d", m2mCount)
+	}
+}
+
+func TestMissingTableFK(t *testing.T) {
+	s := &Schema{
+		Tables: []*Table{
+			{
+				Name:       "orders",
+				Columns:    []*Column{{Name: "id"}, {Name: "customer_id"}},
+				PrimaryKey: &PrimaryKey{Columns: []string{"id"}},
+				ForeignKeys: []*ForeignKey{
+					{Columns: []string{"customer_id"}, RefTable: "customers", RefColumns: []string{"id"}},
+				},
+			},
+		},
+	}
+
+	ResolveRelationships(s)
+
+	orders := s.Tables[0]
+	if len(orders.Relationships) != 0 {
+		t.Errorf("expected 0 relationships (FK target missing), got %d", len(orders.Relationships))
+	}
+}
+
+func TestCompositeFKColumns(t *testing.T) {
+	s := &Schema{
+		Tables: []*Table{
+			{
+				Name:    "tenant_resources",
+				Columns: []*Column{{Name: "tenant_id"}, {Name: "resource_id"}},
+				PrimaryKey: &PrimaryKey{Columns: []string{"tenant_id", "resource_id"}},
+			},
+			{
+				Name:    "allocations",
+				Columns: []*Column{{Name: "id"}, {Name: "tenant_id"}, {Name: "resource_id"}},
+				PrimaryKey: &PrimaryKey{Columns: []string{"id"}},
+				ForeignKeys: []*ForeignKey{
+					{
+						Columns:    []string{"tenant_id", "resource_id"},
+						RefTable:   "tenant_resources",
+						RefColumns: []string{"tenant_id", "resource_id"},
+					},
+				},
+			},
+		},
+	}
+
+	ResolveRelationships(s)
+
+	allocations := s.Tables[1]
+	bt := findRel(allocations.Relationships, RelBelongsTo, "tenant_resources")
+	if bt == nil {
+		t.Fatal("allocations should have BelongsTo tenant_resources")
+	}
+	if len(bt.Columns) != 2 {
+		t.Fatalf("expected 2 FK columns, got %d", len(bt.Columns))
+	}
+	if bt.Columns[0] != "tenant_id" || bt.Columns[1] != "resource_id" {
+		t.Errorf("FK columns = %v, want [tenant_id resource_id]", bt.Columns)
+	}
+
+	tr := s.Tables[0]
+	hm := findRel(tr.Relationships, RelHasMany, "allocations")
+	if hm == nil {
+		t.Fatal("tenant_resources should have HasMany allocations")
+	}
+	if len(hm.ForeignColumns) != 2 {
+		t.Errorf("HasMany foreign columns = %v, want 2 columns", hm.ForeignColumns)
+	}
+}
+
 func TestResolvePolymorphic(t *testing.T) {
 	s := &Schema{
 		Tables: []*Table{

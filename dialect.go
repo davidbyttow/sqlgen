@@ -1,6 +1,9 @@
 package sqlgen
 
-import "strconv"
+import (
+	"strconv"
+	"strings"
+)
 
 // Dialect provides database-specific SQL generation behavior.
 type Dialect interface {
@@ -23,7 +26,7 @@ func (PostgresDialect) Placeholder(n int) string {
 }
 
 func (PostgresDialect) QuoteIdent(name string) string {
-	return `"` + name + `"`
+	return `"` + strings.ReplaceAll(name, `"`, `""`) + `"`
 }
 
 func (PostgresDialect) SupportsReturning() bool {
