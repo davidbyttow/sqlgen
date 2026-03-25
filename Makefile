@@ -1,4 +1,4 @@
-.PHONY: test test-v test-short lint build install generate golden clean
+.PHONY: test test-v test-short lint build install generate golden clean accept
 
 # Run all tests.
 test:
@@ -36,6 +36,10 @@ golden:
 test-clean:
 	go clean -testcache
 	go test ./...
+
+# Run the acceptance test (requires Docker).
+accept:
+	cd examples/acceptance && go run .
 
 # Remove build artifacts.
 clean:
