@@ -1,0 +1,26 @@
+input:
+  dialect: postgres
+  paths: ["schema.sql"]
+
+output:
+  dir: models
+  package: models
+  tests: true
+  factories: true
+
+types:
+  null_type: generic
+
+tags:
+  json: snake
+  db: snake
+
+timestamps:
+  created_at: true
+
+polymorphic:
+  - table: comments
+    type_column: commentable_type
+    id_column: commentable_id
+    targets:
+      Post: posts
